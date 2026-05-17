@@ -724,7 +724,7 @@ function MovementHistoryScreen({ movements, setView, assets, deleteMovement }) {
 }
 
 // --- Searchable Asset Input ---
-function AssetSearchInput({ assets, value, onChange, isIn }) {
+function AssetSearchInput({ assets, value, onChange, isIn, showListSignal }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
@@ -760,6 +760,13 @@ function AssetSearchInput({ assets, value, onChange, isIn }) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (showListSignal > 0) {
+      setSearchTerm('');
+      setIsOpen(true);
+    }
+  }, [showListSignal]);
 
   return (
     <div className="relative w-full" ref={containerRef}>
@@ -819,6 +826,7 @@ function EntryScreen({ type, onSave, onCancel, assets, staff }) {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [assetListSignal, setAssetListSignal] = useState(0);
 
   useEffect(() => {
     if (!form.staffId && staff.length > 0) {
@@ -878,8 +886,15 @@ function EntryScreen({ type, onSave, onCancel, assets, staff }) {
                 value={form.assetId} 
                 onChange={(id) => setForm({...form, assetId: id})}
                 isIn={isIn}
+                showListSignal={assetListSignal}
               />
-              <Button variant="action" className="whitespace-nowrap">資産一覧/選択</Button>
+              <Button
+                variant="action"
+                className="whitespace-nowrap"
+                onClick={() => setAssetListSignal((value) => value + 1)}
+              >
+                資産一覧/選択
+              </Button>
             </div>
           </div>
 
