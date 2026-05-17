@@ -49,6 +49,7 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
 const PAGE_SIZE = 1000;
 const SESSION_STORAGE_KEY = 'invent_manage_supabase_session';
+const SAVED_EMAIL_STORAGE_KEY = 'invent_manage_saved_email';
 
 function getStoredSession() {
   try {
@@ -74,6 +75,18 @@ function storeSession(session) {
 
 function clearStoredSession() {
   localStorage.removeItem(SESSION_STORAGE_KEY);
+}
+
+function getSavedEmail() {
+  return localStorage.getItem(SAVED_EMAIL_STORAGE_KEY) || '';
+}
+
+function storeSavedEmail(email) {
+  localStorage.setItem(SAVED_EMAIL_STORAGE_KEY, email);
+}
+
+function clearSavedEmail() {
+  localStorage.removeItem(SAVED_EMAIL_STORAGE_KEY);
 }
 
 async function signInWithPassword(email, password) {
@@ -257,8 +270,9 @@ const Card = ({ children, className = "" }) => (
 );
 
 function LoginScreen({ onLogin }) {
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => getSavedEmail());
   const [password, setPassword] = useState('');
+  const [shouldRememberEmail, setShouldRememberEmail] = useState(() => Boolean(getSavedEmail()));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -271,6 +285,11 @@ function LoginScreen({ onLogin }) {
 
     try {
       await onLogin(email, password);
+      if (shouldRememberEmail) {
+        storeSavedEmail(email);
+      } else {
+        clearSavedEmail();
+      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -308,6 +327,16 @@ function LoginScreen({ onLogin }) {
               autoComplete="current-password"
             />
           </div>
+
+          <label className="flex items-center gap-2 text-sm font-bold text-slate-600">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-slate-300 text-blue-600"
+              checked={shouldRememberEmail}
+              onChange={(event) => setShouldRememberEmail(event.target.checked)}
+            />
+            IDを保存する
+          </label>
 
           {error && (
             <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
