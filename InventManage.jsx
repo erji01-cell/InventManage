@@ -24,12 +24,12 @@ import {
 
 // --- Mock Data ---
 const INITIAL_ASSETS = [
-  { id: '541', maker: 'テルモ', name: 'アセリオ静注液1000mgバッグ 20袋', categoryId: '1', category: '注射液', price: 6076, unit: '箱', supplierId: '1', supplier: 'アトル', memo: '' },
-  { id: '398', maker: '田辺三菱', name: 'アドナ注25mg 5ml 10A', categoryId: '1', category: '注射液', price: 535, unit: '箱', supplierId: '2', supplier: '翔薬', memo: '' },
-  { id: '32', maker: 'テルモ', name: 'アドレナリン注0.1% 10本', categoryId: '1', category: '注射液', price: 3219, unit: '箱', supplierId: '2', supplier: '翔薬', memo: '1診に1本常備' },
-  { id: '27', maker: 'ニプロ', name: 'アトロピン0.5mg 1ml 10A', categoryId: '1', category: '注射液', price: 844, unit: '箱', supplierId: '1', supplier: 'アトル', memo: '' },
-  { id: '1', maker: 'アステラス製薬', name: 'アネキセート注射液0.5mg 5A', categoryId: '1', category: '注射液', price: 9095, unit: '箱', supplierId: '1', supplier: 'アトル', memo: '返品不可' },
-  { id: '34', maker: 'ファイザー', name: 'エピペン 0.3 大人用', categoryId: '1', category: '注射液', price: 8561, unit: '本', supplierId: '2', supplier: '翔薬', expiry: '2025-07-31', memo: '2本常備' },
+  { id: '541', maker: 'テルモ', name: 'アセリオ静注液1000mgバッグ 20袋', categoryId: '1', category: '注射液', deliveryPrice: 6076, usageUnitPrice: 304, usageUnit: '袋', supplierId: '1', supplier: 'アトル', memo: '' },
+  { id: '398', maker: '田辺三菱', name: 'アドナ注25mg 5ml 10A', categoryId: '1', category: '注射液', deliveryPrice: 535, usageUnitPrice: 54, usageUnit: 'A', supplierId: '2', supplier: '翔薬', memo: '' },
+  { id: '32', maker: 'テルモ', name: 'アドレナリン注0.1% 10本', categoryId: '1', category: '注射液', deliveryPrice: 3219, usageUnitPrice: 322, usageUnit: '本', supplierId: '2', supplier: '翔薬', memo: '1診に1本常備' },
+  { id: '27', maker: 'ニプロ', name: 'アトロピン0.5mg 1ml 10A', categoryId: '1', category: '注射液', deliveryPrice: 844, usageUnitPrice: 84, usageUnit: 'A', supplierId: '1', supplier: 'アトル', memo: '' },
+  { id: '1', maker: 'アステラス製薬', name: 'アネキセート注射液0.5mg 5A', categoryId: '1', category: '注射液', deliveryPrice: 9095, usageUnitPrice: 1819, usageUnit: 'A', supplierId: '1', supplier: 'アトル', memo: '返品不可' },
+  { id: '34', maker: 'ファイザー', name: 'エピペン 0.3 大人用', categoryId: '1', category: '注射液', deliveryPrice: 8561, usageUnitPrice: 8561, usageUnit: '本', supplierId: '2', supplier: '翔薬', expiry: '2025-07-31', memo: '2本常備' },
 ];
 
 const STAFF = [
@@ -183,12 +183,20 @@ function normalizeAsset(row, parentMap, supplierMap) {
     name: row.brand_name,
     kanaName: row.kana_name || '',
     category: parent?.category || '',
-    price: toNumber(row.price),
+    parentGenericName: parent?.generic_name || '',
+    parentCategory: parent?.category || '',
+    parentSafetyStock: parent?.safety_stock ?? '',
+    parentCreatedAt: parent?.created_at || '',
+    packSize: toNumber(row.pack_size || 1),
     deliveryPrice: toNumber(row.delivery_price),
-    unit: row.unit,
+    usageUnitPrice: toNumber(row.usage_unit_price),
+    usageUnit: row.usage_unit,
     purchaseUnit: row.purchase_unit || '',
     supplierId: row.supplier_id ? String(row.supplier_id) : '',
     supplier: supplier?.name || '',
+    janCode: row.jan_code || '',
+    isActive: row.is_active !== false,
+    childCreatedAt: row.created_at || '',
     openingStock: toNumber(row.opening_stock),
     memo: '',
   };
@@ -438,7 +446,7 @@ export default function App() {
           movement_date: data.date,
           movement_type: data.type,
           quantity: Number(data.quantity),
-          actual_delivery_price: asset?.deliveryPrice || asset?.price || 0,
+          actual_delivery_price: asset?.deliveryPrice || 0,
           expiration_date: null,
           lot_number: null,
           staff_code: staffMember ? Number(staffMember.id) : null,
@@ -575,30 +583,42 @@ function AssetMasterScreen({ assets, setAssets, setView }) {
       </div>
 
       <div className="overflow-auto border border-slate-200 rounded-lg flex-1">
-        <table className="w-full text-left border-collapse min-w-[1000px]">
+        <table className="w-full text-left border-collapse min-w-[2600px] text-sm">
           <thead className="bg-slate-100 sticky top-0">
             <tr>
-              <th className="p-3 border-b border-slate-200">資産コード</th>
-              <th className="p-3 border-b border-slate-200">メーカー</th>
-              <th className="p-3 border-b border-slate-200">品 名</th>
-              <th className="p-3 border-b border-slate-200">分類</th>
-              <th className="p-3 border-b border-slate-200 text-right">単 価</th>
-              <th className="p-3 border-b border-slate-200 text-center">単位</th>
-              <th className="p-3 border-b border-slate-200">取引先</th>
-              <th className="p-3 border-b border-slate-200">摘要</th>
+              <th className="p-3 border-b border-slate-200">id</th>
+              <th className="p-3 border-b border-slate-200 w-24">parent_id</th>
+              <th className="p-3 border-b border-slate-200 w-32">メーカー</th>
+              <th className="p-3 border-b border-slate-200 w-72">品名</th>
+              <th className="p-3 border-b border-slate-200 w-20">分類</th>
+              <th className="p-3 border-b border-slate-200 text-right">購入価格</th>
+              <th className="p-3 border-b border-slate-200 w-20">購入単位</th>
+              <th className="p-3 border-b border-slate-200 text-right">入数</th>
+              <th className="p-3 border-b border-slate-200 w-20">使用単位</th>
+              <th className="p-3 border-b border-slate-200 text-right">使用単価</th>
+              <th className="p-3 border-b border-slate-200 w-16">supplier_id</th>
+              <th className="p-3 border-b border-slate-200 w-24">取引先</th>
+              <th className="p-3 border-b border-slate-200">jan_code</th>
+              <th className="p-3 border-b border-slate-200">parent.generic_name</th>
             </tr>
           </thead>
           <tbody>
             {filteredAssets.map(asset => (
               <tr key={asset.id} className="hover:bg-blue-50 transition-colors border-b border-slate-100">
                 <td className="p-3 font-mono text-slate-500">{asset.id}</td>
-                <td className="p-3">{asset.maker}</td>
-                <td className="p-3 font-medium text-blue-700">{asset.name}</td>
-                <td className="p-3 text-slate-500">{asset.category}</td>
-                <td className="p-3 text-right">¥{asset.price.toLocaleString()}</td>
-                <td className="p-3 text-center">{asset.unit}</td>
-                <td className="p-3">{asset.supplier}</td>
-                <td className="p-3 text-slate-400 text-sm italic">{asset.memo}</td>
+                <td className="p-3 w-24 max-w-24 font-mono text-slate-500 whitespace-normal break-words">{asset.parentId}</td>
+                <td className="p-3 w-32 max-w-32 whitespace-normal break-words">{asset.maker}</td>
+                <td className="p-3 w-72 max-w-72 whitespace-normal break-words font-medium text-blue-700">{asset.name}</td>
+                <td className="p-3 w-20 max-w-20 whitespace-normal break-words">{asset.parentCategory}</td>
+                <td className="p-3 text-right">¥{asset.deliveryPrice.toLocaleString()}</td>
+                <td className="p-3 w-20 max-w-20 whitespace-normal break-words">{asset.purchaseUnit}</td>
+                <td className="p-3 text-right">{asset.packSize}</td>
+                <td className="p-3 w-20 max-w-20 text-center whitespace-normal break-words">{asset.usageUnit}</td>
+                <td className="p-3 text-right">¥{asset.usageUnitPrice.toLocaleString()}</td>
+                <td className="p-3 w-16 max-w-16 font-mono whitespace-normal break-words">{asset.supplierId}</td>
+                <td className="p-3 w-24 max-w-24 whitespace-normal break-words">{asset.supplier}</td>
+                <td className="p-3">{asset.janCode}</td>
+                <td className="p-3">{asset.parentGenericName}</td>
               </tr>
             ))}
           </tbody>
@@ -699,7 +719,7 @@ function MovementHistoryScreen({ movements, setView, assets, deleteMovement }) {
                   <td className={`p-3 text-right font-bold ${m.type === 'out' ? 'text-rose-600' : 'text-slate-300'}`}>
                     {m.type === 'out' ? m.quantity : 0}
                   </td>
-                  <td className="p-3">{asset?.unit}</td>
+                  <td className="p-3">{asset?.usageUnit}</td>
                   <td className="p-3 text-slate-600">{m.staffName}</td>
                   <td className="p-3">
                     <button 
@@ -908,8 +928,12 @@ function EntryScreen({ type, onSave, onCancel, assets, staff }) {
               <span className="col-span-2 font-medium">{selectedAsset?.name || '-'}</span>
             </div>
             <div className="grid grid-cols-3">
-              <span className="text-slate-500 font-bold">単価:</span>
-              <span className="col-span-2">¥{(selectedAsset?.price || 0).toLocaleString()}</span>
+              <span className="text-slate-500 font-bold">購入価格:</span>
+              <span className="col-span-2">¥{(selectedAsset?.deliveryPrice || 0).toLocaleString()}</span>
+            </div>
+            <div className="grid grid-cols-3">
+              <span className="text-slate-500 font-bold">使用単価:</span>
+              <span className="col-span-2">¥{(selectedAsset?.usageUnitPrice || 0).toLocaleString()}</span>
             </div>
           </div>
 
@@ -936,7 +960,7 @@ function EntryScreen({ type, onSave, onCancel, assets, staff }) {
                   value={form.quantity}
                   onChange={(e) => setForm({...form, quantity: parseInt(e.target.value) || 0})}
                 />
-                <span className="font-bold text-slate-600">{selectedAsset?.unit || '個'}</span>
+                <span className="font-bold text-slate-600">{selectedAsset?.usageUnit || '個'}</span>
               </div>
               <p className="text-xs text-rose-500 font-bold">{isIn ? '入庫数' : '出庫数'}は 使用単位 で入力して下さい</p>
             </div>
@@ -984,7 +1008,7 @@ function StockStatusScreen({ assets, movements, setView }) {
       const outboundTotal = assetMovements.filter(m => m.type === 'out').reduce((sum, m) => sum + m.quantity, 0);
       const initialStock = asset.openingStock || 0; 
       const currentStock = initialStock + inboundTotal - outboundTotal;
-      const stockValue = currentStock * asset.price;
+      const stockValue = currentStock * asset.usageUnitPrice;
 
       return { ...asset, prevMonth: initialStock, inbound: inboundTotal, outbound: outboundTotal, currentStock, stockValue };
     });
@@ -1027,8 +1051,8 @@ function StockStatusScreen({ assets, movements, setView }) {
               <th className="p-3 border-b border-slate-200 text-right bg-blue-50/50">入庫数</th>
               <th className="p-3 border-b border-slate-200 text-right bg-blue-50/50">出庫数</th>
               <th className="p-3 border-b border-slate-200 text-right bg-rose-50/50 font-bold">在庫数</th>
-              <th className="p-3 border-b border-slate-200 text-center">単位</th>
-              <th className="p-3 border-b border-slate-200 text-right">単 価</th>
+              <th className="p-3 border-b border-slate-200 text-center">使用単位</th>
+              <th className="p-3 border-b border-slate-200 text-right">使用単価</th>
               <th className="p-3 border-b border-slate-200 text-right font-bold text-blue-800">在庫金額</th>
             </tr>
           </thead>
@@ -1042,8 +1066,8 @@ function StockStatusScreen({ assets, movements, setView }) {
                 <td className="p-3 text-right bg-blue-50/20">{row.inbound}</td>
                 <td className="p-3 text-right bg-blue-50/20">{row.outbound}</td>
                 <td className="p-3 text-right bg-rose-50/20 font-bold">{row.currentStock}</td>
-                <td className="p-3 text-center">{row.unit}</td>
-                <td className="p-3 text-right">¥{row.price.toLocaleString()}</td>
+                <td className="p-3 text-center">{row.usageUnit}</td>
+                <td className="p-3 text-right">¥{row.usageUnitPrice.toLocaleString()}</td>
                 <td className="p-3 text-right font-bold text-blue-600 bg-blue-50/10">¥{row.stockValue.toLocaleString()}</td>
               </tr>
             ))}

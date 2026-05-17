@@ -42,7 +42,7 @@ INTEGER_COLUMNS = {
 }
 
 NUMERIC_COLUMNS = {
-    "invent_child_assets": {"price", "delivery_price"},
+    "invent_child_assets": {"delivery_price"},
     "invent_stock_movements": {"actual_delivery_price"},
 }
 
