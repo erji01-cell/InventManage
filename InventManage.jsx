@@ -45,6 +45,119 @@ const CATEGORIES = [
   { id: '7', name: '内視鏡' }
 ];
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
+const PAGE_SIZE = 1000;
+
+async function supabaseRequest(path, options = {}) {
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    throw new Error('SupabaseのURLまたは公開キーが設定されていません。.envを確認してください。');
+  }
+
+  const response = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...options,
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
+  });
+
+  const text = await response.text();
+  const payload = text ? JSON.parse(text) : null;
+
+  if (!response.ok) {
+    throw new Error(payload?.message || 'Supabaseへの接続でエラーが発生しました。');
+  }
+
+  return payload;
+}
+
+async function fetchTable(tableName, orderBy = 'id.asc') {
+  const rows = [];
+
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    const page = await supabaseRequest(
+      `${tableName}?select=*&order=${orderBy}&limit=${PAGE_SIZE}&offset=${offset}`
+    );
+    rows.push(...page);
+
+    if (page.length < PAGE_SIZE) {
+      return rows;
+    }
+  }
+}
+
+const toNumber = (value) => Number(value ?? 0) || 0;
+
+function normalizeAsset(row, parentMap, supplierMap) {
+  const parent = parentMap.get(row.parent_id);
+  const supplier = supplierMap.get(row.supplier_id);
+
+  return {
+    id: String(row.id),
+    parentId: row.parent_id,
+    maker: row.maker,
+    name: row.brand_name,
+    kanaName: row.kana_name || '',
+    category: parent?.category || '',
+    price: toNumber(row.price),
+    deliveryPrice: toNumber(row.delivery_price),
+    unit: row.unit,
+    purchaseUnit: row.purchase_unit || '',
+    supplierId: row.supplier_id ? String(row.supplier_id) : '',
+    supplier: supplier?.name || '',
+    openingStock: toNumber(row.opening_stock),
+    memo: '',
+  };
+}
+
+function normalizeMovement(row, staffMap) {
+  const staffId = row.staff_code ? String(row.staff_code) : '';
+  const staff = staffMap.get(row.staff_code);
+
+  return {
+    id: row.id,
+    assetId: String(row.child_asset_id),
+    date: row.movement_date,
+    type: row.movement_type,
+    quantity: toNumber(row.quantity),
+    actualDeliveryPrice: toNumber(row.actual_delivery_price),
+    expirationDate: row.expiration_date || '',
+    staffId,
+    staffName: row.staff_name || staff?.name || '',
+    memo: row.memo || '',
+  };
+}
+
+async function loadInventoryData() {
+  const [suppliers, staff, parents, childAssets, movements] = await Promise.all([
+    fetchTable('invent_suppliers'),
+    fetchTable('invent_staff'),
+    fetchTable('invent_parent_assets'),
+    fetchTable('invent_child_assets'),
+    fetchTable('invent_stock_movements', 'movement_date.desc'),
+  ]);
+
+  const supplierMap = new Map(suppliers.map((supplier) => [supplier.id, supplier]));
+  const staffMap = new Map(staff.map((member) => [member.id, member]));
+  const parentMap = new Map(parents.map((parent) => [parent.id, parent]));
+
+  return {
+    suppliers,
+    staff: staff.map((member) => ({
+      id: String(member.id),
+      name: member.name,
+      isActive: member.is_active !== false,
+    })),
+    assets: childAssets
+      .filter((asset) => asset.is_active !== false)
+      .map((asset) => normalizeAsset(asset, parentMap, supplierMap)),
+    movements: movements.map((movement) => normalizeMovement(movement, staffMap)),
+  };
+}
+
 // --- Utility Components ---
 const Button = ({ children, onClick, variant = 'primary', className = '', disabled = false, type = "button" }) => {
   const baseStyle = "px-4 py-2 rounded-md font-medium transition-all flex items-center justify-center gap-2 shadow-sm border";
@@ -79,15 +192,80 @@ const Card = ({ children, className = "" }) => (
 
 export default function App() {
   const [view, setView] = useState('menu');
-  const [assets, setAssets] = useState(INITIAL_ASSETS);
+  const [assets, setAssets] = useState([]);
   const [movements, setMovements] = useState([]);
+  const [staff, setStaff] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const refreshData = async () => {
+    setError('');
+    const data = await loadInventoryData();
+    setAssets(data.assets);
+    setMovements(data.movements);
+    setStaff(data.staff);
+  };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    loadInventoryData()
+      .then((data) => {
+        if (!isMounted) return;
+        setAssets(data.assets);
+        setMovements(data.movements);
+        setStaff(data.staff);
+      })
+      .catch((err) => {
+        if (!isMounted) return;
+        setError(err.message);
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
   
-  const addMovement = (data) => {
-    setMovements(prev => [{ ...data, id: Date.now() }, ...prev]);
+  const addMovement = async (data) => {
+    const asset = assets.find((item) => item.id === data.assetId);
+    const staffMember = staff.find((member) => member.id === data.staffId);
+
+    const [created] = await supabaseRequest('invent_stock_movements?select=*', {
+      method: 'POST',
+      headers: {
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify({
+        child_asset_id: Number(data.assetId),
+        movement_date: data.date,
+        movement_type: data.type,
+        quantity: Number(data.quantity),
+        actual_delivery_price: asset?.deliveryPrice || asset?.price || 0,
+        expiration_date: null,
+        lot_number: null,
+        staff_code: staffMember ? Number(staffMember.id) : null,
+        staff_name: staffMember?.name || null,
+        memo: data.memo || null,
+      }),
+    });
+
+    const staffMap = new Map(staff.map((member) => [Number(member.id), member]));
+    setMovements(prev => [normalizeMovement(created, staffMap), ...prev]);
     setView('history');
   };
 
-  const deleteMovement = (id) => {
+  const deleteMovement = async (id) => {
+    await supabaseRequest(`invent_stock_movements?id=eq.${id}`, {
+      method: 'DELETE',
+      headers: {
+        Prefer: 'return=minimal',
+      },
+    });
     setMovements(prev => prev.filter(m => m.id !== id));
   };
 
@@ -96,8 +274,8 @@ export default function App() {
       case 'menu': return <MenuScreen setView={setView} />;
       case 'assets': return <AssetMasterScreen assets={assets} setAssets={setAssets} setView={setView} />;
       case 'history': return <MovementHistoryScreen movements={movements} setMovements={setMovements} setView={setView} assets={assets} deleteMovement={deleteMovement} />;
-      case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => setView('menu')} assets={assets} />;
-      case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => setView('menu')} assets={assets} />;
+      case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => setView('menu')} assets={assets} staff={staff} />;
+      case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => setView('menu')} assets={assets} staff={staff} />;
       case 'stock': return <StockStatusScreen assets={assets} movements={movements} setView={setView} />;
       default: return <MenuScreen setView={setView} />;
     }
@@ -106,6 +284,18 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
+        {isLoading && (
+          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 font-bold text-blue-700">
+            Supabaseからデータを読み込んでいます...
+          </div>
+        )}
+        {error && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
+            <div className="font-bold">データ接続エラー</div>
+            <div className="text-sm">{error}</div>
+            <Button variant="secondary" className="mt-3" onClick={refreshData}>再読み込み</Button>
+          </div>
+        )}
         {renderView()}
       </div>
     </div>
@@ -352,7 +542,8 @@ function AssetSearchInput({ assets, value, onChange, isIn }) {
     const lowerSearch = searchTerm.toLowerCase();
     return assets.filter(a => 
       a.id.toLowerCase().includes(lowerSearch) || 
-      a.name.toLowerCase().includes(lowerSearch)
+      a.name.toLowerCase().includes(lowerSearch) ||
+      a.kanaName.toLowerCase().includes(lowerSearch)
     ).slice(0, 10);
   }, [searchTerm, assets, isOpen, selectedAsset]);
 
@@ -409,30 +600,48 @@ function AssetSearchInput({ assets, value, onChange, isIn }) {
   );
 }
 
-function EntryScreen({ type, onSave, onCancel, assets }) {
+function EntryScreen({ type, onSave, onCancel, assets, staff }) {
   const isIn = type === 'in';
   const title = isIn ? '入庫データ入力・修正' : '出庫データ入力・修正';
   const accentColor = isIn ? 'text-emerald-700' : 'text-rose-700';
   const btnVariant = isIn ? 'success' : 'danger';
 
   const [form, setForm] = useState({
-    staffId: STAFF[0].id,
+    staffId: staff[0]?.id || '',
     assetId: '',
     date: new Date().toISOString().split('T')[0],
     quantity: 0,
     memo: ''
   });
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
+  useEffect(() => {
+    if (!form.staffId && staff.length > 0) {
+      setForm((current) => ({ ...current, staffId: staff[0].id }));
+    }
+  }, [form.staffId, staff]);
 
   const selectedAsset = assets.find(a => a.id === form.assetId);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.assetId || form.quantity <= 0) return;
-    onSave({
-      ...form,
-      type,
-      staffName: STAFF.find(s => s.id === form.staffId)?.name || '不明'
-    });
+    if (!form.assetId || form.quantity <= 0 || isSaving) return;
+
+    setIsSaving(true);
+    setSaveError('');
+
+    try {
+      await onSave({
+        ...form,
+        type,
+        staffName: staff.find(s => s.id === form.staffId)?.name || '不明'
+      });
+    } catch (err) {
+      setSaveError(err.message);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -451,7 +660,7 @@ function EntryScreen({ type, onSave, onCancel, assets }) {
                 value={form.staffId}
                 onChange={(e) => setForm({...form, staffId: e.target.value})}
               >
-                {STAFF.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
               <input readOnly value={form.staffId} className="w-16 p-2 bg-slate-100 text-center rounded border" />
             </div>
@@ -529,10 +738,17 @@ function EntryScreen({ type, onSave, onCancel, assets }) {
               <Button variant="danger" ghost><Trash2 size={18} /> 削除</Button>
             </div>
             <div className="flex gap-2">
-              <Button variant={btnVariant} className="px-10" onClick={handleSubmit}>登録</Button>
+              <Button variant={btnVariant} className="px-10" onClick={handleSubmit} disabled={isSaving}>
+                {isSaving ? '登録中...' : '登録'}
+              </Button>
               <Button variant="secondary" onClick={onCancel}>閉じる</Button>
             </div>
           </div>
+          {saveError && (
+            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {saveError}
+            </div>
+          )}
         </form>
       </Card>
     </div>
@@ -547,7 +763,7 @@ function StockStatusScreen({ assets, movements, setView }) {
       const assetMovements = movements.filter(m => m.assetId === asset.id);
       const inboundTotal = assetMovements.filter(m => m.type === 'in').reduce((sum, m) => sum + m.quantity, 0);
       const outboundTotal = assetMovements.filter(m => m.type === 'out').reduce((sum, m) => sum + m.quantity, 0);
-      const initialStock = 1; 
+      const initialStock = asset.openingStock || 0; 
       const currentStock = initialStock + inboundTotal - outboundTotal;
       const stockValue = currentStock * asset.price;
 

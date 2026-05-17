@@ -8,6 +8,7 @@ __pycache__/
 node_modules/
 dist/
 build/
+vite-dev.*.log
 
 .DS_Store
 Thumbs.db
