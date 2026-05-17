@@ -1,0 +1,70 @@
+{
+  "input_dir": "G:\\マイドライブ\\吉野個人用\\WebApp\\InventManage",
+  "output_dir": "outputs\\supabase_migration",
+  "files": {
+    "invent_suppliers.csv": 34,
+    "invent_staff.csv": 10,
+    "invent_parent_assets.csv": 484,
+    "invent_child_assets.csv": 539,
+    "invent_stock_movements.csv": 3230
+  },
+  "source_rows": {
+    "T_取引先マスタ.xlsx": 34,
+    "T_分類マスタ.xlsx": 9,
+    "T_資産マスタ.xlsx": 539,
+    "T_入出庫データ.xlsx": 3231,
+    "T_担当者マスタ.xlsx": 14
+  },
+  "warnings": [],
+  "supabase_schema_notes": {
+    "invent_suppliers": [
+      "id",
+      "name"
+    ],
+    "invent_staff": [
+      "id",
+      "name",
+      "is_active"
+    ],
+    "invent_parent_assets": [
+      "id",
+      "generic_name",
+      "category",
+      "safety_stock"
+    ],
+    "invent_child_assets": [
+      "id",
+      "parent_id",
+      "maker",
+      "brand_name",
+      "kana_name",
+      "opening_stock",
+      "price",
+      "delivery_price",
+      "unit",
+      "purchase_unit",
+      "supplier_id",
+      "jan_code",
+      "is_active"
+    ],
+    "invent_stock_movements": [
+      "id",
+      "child_asset_id",
+      "movement_date",
+      "movement_type",
+      "quantity",
+      "actual_delivery_price",
+      "expiration_date",
+      "lot_number",
+      "staff_code",
+      "staff_name",
+      "memo"
+    ]
+  },
+  "notes": [
+    "CSV files now match the Supabase table columns provided by SQL Editor.",
+    "created_at columns are omitted so Supabase can fill defaults.",
+    "Parent assets are grouped by normalized maker and kana product name.",
+    "Review parent_asset_review.csv before importing if equivalent-product grouping matters."
+  ]
+}
