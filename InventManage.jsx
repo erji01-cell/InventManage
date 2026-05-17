@@ -198,7 +198,7 @@ function normalizeAsset(row, parentMap, supplierMap) {
     isActive: row.is_active !== false,
     childCreatedAt: row.created_at || '',
     openingStock: toNumber(row.opening_stock),
-    memo: '',
+    memo: row.child_memo || '',
   };
 }
 
@@ -600,6 +600,7 @@ function AssetMasterScreen({ assets, setAssets, setView }) {
               <th className="p-3 border-b border-slate-200 w-24">取引先</th>
               <th className="p-3 border-b border-slate-200">jan_code</th>
               <th className="p-3 border-b border-slate-200">parent.generic_name</th>
+              <th className="p-3 border-b border-slate-200 w-64">摘要</th>
             </tr>
           </thead>
           <tbody>
@@ -619,6 +620,7 @@ function AssetMasterScreen({ assets, setAssets, setView }) {
                 <td className="p-3 w-24 max-w-24 whitespace-normal break-words">{asset.supplier}</td>
                 <td className="p-3">{asset.janCode}</td>
                 <td className="p-3">{asset.parentGenericName}</td>
+                <td className="p-3 w-64 max-w-64 whitespace-normal break-words">{asset.memo}</td>
               </tr>
             ))}
           </tbody>

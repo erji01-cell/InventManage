@@ -45,6 +45,7 @@ Import the CSV files into Supabase in this order:
 - `purchase_unit`
 - `supplier_id`
 - `jan_code`
+- `child_memo`
 - `is_active`
 
 `invent_stock_movements.csv`
@@ -70,6 +71,7 @@ Import the CSV files into Supabase in this order:
 - Movement staff data is saved in `staff_code` and `staff_name`.
 - Movement `memo` keeps only the source `摘要`.
 - `opening_stock` is copied from `T_資産マスタ.xlsx` `期首在庫数`.
+- `child_memo` is copied from `T_資産マスタ.xlsx` `摘要`.
 - One asset had no usage unit in Excel, so `usage_unit` was filled with `個`.
 - Review `parent_asset_review.csv` before importing if parent-child grouping matters.
 - After importing CSVs with explicit integer IDs, run `reset_supabase_sequences.sql` in Supabase SQL Editor.

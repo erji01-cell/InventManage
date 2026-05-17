@@ -44,6 +44,7 @@
       "purchase_unit",
       "supplier_id",
       "jan_code",
+      "child_memo",
       "is_active"
     ],
     "invent_stock_movements": [

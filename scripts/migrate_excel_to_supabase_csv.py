@@ -99,6 +99,7 @@ def main() -> None:
                 "purchase_unit",
                 "supplier_id",
                 "jan_code",
+                "child_memo",
                 "is_active",
             ],
             "invent_stock_movements": [
@@ -260,13 +261,13 @@ def build_child_assets(
             "purchase_unit": clean_text(row.get("購入単位")),
             "supplier_id": supplier_map.get(supplier_code, ""),
             "jan_code": "",
+            "child_memo": clean_text(row.get("摘要")),
             "is_active": "true",
         }
         output.append(child)
         asset_map[asset_code] = {
             **child,
             "expiration_date": parse_date(row.get("使用期限")),
-            "staff_memo": clean_text(row.get("摘要")),
         }
 
     return output, asset_map
