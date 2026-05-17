@@ -48,17 +48,83 @@ const CATEGORIES = [
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
 const PAGE_SIZE = 1000;
+const SESSION_STORAGE_KEY = 'invent_manage_supabase_session';
 
-async function supabaseRequest(path, options = {}) {
+function getStoredSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_STORAGE_KEY);
+    if (!raw) return null;
+
+    const session = JSON.parse(raw);
+    if (session.expires_at && session.expires_at * 1000 <= Date.now()) {
+      localStorage.removeItem(SESSION_STORAGE_KEY);
+      return null;
+    }
+
+    return session;
+  } catch {
+    localStorage.removeItem(SESSION_STORAGE_KEY);
+    return null;
+  }
+}
+
+function storeSession(session) {
+  localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
+}
+
+function clearStoredSession() {
+  localStorage.removeItem(SESSION_STORAGE_KEY);
+}
+
+async function signInWithPassword(email, password) {
   if (!SUPABASE_URL || !SUPABASE_KEY) {
     throw new Error('SupabaseのURLまたは公開キーが設定されていません。.envを確認してください。');
   }
 
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_KEY,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email, password }),
+  });
+
+  const payload = await response.json();
+
+  if (!response.ok) {
+    throw new Error(payload?.msg || payload?.message || 'ログインできませんでした。');
+  }
+
+  return {
+    ...payload,
+    expires_at: Math.floor(Date.now() / 1000) + payload.expires_in,
+  };
+}
+
+async function signOut(session) {
+  if (!session?.access_token) return;
+
+  await fetch(`${SUPABASE_URL}/auth/v1/logout`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${session.access_token}`,
+    },
+  });
+}
+
+async function supabaseRequest(path, options = {}, session = null) {
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    throw new Error('SupabaseのURLまたは公開キーが設定されていません。.envを確認してください。');
+  }
+
+  const accessToken = session?.access_token || SUPABASE_KEY;
   const response = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
     ...options,
     headers: {
       apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
+      Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
       ...(options.headers || {}),
     },
@@ -74,12 +140,14 @@ async function supabaseRequest(path, options = {}) {
   return payload;
 }
 
-async function fetchTable(tableName, orderBy = 'id.asc') {
+async function fetchTable(tableName, orderBy = 'id.asc', session = null) {
   const rows = [];
 
   for (let offset = 0; ; offset += PAGE_SIZE) {
     const page = await supabaseRequest(
-      `${tableName}?select=*&order=${orderBy}&limit=${PAGE_SIZE}&offset=${offset}`
+      `${tableName}?select=*&order=${orderBy}&limit=${PAGE_SIZE}&offset=${offset}`,
+      {},
+      session
     );
     rows.push(...page);
 
@@ -131,13 +199,13 @@ function normalizeMovement(row, staffMap) {
   };
 }
 
-async function loadInventoryData() {
+async function loadInventoryData(session) {
   const [suppliers, staff, parents, childAssets, movements] = await Promise.all([
-    fetchTable('invent_suppliers'),
-    fetchTable('invent_staff'),
-    fetchTable('invent_parent_assets'),
-    fetchTable('invent_child_assets'),
-    fetchTable('invent_stock_movements', 'movement_date.desc'),
+    fetchTable('invent_suppliers', 'id.asc', session),
+    fetchTable('invent_staff', 'id.asc', session),
+    fetchTable('invent_parent_assets', 'id.asc', session),
+    fetchTable('invent_child_assets', 'id.asc', session),
+    fetchTable('invent_stock_movements', 'movement_date.desc', session),
   ]);
 
   const supplierMap = new Map(suppliers.map((supplier) => [supplier.id, supplier]));
@@ -188,19 +256,89 @@ const Card = ({ children, className = "" }) => (
   </div>
 );
 
+function LoginScreen({ onLogin }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!email || !password || isSubmitting) return;
+
+    setIsSubmitting(true);
+    setError('');
+
+    try {
+      await onLogin(email, password);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-4 md:p-8 flex items-center justify-center">
+      <Card className="w-full max-w-md">
+        <div className="mb-8 text-center">
+          <h1 className="text-3xl font-black text-slate-800">在庫管理システム</h1>
+          <p className="mt-2 text-sm text-slate-500">Supabaseアカウントでログインしてください</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-slate-700">メールアドレス</label>
+            <input
+              type="email"
+              className="w-full rounded-md border border-slate-200 p-3 outline-none focus:ring-2 focus:ring-blue-500"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              autoComplete="email"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-slate-700">パスワード</label>
+            <input
+              type="password"
+              className="w-full rounded-md border border-slate-200 p-3 outline-none focus:ring-2 focus:ring-blue-500"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              autoComplete="current-password"
+            />
+          </div>
+
+          {error && (
+            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          <Button type="submit" className="w-full py-3" disabled={isSubmitting}>
+            {isSubmitting ? 'ログイン中...' : 'ログイン'}
+          </Button>
+        </form>
+      </Card>
+    </div>
+  );
+}
+
 // --- Application Components ---
 
 export default function App() {
   const [view, setView] = useState('menu');
+  const [authSession, setAuthSession] = useState(() => getStoredSession());
   const [assets, setAssets] = useState([]);
   const [movements, setMovements] = useState([]);
   const [staff, setStaff] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => Boolean(getStoredSession()));
   const [error, setError] = useState('');
 
   const refreshData = async () => {
+    if (!authSession) return;
     setError('');
-    const data = await loadInventoryData();
+    const data = await loadInventoryData(authSession);
     setAssets(data.assets);
     setMovements(data.movements);
     setStaff(data.staff);
@@ -209,7 +347,18 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
 
-    loadInventoryData()
+    if (!authSession) {
+      setAssets([]);
+      setMovements([]);
+      setStaff([]);
+      setIsLoading(false);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    setIsLoading(true);
+    loadInventoryData(authSession)
       .then((data) => {
         if (!isMounted) return;
         setAssets(data.assets);
@@ -229,30 +378,47 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [authSession]);
+
+  const handleLogin = async (email, password) => {
+    const session = await signInWithPassword(email, password);
+    storeSession(session);
+    setAuthSession(session);
+  };
+
+  const handleLogout = async () => {
+    await signOut(authSession).catch(() => {});
+    clearStoredSession();
+    setAuthSession(null);
+    setView('menu');
+  };
   
   const addMovement = async (data) => {
     const asset = assets.find((item) => item.id === data.assetId);
     const staffMember = staff.find((member) => member.id === data.staffId);
 
-    const [created] = await supabaseRequest('invent_stock_movements?select=*', {
-      method: 'POST',
-      headers: {
-        Prefer: 'return=representation',
+    const [created] = await supabaseRequest(
+      'invent_stock_movements?select=*',
+      {
+        method: 'POST',
+        headers: {
+          Prefer: 'return=representation',
+        },
+        body: JSON.stringify({
+          child_asset_id: Number(data.assetId),
+          movement_date: data.date,
+          movement_type: data.type,
+          quantity: Number(data.quantity),
+          actual_delivery_price: asset?.deliveryPrice || asset?.price || 0,
+          expiration_date: null,
+          lot_number: null,
+          staff_code: staffMember ? Number(staffMember.id) : null,
+          staff_name: staffMember?.name || null,
+          memo: data.memo || null,
+        }),
       },
-      body: JSON.stringify({
-        child_asset_id: Number(data.assetId),
-        movement_date: data.date,
-        movement_type: data.type,
-        quantity: Number(data.quantity),
-        actual_delivery_price: asset?.deliveryPrice || asset?.price || 0,
-        expiration_date: null,
-        lot_number: null,
-        staff_code: staffMember ? Number(staffMember.id) : null,
-        staff_name: staffMember?.name || null,
-        memo: data.memo || null,
-      }),
-    });
+      authSession
+    );
 
     const staffMap = new Map(staff.map((member) => [Number(member.id), member]));
     setMovements(prev => [normalizeMovement(created, staffMap), ...prev]);
@@ -260,26 +426,34 @@ export default function App() {
   };
 
   const deleteMovement = async (id) => {
-    await supabaseRequest(`invent_stock_movements?id=eq.${id}`, {
-      method: 'DELETE',
-      headers: {
-        Prefer: 'return=minimal',
+    await supabaseRequest(
+      `invent_stock_movements?id=eq.${id}`,
+      {
+        method: 'DELETE',
+        headers: {
+          Prefer: 'return=minimal',
+        },
       },
-    });
+      authSession
+    );
     setMovements(prev => prev.filter(m => m.id !== id));
   };
 
   const renderView = () => {
     switch (view) {
-      case 'menu': return <MenuScreen setView={setView} />;
+      case 'menu': return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} />;
       case 'assets': return <AssetMasterScreen assets={assets} setAssets={setAssets} setView={setView} />;
       case 'history': return <MovementHistoryScreen movements={movements} setMovements={setMovements} setView={setView} assets={assets} deleteMovement={deleteMovement} />;
       case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => setView('menu')} assets={assets} staff={staff} />;
       case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => setView('menu')} assets={assets} staff={staff} />;
       case 'stock': return <StockStatusScreen assets={assets} movements={movements} setView={setView} />;
-      default: return <MenuScreen setView={setView} />;
+      default: return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} />;
     }
   };
+
+  if (!authSession) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-4 md:p-8">
@@ -304,7 +478,7 @@ export default function App() {
 
 // --- Screens ---
 
-function MenuScreen({ setView }) {
+function MenuScreen({ setView, onLogout, userEmail }) {
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] space-y-12">
       <div className="text-center">
@@ -312,6 +486,7 @@ function MenuScreen({ setView }) {
           在庫管理システム <span className="text-orange-500 font-normal">2025年度版</span>
         </h1>
         <p className="text-xl text-slate-500">2025.07.01 更新</p>
+        {userEmail && <p className="mt-2 text-sm text-slate-400">{userEmail}</p>}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl">
@@ -323,9 +498,9 @@ function MenuScreen({ setView }) {
         <MenuButton icon={<RefreshCcw size={24} />} title="年度更新" color="bg-slate-50 text-slate-700" />
       </div>
 
-      <Button variant="danger" className="mt-8 px-12 py-3 text-lg">
+      <Button variant="danger" className="mt-8 px-12 py-3 text-lg" onClick={onLogout}>
         <LogOut size={20} />
-        終了
+        ログアウト
       </Button>
     </div>
   );
