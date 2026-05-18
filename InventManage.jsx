@@ -594,11 +594,12 @@ function AssetMasterScreen({ assets, setAssets, setView }) {
 
       <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="overflow-auto border border-slate-200 rounded-lg">
-          <table className="w-full text-left border-collapse min-w-[720px] text-sm">
+          <table className="w-full text-left border-collapse min-w-[800px] text-sm">
             <thead className="bg-slate-100 sticky top-0">
               <tr>
                 <th className="p-3 border-b border-slate-200 w-20">ID</th>
                 <th className="p-3 border-b border-slate-200 w-40">メーカー</th>
+                <th className="p-3 border-b border-slate-200 w-28">分類</th>
                 <th className="p-3 border-b border-slate-200 min-w-[420px]">品名</th>
               </tr>
             </thead>
@@ -615,6 +616,7 @@ function AssetMasterScreen({ assets, setAssets, setView }) {
                   >
                     <td className="p-3 font-mono text-slate-500">{asset.id}</td>
                     <td className="p-3 w-40 max-w-40 whitespace-normal break-words">{asset.maker}</td>
+                    <td className="p-3 w-28 max-w-28 whitespace-normal break-words">{asset.parentCategory}</td>
                     <td className="p-3 min-w-[420px] font-medium text-blue-700 whitespace-normal break-words">{asset.name}</td>
                   </tr>
                 );
@@ -628,11 +630,10 @@ function AssetMasterScreen({ assets, setAssets, setView }) {
             <div className="space-y-4 text-sm">
               <div>
                 <p className="text-xs font-bold text-slate-400">詳細情報</p>
-                <p className="mt-1 text-sm text-slate-600">選択した行の追加項目</p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <DetailItem label="分類" value={selectedAsset.parentCategory || '-'} />
+                <DetailItem label="ID" value={selectedAsset.id || '-'} />
                 <DetailItem label="購入価格" value={`¥${selectedAsset.deliveryPrice.toLocaleString()}`} align="right" />
                 <DetailItem label="使用単価" value={`¥${selectedAsset.usageUnitPrice.toLocaleString()}`} align="right" />
                 <DetailItem label="購入単位" value={selectedAsset.purchaseUnit || '-'} />
@@ -642,7 +643,6 @@ function AssetMasterScreen({ assets, setAssets, setView }) {
               </div>
 
               <div className="space-y-2 border-t border-slate-200 pt-4">
-                <DetailRow label="parent_id" value={selectedAsset.parentId || '-'} mono />
                 <DetailRow label="jan_code" value={selectedAsset.janCode || '-'} mono />
                 <DetailRow label="parent.generic_name" value={selectedAsset.parentGenericName || '-'} />
                 <DetailRow label="摘要" value={selectedAsset.memo || '-'} />
