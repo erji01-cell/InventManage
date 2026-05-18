@@ -40,6 +40,14 @@ for select
 to authenticated
 using (true);
 
+drop policy if exists "invent_child_assets_authenticated_update" on invent_child_assets;
+create policy "invent_child_assets_authenticated_update"
+on invent_child_assets
+for update
+to authenticated
+using (true)
+with check (true);
+
 drop policy if exists "invent_stock_movements_authenticated_select" on invent_stock_movements;
 create policy "invent_stock_movements_authenticated_select"
 on invent_stock_movements

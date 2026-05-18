@@ -171,6 +171,11 @@ async function fetchTable(tableName, orderBy = 'id.asc', session = null) {
 }
 
 const toNumber = (value) => Number(value ?? 0) || 0;
+const toNullableNumber = (value) => {
+  if (value === '' || value === null || value === undefined) return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+};
 
 function normalizeAsset(row, parentMap, supplierMap) {
   const parent = parentMap.get(row.parent_id);
@@ -476,10 +481,46 @@ export default function App() {
     setMovements(prev => prev.filter(m => m.id !== id));
   };
 
+  const updateAsset = async (assetId, data) => {
+    const [updated] = await supabaseRequest(
+      `invent_child_assets?id=eq.${assetId}&select=*`,
+      {
+        method: 'PATCH',
+        headers: {
+          Prefer: 'return=representation',
+        },
+        body: JSON.stringify(data),
+      },
+      authSession
+    );
+
+    setAssets(prev => prev.map(asset => {
+      if (asset.id !== String(updated.id)) return asset;
+
+      const supplier = suppliers.find(item => Number(item.id) === Number(updated.supplier_id));
+
+      return {
+        ...asset,
+        maker: updated.maker,
+        name: updated.brand_name,
+        kanaName: updated.kana_name || '',
+        packSize: toNumber(updated.pack_size || 1),
+        deliveryPrice: toNumber(updated.delivery_price),
+        usageUnitPrice: toNumber(updated.usage_unit_price),
+        usageUnit: updated.usage_unit,
+        purchaseUnit: updated.purchase_unit || '',
+        supplierId: updated.supplier_id ? String(updated.supplier_id) : '',
+        supplier: supplier?.name || '',
+        janCode: updated.jan_code || '',
+        memo: updated.child_memo || '',
+      };
+    }));
+  };
+
   const renderView = () => {
     switch (view) {
       case 'menu': return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} />;
-      case 'assets': return <AssetMasterScreen assets={assets} setAssets={setAssets} setView={setView} />;
+      case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} onUpdateAsset={updateAsset} setView={setView} />;
       case 'history': return <MovementHistoryScreen movements={movements} setMovements={setMovements} setView={setView} assets={assets} deleteMovement={deleteMovement} />;
       case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => setView('menu')} assets={assets} staff={staff} />;
       case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => setView('menu')} assets={assets} staff={staff} />;
@@ -557,9 +598,25 @@ function MenuButton({ icon, title, color, onClick }) {
   );
 }
 
-function AssetMasterScreen({ assets, setAssets, setView }) {
+const createAssetEditForm = (asset) => ({
+  maker: asset?.maker || '',
+  name: asset?.name || '',
+  deliveryPrice: asset?.deliveryPrice ?? 0,
+  purchaseUnit: asset?.purchaseUnit || '',
+  packSize: asset?.packSize || 1,
+  usageUnit: asset?.usageUnit || '',
+  supplierId: asset?.supplierId || '',
+  janCode: asset?.janCode || '',
+  memo: asset?.memo || '',
+});
+
+function AssetMasterScreen({ assets, suppliers, onUpdateAsset, setView }) {
   const [filter, setFilter] = useState('');
   const [selectedAssetId, setSelectedAssetId] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState(() => createAssetEditForm(null));
+  const [saveError, setSaveError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const filteredAssets = assets.filter(a =>
     a.name.includes(filter) ||
     a.maker.includes(filter) ||
@@ -570,6 +627,73 @@ function AssetMasterScreen({ assets, setAssets, setView }) {
     filteredAssets.find(asset => asset.id === selectedAssetId) ||
     filteredAssets[0] ||
     null;
+
+  useEffect(() => {
+    setIsEditing(false);
+    setSaveError('');
+    setEditForm(createAssetEditForm(selectedAsset));
+  }, [selectedAsset?.id]);
+
+  const updateEditForm = (key, value) => {
+    setEditForm(prev => ({ ...prev, [key]: value }));
+  };
+
+  const startEdit = () => {
+    setEditForm(createAssetEditForm(selectedAsset));
+    setSaveError('');
+    setIsEditing(true);
+  };
+
+  const cancelEdit = () => {
+    setEditForm(createAssetEditForm(selectedAsset));
+    setSaveError('');
+    setIsEditing(false);
+  };
+
+  const saveEdit = async () => {
+    if (!selectedAsset) return;
+
+    const deliveryPrice = toNullableNumber(editForm.deliveryPrice);
+    const packSize = toNullableNumber(editForm.packSize);
+    const supplierId = toNullableNumber(editForm.supplierId);
+
+    if (!editForm.maker.trim() || !editForm.name.trim() || !editForm.usageUnit.trim()) {
+      setSaveError('メーカー、品名、使用単位は必須です。');
+      return;
+    }
+
+    if (deliveryPrice === null || deliveryPrice < 0) {
+      setSaveError('購入価格は0以上の数字で入力してください。');
+      return;
+    }
+
+    if (packSize === null || packSize < 1) {
+      setSaveError('入数は1以上の数字で入力してください。');
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError('');
+
+    try {
+      await onUpdateAsset(selectedAsset.id, {
+        maker: editForm.maker.trim(),
+        brand_name: editForm.name.trim(),
+        delivery_price: deliveryPrice,
+        purchase_unit: editForm.purchaseUnit.trim() || null,
+        pack_size: Math.trunc(packSize),
+        usage_unit: editForm.usageUnit.trim() || null,
+        supplier_id: supplierId,
+        jan_code: editForm.janCode.trim() || null,
+        child_memo: editForm.memo.trim() || null,
+      });
+      setIsEditing(false);
+    } catch (err) {
+      setSaveError(err.message || '資産を保存できませんでした。');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <Card className="max-h-[90vh] flex flex-col">
@@ -628,28 +752,89 @@ function AssetMasterScreen({ assets, setAssets, setView }) {
         <aside className="overflow-auto rounded-lg border border-slate-200 bg-slate-50 p-4">
           {selectedAsset ? (
             <div className="space-y-4 text-sm">
-              <div>
+              <div className="flex items-center justify-between gap-3">
                 <p className="text-xs font-bold text-slate-400">詳細情報</p>
+                {!isEditing ? (
+                  <Button variant="action" className="px-3 py-1 text-sm" onClick={startEdit}>
+                    編集
+                  </Button>
+                ) : (
+                  <div className="flex gap-2">
+                    <Button variant="secondary" className="px-3 py-1 text-sm" onClick={cancelEdit} disabled={isSaving}>
+                      取消
+                    </Button>
+                    <Button variant="success" className="px-3 py-1 text-sm" onClick={saveEdit} disabled={isSaving}>
+                      {isSaving ? '保存中' : '保存'}
+                    </Button>
+                  </div>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <DetailItem label="ID" value={selectedAsset.id || '-'} />
-                <DetailItem label="取引先" value={selectedAsset.supplier || '-'} />
-                <DetailItem label="購入単位" value={selectedAsset.purchaseUnit || '-'} />
-                <DetailItem label="購入価格" value={`¥${selectedAsset.deliveryPrice.toLocaleString()}`} align="right" />
-              </div>
+              {saveError && (
+                <div className="rounded-md border border-red-200 bg-red-50 p-3 text-red-700">
+                  {saveError}
+                </div>
+              )}
 
-              <div className="grid grid-cols-3 gap-3">
-                <DetailItem label="入数" value={selectedAsset.packSize || '-'} align="right" />
-                <DetailItem label="使用単位" value={selectedAsset.usageUnit || '-'} />
-                <DetailItem label="使用単価" value={`¥${selectedAsset.usageUnitPrice.toLocaleString()}`} align="right" />
-              </div>
+              {isEditing ? (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <DetailItem label="ID" value={selectedAsset.id || '-'} mono />
+                    <EditField
+                      label="取引先"
+                      type="select"
+                      value={editForm.supplierId}
+                      onChange={(value) => updateEditForm('supplierId', value)}
+                      options={[
+                        { value: '', label: '未設定' },
+                        ...suppliers.map(supplier => ({
+                          value: String(supplier.id),
+                          label: supplier.name,
+                        })),
+                      ]}
+                    />
+                  </div>
 
-              <div className="space-y-2 border-t border-slate-200 pt-4">
-                <DetailRow label="jan_code" value={selectedAsset.janCode || '-'} mono />
-                <DetailRow label="parent.generic_name" value={selectedAsset.parentGenericName || '-'} />
-                <DetailRow label="摘要" value={selectedAsset.memo || '-'} />
-              </div>
+                  <EditField label="メーカー" value={editForm.maker} onChange={(value) => updateEditForm('maker', value)} />
+                  <EditField label="品名" value={editForm.name} onChange={(value) => updateEditForm('name', value)} />
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <EditField label="購入単位" value={editForm.purchaseUnit} onChange={(value) => updateEditForm('purchaseUnit', value)} />
+                    <EditField label="購入価格" type="number" value={editForm.deliveryPrice} onChange={(value) => updateEditForm('deliveryPrice', value)} align="right" />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <EditField label="入数" type="number" value={editForm.packSize} onChange={(value) => updateEditForm('packSize', value)} align="right" />
+                    <EditField label="使用単位" value={editForm.usageUnit} onChange={(value) => updateEditForm('usageUnit', value)} />
+                    <DetailItem label="使用単価" value={`¥${selectedAsset.usageUnitPrice.toLocaleString()}`} align="right" />
+                  </div>
+
+                  <EditField label="jan_code" value={editForm.janCode} onChange={(value) => updateEditForm('janCode', value)} mono />
+                  <EditField label="摘要" value={editForm.memo} onChange={(value) => updateEditForm('memo', value)} multiline />
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <DetailItem label="ID" value={selectedAsset.id || '-'} mono />
+                    <DetailItem label="取引先" value={selectedAsset.supplier || '-'} />
+                    <DetailItem label="購入単位" value={selectedAsset.purchaseUnit || '-'} />
+                    <DetailItem label="購入価格" value={`¥${selectedAsset.deliveryPrice.toLocaleString()}`} align="right" />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <DetailItem label="入数" value={selectedAsset.packSize || '-'} align="right" />
+                    <DetailItem label="使用単位" value={selectedAsset.usageUnit || '-'} />
+                    <DetailItem label="使用単価" value={`¥${selectedAsset.usageUnitPrice.toLocaleString()}`} align="right" />
+                  </div>
+
+                  <div className="space-y-2 border-t border-slate-200 pt-4">
+                    <DetailRow label="jan_code" value={selectedAsset.janCode || '-'} mono />
+                    <DetailRow label="parent.generic_name" value={selectedAsset.parentGenericName || '-'} />
+                    <DetailRow label="摘要" value={selectedAsset.memo || '-'} />
+                  </div>
+                </>
+              )}
+
             </div>
           ) : (
             <div className="flex h-full items-center justify-center text-sm font-bold text-slate-400">
@@ -678,6 +863,40 @@ function DetailItem({ label, value, align = 'left', mono = false }) {
         {value}
       </p>
     </div>
+  );
+}
+
+function EditField({ label, value, onChange, type = 'text', options = null, align = 'left', mono = false, multiline = false }) {
+  const inputClass = `mt-1 w-full rounded-md border border-slate-200 bg-white px-2 py-2 text-sm font-bold text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 ${
+    align === 'right' ? 'text-right' : ''
+  } ${mono ? 'font-mono' : ''}`;
+
+  return (
+    <label className="block rounded-md border border-slate-200 bg-white p-3">
+      <span className="text-xs font-bold text-slate-400">{label}</span>
+      {options ? (
+        <select className={inputClass} value={value} onChange={(event) => onChange(event.target.value)}>
+          {options.map(option => (
+            <option key={option.value} value={option.value}>{option.label}</option>
+          ))}
+        </select>
+      ) : multiline ? (
+        <textarea
+          className={`${inputClass} min-h-24 resize-y font-normal`}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      ) : (
+        <input
+          className={inputClass}
+          type={type}
+          value={value}
+          min={type === 'number' ? 0 : undefined}
+          step={type === 'number' ? 'any' : undefined}
+          onChange={(event) => onChange(event.target.value)}
+        />
+      )}
+    </label>
   );
 }
 
