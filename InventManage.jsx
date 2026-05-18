@@ -521,10 +521,35 @@ export default function App() {
     }));
   };
 
+  const updateParentAsset = async (parentId, data) => {
+    const [updated] = await supabaseRequest(
+      `invent_parent_assets?id=eq.${encodeURIComponent(parentId)}&select=*`,
+      {
+        method: 'PATCH',
+        headers: {
+          Prefer: 'return=representation',
+        },
+        body: JSON.stringify(data),
+      },
+      authSession
+    );
+
+    setAssets(prev => prev.map(asset => (
+      asset.parentId === updated.id
+        ? {
+            ...asset,
+            category: updated.category,
+            parentCategory: updated.category,
+            parentGenericName: updated.generic_name,
+          }
+        : asset
+    )));
+  };
+
   const renderView = () => {
     switch (view) {
       case 'menu': return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} />;
-      case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} onUpdateAsset={updateAsset} setView={setView} />;
+      case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} onUpdateAsset={updateAsset} onUpdateParentAsset={updateParentAsset} setView={setView} />;
       case 'history': return <MovementHistoryScreen movements={movements} setMovements={setMovements} setView={setView} assets={assets} deleteMovement={deleteMovement} />;
       case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => setView('menu')} assets={assets} staff={staff} />;
       case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => setView('menu')} assets={assets} staff={staff} />;
@@ -612,9 +637,11 @@ const createAssetEditForm = (asset) => ({
   supplierId: asset?.supplierId || '',
   janCode: asset?.janCode || '',
   memo: asset?.memo || '',
+  parentCategory: asset?.parentCategory || '',
+  parentGenericName: asset?.parentGenericName || '',
 });
 
-function AssetMasterScreen({ assets, suppliers, onUpdateAsset, setView }) {
+function AssetMasterScreen({ assets, suppliers, onUpdateAsset, onUpdateParentAsset, setView }) {
   const [filter, setFilter] = useState('');
   const [selectedAssetId, setSelectedAssetId] = useState('');
   const [isEditing, setIsEditing] = useState(false);
@@ -666,6 +693,11 @@ function AssetMasterScreen({ assets, suppliers, onUpdateAsset, setView }) {
       return;
     }
 
+    if (!editForm.parentCategory.trim() || !editForm.parentGenericName.trim()) {
+      setSaveError('分類と親資産名は必須です。');
+      return;
+    }
+
     if (deliveryPrice === null || deliveryPrice < 0) {
       setSaveError('購入価格は0以上の数字で入力してください。');
       return;
@@ -680,6 +712,11 @@ function AssetMasterScreen({ assets, suppliers, onUpdateAsset, setView }) {
     setSaveError('');
 
     try {
+      await onUpdateParentAsset(selectedAsset.parentId, {
+        category: editForm.parentCategory.trim(),
+        generic_name: editForm.parentGenericName.trim(),
+      });
+
       await onUpdateAsset(selectedAsset.id, {
         maker: editForm.maker.trim(),
         brand_name: editForm.name.trim(),
@@ -802,6 +839,17 @@ function AssetMasterScreen({ assets, suppliers, onUpdateAsset, setView }) {
                   <EditField label="メーカー" value={editForm.maker} onChange={(value) => updateEditForm('maker', value)} />
                   <EditField label="品名" value={editForm.name} onChange={(value) => updateEditForm('name', value)} />
 
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                    <p className="mb-3 text-xs font-bold text-amber-700">親資産</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <EditField label="分類" value={editForm.parentCategory} onChange={(value) => updateEditForm('parentCategory', value)} />
+                      <EditField label="親資産名" value={editForm.parentGenericName} onChange={(value) => updateEditForm('parentGenericName', value)} />
+                    </div>
+                    <p className="mt-2 text-xs text-amber-700">
+                      同じ親資産に紐づく他の資産にも反映されます。
+                    </p>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3">
                     <EditField label="購入単位" value={editForm.purchaseUnit} onChange={(value) => updateEditForm('purchaseUnit', value)} />
                     <EditField label="購入価格" type="number" value={editForm.deliveryPrice} onChange={(value) => updateEditForm('deliveryPrice', value)} align="right" />
@@ -833,6 +881,7 @@ function AssetMasterScreen({ assets, suppliers, onUpdateAsset, setView }) {
 
                   <div className="space-y-2 border-t border-slate-200 pt-4">
                     <DetailRow label="jan_code" value={selectedAsset.janCode || '-'} mono />
+                    <DetailRow label="分類" value={selectedAsset.parentCategory || '-'} />
                     <DetailRow label="parent.generic_name" value={selectedAsset.parentGenericName || '-'} />
                     <DetailRow label="摘要" value={selectedAsset.memo || '-'} />
                   </div>
