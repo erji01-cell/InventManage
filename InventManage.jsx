@@ -559,7 +559,17 @@ function MenuButton({ icon, title, color, onClick }) {
 
 function AssetMasterScreen({ assets, setAssets, setView }) {
   const [filter, setFilter] = useState('');
-  const filteredAssets = assets.filter(a => a.name.includes(filter) || a.maker.includes(filter));
+  const [selectedAssetId, setSelectedAssetId] = useState('');
+  const filteredAssets = assets.filter(a =>
+    a.name.includes(filter) ||
+    a.maker.includes(filter) ||
+    a.parentCategory.includes(filter) ||
+    a.supplier.includes(filter)
+  );
+  const selectedAsset =
+    filteredAssets.find(asset => asset.id === selectedAssetId) ||
+    filteredAssets[0] ||
+    null;
 
   return (
     <Card className="max-h-[90vh] flex flex-col">
@@ -582,49 +592,68 @@ function AssetMasterScreen({ assets, setAssets, setView }) {
         <Button onClick={() => setFilter('')}>最初から検索</Button>
       </div>
 
-      <div className="overflow-auto border border-slate-200 rounded-lg flex-1">
-        <table className="w-full text-left border-collapse min-w-[2600px] text-sm">
-          <thead className="bg-slate-100 sticky top-0">
-            <tr>
-              <th className="p-3 border-b border-slate-200">id</th>
-              <th className="p-3 border-b border-slate-200 w-24">parent_id</th>
-              <th className="p-3 border-b border-slate-200 w-32">メーカー</th>
-              <th className="p-3 border-b border-slate-200 w-72">品名</th>
-              <th className="p-3 border-b border-slate-200 w-20">分類</th>
-              <th className="p-3 border-b border-slate-200 text-right">購入価格</th>
-              <th className="p-3 border-b border-slate-200 w-20">購入単位</th>
-              <th className="p-3 border-b border-slate-200 text-right">入数</th>
-              <th className="p-3 border-b border-slate-200 w-20">使用単位</th>
-              <th className="p-3 border-b border-slate-200 text-right">使用単価</th>
-              <th className="p-3 border-b border-slate-200 w-16">supplier_id</th>
-              <th className="p-3 border-b border-slate-200 w-24">取引先</th>
-              <th className="p-3 border-b border-slate-200">jan_code</th>
-              <th className="p-3 border-b border-slate-200">parent.generic_name</th>
-              <th className="p-3 border-b border-slate-200 w-64">摘要</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredAssets.map(asset => (
-              <tr key={asset.id} className="hover:bg-blue-50 transition-colors border-b border-slate-100">
-                <td className="p-3 font-mono text-slate-500">{asset.id}</td>
-                <td className="p-3 w-24 max-w-24 font-mono text-slate-500 whitespace-normal break-words">{asset.parentId}</td>
-                <td className="p-3 w-32 max-w-32 whitespace-normal break-words">{asset.maker}</td>
-                <td className="p-3 w-72 max-w-72 whitespace-normal break-words font-medium text-blue-700">{asset.name}</td>
-                <td className="p-3 w-20 max-w-20 whitespace-normal break-words">{asset.parentCategory}</td>
-                <td className="p-3 text-right">¥{asset.deliveryPrice.toLocaleString()}</td>
-                <td className="p-3 w-20 max-w-20 whitespace-normal break-words">{asset.purchaseUnit}</td>
-                <td className="p-3 text-right">{asset.packSize}</td>
-                <td className="p-3 w-20 max-w-20 text-center whitespace-normal break-words">{asset.usageUnit}</td>
-                <td className="p-3 text-right">¥{asset.usageUnitPrice.toLocaleString()}</td>
-                <td className="p-3 w-16 max-w-16 font-mono whitespace-normal break-words">{asset.supplierId}</td>
-                <td className="p-3 w-24 max-w-24 whitespace-normal break-words">{asset.supplier}</td>
-                <td className="p-3">{asset.janCode}</td>
-                <td className="p-3">{asset.parentGenericName}</td>
-                <td className="p-3 w-64 max-w-64 whitespace-normal break-words">{asset.memo}</td>
+      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="overflow-auto border border-slate-200 rounded-lg">
+          <table className="w-full text-left border-collapse min-w-[720px] text-sm">
+            <thead className="bg-slate-100 sticky top-0">
+              <tr>
+                <th className="p-3 border-b border-slate-200 w-20">ID</th>
+                <th className="p-3 border-b border-slate-200 w-40">メーカー</th>
+                <th className="p-3 border-b border-slate-200 min-w-[420px]">品名</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {filteredAssets.map(asset => {
+                const isSelected = selectedAsset?.id === asset.id;
+                return (
+                  <tr
+                    key={asset.id}
+                    onClick={() => setSelectedAssetId(asset.id)}
+                    className={`cursor-pointer border-b border-slate-100 transition-colors ${
+                      isSelected ? 'bg-blue-50' : 'hover:bg-slate-50'
+                    }`}
+                  >
+                    <td className="p-3 font-mono text-slate-500">{asset.id}</td>
+                    <td className="p-3 w-40 max-w-40 whitespace-normal break-words">{asset.maker}</td>
+                    <td className="p-3 min-w-[420px] font-medium text-blue-700 whitespace-normal break-words">{asset.name}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        <aside className="overflow-auto rounded-lg border border-slate-200 bg-slate-50 p-4">
+          {selectedAsset ? (
+            <div className="space-y-4 text-sm">
+              <div>
+                <p className="text-xs font-bold text-slate-400">詳細情報</p>
+                <p className="mt-1 text-sm text-slate-600">選択した行の追加項目</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <DetailItem label="分類" value={selectedAsset.parentCategory || '-'} />
+                <DetailItem label="購入価格" value={`¥${selectedAsset.deliveryPrice.toLocaleString()}`} align="right" />
+                <DetailItem label="使用単価" value={`¥${selectedAsset.usageUnitPrice.toLocaleString()}`} align="right" />
+                <DetailItem label="購入単位" value={selectedAsset.purchaseUnit || '-'} />
+                <DetailItem label="使用単位" value={selectedAsset.usageUnit || '-'} />
+                <DetailItem label="入数" value={selectedAsset.packSize || '-'} align="right" />
+                <DetailItem label="取引先" value={selectedAsset.supplier || '-'} />
+              </div>
+
+              <div className="space-y-2 border-t border-slate-200 pt-4">
+                <DetailRow label="parent_id" value={selectedAsset.parentId || '-'} mono />
+                <DetailRow label="jan_code" value={selectedAsset.janCode || '-'} mono />
+                <DetailRow label="parent.generic_name" value={selectedAsset.parentGenericName || '-'} />
+                <DetailRow label="摘要" value={selectedAsset.memo || '-'} />
+              </div>
+            </div>
+          ) : (
+            <div className="flex h-full items-center justify-center text-sm font-bold text-slate-400">
+              表示する資産がありません
+            </div>
+          )}
+        </aside>
       </div>
 
       <div className="flex gap-4 mt-6">
@@ -635,6 +664,26 @@ function AssetMasterScreen({ assets, setAssets, setView }) {
         <Button variant="secondary"><Printer size={18} /> 一覧印刷</Button>
       </div>
     </Card>
+  );
+}
+
+function DetailItem({ label, value, align = 'left', mono = false }) {
+  return (
+    <div className="rounded-md border border-slate-200 bg-white p-3">
+      <p className="text-xs font-bold text-slate-400">{label}</p>
+      <p className={`mt-1 font-bold text-slate-700 ${align === 'right' ? 'text-right' : ''} ${mono ? 'font-mono' : ''}`}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function DetailRow({ label, value, mono = false }) {
+  return (
+    <div>
+      <p className="text-xs font-bold text-slate-400">{label}</p>
+      <p className={`mt-1 break-words text-slate-700 ${mono ? 'font-mono' : ''}`}>{value}</p>
+    </div>
   );
 }
 
