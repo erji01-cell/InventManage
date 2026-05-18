@@ -694,7 +694,7 @@ function AssetMasterScreen({ assets, suppliers, onUpdateAsset, onUpdateParentAss
     }
 
     if (!editForm.parentCategory.trim() || !editForm.parentGenericName.trim()) {
-      setSaveError('分類と親資産名は必須です。');
+      setSaveError('分類と大分類名は必須です。');
       return;
     }
 
@@ -840,13 +840,13 @@ function AssetMasterScreen({ assets, suppliers, onUpdateAsset, onUpdateParentAss
                   <EditField label="品名" value={editForm.name} onChange={(value) => updateEditForm('name', value)} />
 
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-                    <p className="mb-3 text-xs font-bold text-amber-700">親資産</p>
-                    <div className="grid grid-cols-2 gap-3">
+                    <p className="mb-3 text-xs font-bold text-amber-700">大分類</p>
+                    <div className="space-y-3">
                       <EditField label="分類" value={editForm.parentCategory} onChange={(value) => updateEditForm('parentCategory', value)} />
-                      <EditField label="親資産名" value={editForm.parentGenericName} onChange={(value) => updateEditForm('parentGenericName', value)} />
+                      <EditField label="大分類名" value={editForm.parentGenericName} onChange={(value) => updateEditForm('parentGenericName', value)} />
                     </div>
                     <p className="mt-2 text-xs text-amber-700">
-                      同じ親資産に紐づく他の資産にも反映されます。
+                      同じ大分類に紐づく他の資産にも反映されます。
                     </p>
                   </div>
 
@@ -882,7 +882,7 @@ function AssetMasterScreen({ assets, suppliers, onUpdateAsset, onUpdateParentAss
                   <div className="space-y-2 border-t border-slate-200 pt-4">
                     <DetailRow label="jan_code" value={selectedAsset.janCode || '-'} mono />
                     <DetailRow label="分類" value={selectedAsset.parentCategory || '-'} />
-                    <DetailRow label="parent.generic_name" value={selectedAsset.parentGenericName || '-'} />
+                    <DetailRow label="大分類名" value={selectedAsset.parentGenericName || '-'} />
                     <DetailRow label="摘要" value={selectedAsset.memo || '-'} />
                   </div>
                 </>
