@@ -634,12 +634,15 @@ function AssetMasterScreen({ assets, setAssets, setView }) {
 
               <div className="grid grid-cols-2 gap-3">
                 <DetailItem label="ID" value={selectedAsset.id || '-'} />
-                <DetailItem label="入数" value={selectedAsset.packSize || '-'} align="right" />
+                <DetailItem label="取引先" value={selectedAsset.supplier || '-'} />
                 <DetailItem label="購入単位" value={selectedAsset.purchaseUnit || '-'} />
                 <DetailItem label="購入価格" value={`¥${selectedAsset.deliveryPrice.toLocaleString()}`} align="right" />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <DetailItem label="入数" value={selectedAsset.packSize || '-'} align="right" />
                 <DetailItem label="使用単位" value={selectedAsset.usageUnit || '-'} />
                 <DetailItem label="使用単価" value={`¥${selectedAsset.usageUnitPrice.toLocaleString()}`} align="right" />
-                <DetailItem label="取引先" value={selectedAsset.supplier || '-'} />
               </div>
 
               <div className="space-y-2 border-t border-slate-200 pt-4">
