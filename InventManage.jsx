@@ -374,6 +374,7 @@ export default function App() {
   const [assets, setAssets] = useState([]);
   const [movements, setMovements] = useState([]);
   const [staff, setStaff] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
   const [isLoading, setIsLoading] = useState(() => Boolean(getStoredSession()));
   const [error, setError] = useState('');
 
@@ -384,6 +385,7 @@ export default function App() {
     setAssets(data.assets);
     setMovements(data.movements);
     setStaff(data.staff);
+    setSuppliers(data.suppliers);
   };
 
   useEffect(() => {
@@ -393,6 +395,7 @@ export default function App() {
       setAssets([]);
       setMovements([]);
       setStaff([]);
+      setSuppliers([]);
       setIsLoading(false);
       return () => {
         isMounted = false;
@@ -406,6 +409,7 @@ export default function App() {
         setAssets(data.assets);
         setMovements(data.movements);
         setStaff(data.staff);
+        setSuppliers(data.suppliers);
       })
       .catch((err) => {
         if (!isMounted) return;
