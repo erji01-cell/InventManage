@@ -223,6 +223,13 @@ function normalizeMovementType(value) {
   return '';
 }
 
+function parseLocalDate(value) {
+  if (!value) return null;
+  const [year, month, day] = String(value).replaceAll('/', '-').split('-').map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day);
+}
+
 function normalizeMovement(row, staffMap) {
   const staffId = row.staff_code ? String(row.staff_code) : '';
   const staff = staffMap.get(row.staff_code);
@@ -1936,19 +1943,41 @@ function StockStatusScreen({ assets, movements, setView }) {
   const [selectedMonth, setSelectedMonth] = useState(5);
   const [stockSearchTerm, setStockSearchTerm] = useState('');
   const fiscalMonths = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
+  const today = new Date();
+  const fiscalEndYear = today.getMonth() + 1 >= 7 ? today.getFullYear() + 1 : today.getFullYear();
+  const selectedYear = selectedMonth >= 7 ? fiscalEndYear - 1 : fiscalEndYear;
+  const monthStart = new Date(selectedYear, selectedMonth - 1, 1);
+  const nextMonthStart = new Date(selectedYear, selectedMonth, 1);
 
   const stockData = useMemo(() => {
     return assets.map(asset => {
       const assetMovements = movements.filter(m => m.assetId === asset.id);
-      const inboundTotal = assetMovements.filter(m => normalizeMovementType(m.type) === 'in').reduce((sum, m) => sum + m.quantity, 0);
-      const outboundTotal = assetMovements.filter(m => normalizeMovementType(m.type) === 'out').reduce((sum, m) => sum + m.quantity, 0);
-      const initialStock = asset.openingStock || 0; 
-      const currentStock = initialStock + inboundTotal - outboundTotal;
+      const initialStock = asset.openingStock || 0;
+      const beforeMonthTotal = assetMovements.reduce((sum, movement) => {
+        const movementDate = parseLocalDate(movement.date);
+        if (!movementDate || movementDate >= monthStart) return sum;
+        const quantity = movement.quantity || 0;
+        return normalizeMovementType(movement.type) === 'in' ? sum + quantity : sum - quantity;
+      }, 0);
+      const inboundTotal = assetMovements
+        .filter(m => {
+          const movementDate = parseLocalDate(m.date);
+          return movementDate && movementDate >= monthStart && movementDate < nextMonthStart && normalizeMovementType(m.type) === 'in';
+        })
+        .reduce((sum, m) => sum + m.quantity, 0);
+      const outboundTotal = assetMovements
+        .filter(m => {
+          const movementDate = parseLocalDate(m.date);
+          return movementDate && movementDate >= monthStart && movementDate < nextMonthStart && normalizeMovementType(m.type) === 'out';
+        })
+        .reduce((sum, m) => sum + m.quantity, 0);
+      const monthStartStock = initialStock + beforeMonthTotal;
+      const currentStock = monthStartStock + inboundTotal - outboundTotal;
       const stockValue = currentStock * asset.usageUnitPrice;
 
-      return { ...asset, prevMonth: initialStock, inbound: inboundTotal, outbound: outboundTotal, currentStock, stockValue };
+      return { ...asset, prevMonth: monthStartStock, inbound: inboundTotal, outbound: outboundTotal, currentStock, stockValue };
     });
-  }, [assets, movements]);
+  }, [assets, movements, monthStart, nextMonthStart]);
 
   const normalizedStockSearch = stockSearchTerm.trim().toLowerCase();
   const filteredStockData = useMemo(() => {
@@ -1978,7 +2007,7 @@ function StockStatusScreen({ assets, movements, setView }) {
       </div>
 
       <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[auto_1fr_auto] xl:items-end">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[auto_1fr_auto_auto] xl:items-end">
           <div className="space-y-2">
             <p className="text-sm font-bold text-slate-500">月度選択</p>
             <div className="flex rounded-md border border-slate-200 bg-white p-1 shadow-sm">
@@ -2008,6 +2037,10 @@ function StockStatusScreen({ assets, movements, setView }) {
             </div>
           </div>
 
+          <Button variant="secondary" className="h-[42px]" onClick={() => setStockSearchTerm('')}>
+            <RefreshCcw size={16} /> リセット
+          </Button>
+
           <div className="grid grid-cols-3 gap-2 xl:w-[360px]">
             <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
               <p className="text-xs font-bold text-slate-400">表示件数</p>
@@ -2032,10 +2065,10 @@ function StockStatusScreen({ assets, movements, setView }) {
               <th className="border-b border-slate-200 px-3 py-2 w-20">ID</th>
               <th className="border-b border-slate-200 px-3 py-2 w-36">メーカー</th>
               <th className="border-b border-slate-200 px-3 py-2 min-w-[320px]">品名</th>
-              <th className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-right w-20">前月在庫</th>
+              <th className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-right w-20">月初在庫</th>
               <th className="border-b border-slate-200 bg-emerald-50/70 px-3 py-2 text-right w-20">入庫数</th>
               <th className="border-b border-slate-200 bg-rose-50/70 px-3 py-2 text-right w-20">出庫数</th>
-              <th className="border-b border-slate-200 bg-blue-50/70 px-3 py-2 text-right font-bold w-20">在庫数</th>
+              <th className="border-b border-slate-200 bg-blue-50/70 px-3 py-2 text-right font-bold w-20">月末在庫</th>
               <th className="border-b border-slate-200 px-3 py-2 text-center w-20">単位</th>
               <th className="border-b border-slate-200 px-3 py-2 text-right w-28">使用単価</th>
               <th className="border-b border-slate-200 bg-blue-50/70 px-3 py-2 text-right font-bold w-32">在庫金額</th>
