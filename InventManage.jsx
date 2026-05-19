@@ -228,6 +228,7 @@ function normalizeMovement(row, staffMap) {
     quantity: toNumber(row.quantity),
     actualDeliveryPrice: toNumber(row.actual_delivery_price),
     expirationDate: row.expiration_date || '',
+    lotNumber: row.lot_number || '',
     staffId,
     staffName: row.staff_name || staff?.name || '',
     memo: row.memo || '',
@@ -451,6 +452,7 @@ export default function App() {
   const addMovement = async (data) => {
     const asset = assets.find((item) => item.id === data.assetId);
     const staffMember = staff.find((member) => member.id === data.staffId);
+    const actualDeliveryPrice = Number(data.actualDeliveryPrice ?? asset?.deliveryPrice ?? 0);
 
     const [created] = await supabaseRequest(
       'invent_stock_movements?select=*',
@@ -464,9 +466,9 @@ export default function App() {
           movement_date: data.date,
           movement_type: data.type,
           quantity: Number(data.quantity),
-          actual_delivery_price: asset?.deliveryPrice || 0,
-          expiration_date: null,
-          lot_number: null,
+          actual_delivery_price: actualDeliveryPrice,
+          expiration_date: data.expirationDate || null,
+          lot_number: data.lotNumber || null,
           staff_code: staffMember ? Number(staffMember.id) : null,
           staff_name: staffMember?.name || null,
           memo: data.memo || null,
@@ -477,6 +479,11 @@ export default function App() {
 
     const staffMap = new Map(staff.map((member) => [Number(member.id), member]));
     setMovements(prev => [normalizeMovement(created, staffMap), ...prev]);
+
+    if (data.updateMasterDeliveryPrice && asset && actualDeliveryPrice !== asset.deliveryPrice) {
+      await updateAsset(asset.id, { delivery_price: actualDeliveryPrice });
+    }
+
     setView('history');
   };
 
@@ -1233,7 +1240,7 @@ function MovementHistoryScreen({ movements, setView, assets, deleteMovement }) {
       </div>
 
       <div className="overflow-auto border border-slate-200 rounded-lg flex-1">
-        <table className="w-full text-left border-collapse min-w-[1000px]">
+        <table className="w-full text-left border-collapse min-w-[1300px]">
           <thead className="bg-slate-100 sticky top-0">
             <tr>
               <th className="p-3 border-b border-slate-200">入出庫日</th>
@@ -1244,6 +1251,9 @@ function MovementHistoryScreen({ movements, setView, assets, deleteMovement }) {
               <th className="p-3 border-b border-slate-200 text-right">入庫数</th>
               <th className="p-3 border-b border-slate-200 text-right">出庫数</th>
               <th className="p-3 border-b border-slate-200">単位</th>
+              <th className="p-3 border-b border-slate-200 text-right">実購入価格</th>
+              <th className="p-3 border-b border-slate-200">使用期限</th>
+              <th className="p-3 border-b border-slate-200">ロット番号</th>
               <th className="p-3 border-b border-slate-200">担当者名</th>
               <th className="p-3 border-b border-slate-200">操作</th>
             </tr>
@@ -1265,6 +1275,9 @@ function MovementHistoryScreen({ movements, setView, assets, deleteMovement }) {
                     {m.type === 'out' ? m.quantity : 0}
                   </td>
                   <td className="p-3">{asset?.usageUnit}</td>
+                  <td className="p-3 text-right">¥{m.actualDeliveryPrice.toLocaleString()}</td>
+                  <td className="p-3">{m.expirationDate || '-'}</td>
+                  <td className="p-3">{m.lotNumber || '-'}</td>
                   <td className="p-3 text-slate-600">{m.staffName}</td>
                   <td className="p-3">
                     <button 
@@ -1387,6 +1400,9 @@ function EntryScreen({ type, onSave, onCancel, assets, staff }) {
     assetId: '',
     date: new Date().toISOString().split('T')[0],
     quantity: 0,
+    actualDeliveryPrice: 0,
+    expirationDate: '',
+    lotNumber: '',
     memo: ''
   });
   const [isSaving, setIsSaving] = useState(false);
@@ -1401,9 +1417,32 @@ function EntryScreen({ type, onSave, onCancel, assets, staff }) {
 
   const selectedAsset = assets.find(a => a.id === form.assetId);
 
+  useEffect(() => {
+    if (!selectedAsset || !isIn) return;
+    setForm((current) => ({
+      ...current,
+      actualDeliveryPrice: selectedAsset.deliveryPrice || 0,
+    }));
+  }, [selectedAsset?.id, isIn]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.assetId || form.quantity <= 0 || isSaving) return;
+    const actualDeliveryPrice = Number(form.actualDeliveryPrice || 0);
+    const masterDeliveryPrice = Number(selectedAsset?.deliveryPrice || 0);
+    if (isIn && actualDeliveryPrice < 0) {
+      setSaveError('実購入価格は0以上で入力してください。');
+      return;
+    }
+    const updateMasterDeliveryPrice = isIn && actualDeliveryPrice !== masterDeliveryPrice
+      ? window.confirm(
+          `実購入価格がマスタ購入価格と異なります。\n\n` +
+          `マスタ購入価格: ¥${masterDeliveryPrice.toLocaleString()}\n` +
+          `実購入価格: ¥${actualDeliveryPrice.toLocaleString()}\n\n` +
+          `マスタ購入価格を更新しますか？\n\n` +
+          `OK: 更新する / キャンセル: 今回だけ保存`
+        )
+      : false;
 
     setIsSaving(true);
     setSaveError('');
@@ -1411,6 +1450,8 @@ function EntryScreen({ type, onSave, onCancel, assets, staff }) {
     try {
       await onSave({
         ...form,
+        actualDeliveryPrice,
+        updateMasterDeliveryPrice,
         type,
         staffName: staff.find(s => s.id === form.staffId)?.name || '不明'
       });
@@ -1473,12 +1514,28 @@ function EntryScreen({ type, onSave, onCancel, assets, staff }) {
               <span className="col-span-2 font-medium">{selectedAsset?.name || '-'}</span>
             </div>
             <div className="grid grid-cols-3">
+              <span className="text-slate-500 font-bold">分類:</span>
+              <span className="col-span-2">{selectedAsset?.parentCategory || '-'}</span>
+            </div>
+            <div className="grid grid-cols-3">
+              <span className="text-slate-500 font-bold">取引先:</span>
+              <span className="col-span-2">{selectedAsset?.supplier || '-'}</span>
+            </div>
+            <div className="grid grid-cols-3">
               <span className="text-slate-500 font-bold">購入価格:</span>
               <span className="col-span-2">¥{(selectedAsset?.deliveryPrice || 0).toLocaleString()}</span>
             </div>
             <div className="grid grid-cols-3">
+              <span className="text-slate-500 font-bold">購入単位:</span>
+              <span className="col-span-2">{selectedAsset?.purchaseUnit || '-'}</span>
+            </div>
+            <div className="grid grid-cols-3">
               <span className="text-slate-500 font-bold">使用単価:</span>
               <span className="col-span-2">¥{(selectedAsset?.usageUnitPrice || 0).toLocaleString()}</span>
+            </div>
+            <div className="grid grid-cols-3">
+              <span className="text-slate-500 font-bold">使用単位:</span>
+              <span className="col-span-2">{selectedAsset?.usageUnit || '-'}</span>
             </div>
           </div>
 
@@ -1494,6 +1551,44 @@ function EntryScreen({ type, onSave, onCancel, assets, staff }) {
               <Button onClick={() => setForm({...form, date: new Date().toISOString().split('T')[0]})}>本日</Button>
             </div>
           </div>
+
+          {isIn && (
+            <>
+              <div className="grid grid-cols-3 items-center gap-4">
+                <label className="font-bold text-slate-700">実購入価格</label>
+                <div className="col-span-2 flex gap-2 items-center">
+                  <input
+                    type="number"
+                    min="0"
+                    className="flex-1 p-2 border rounded-md bg-emerald-50 text-right"
+                    value={form.actualDeliveryPrice}
+                    onChange={(e) => setForm({...form, actualDeliveryPrice: Number(e.target.value) || 0})}
+                  />
+                  <span className="font-bold text-slate-600">円</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 items-center gap-4">
+                <label className="font-bold text-slate-700">使用期限</label>
+                <input
+                  type="date"
+                  className="col-span-2 p-2 border rounded-md"
+                  value={form.expirationDate}
+                  onChange={(e) => setForm({...form, expirationDate: e.target.value})}
+                />
+              </div>
+
+              <div className="grid grid-cols-3 items-center gap-4">
+                <label className="font-bold text-slate-700">ロット番号</label>
+                <input
+                  type="text"
+                  className="col-span-2 p-2 border rounded-md"
+                  value={form.lotNumber}
+                  onChange={(e) => setForm({...form, lotNumber: e.target.value})}
+                />
+              </div>
+            </>
+          )}
 
           <div className="grid grid-cols-3 items-center gap-4">
             <label className="font-bold text-slate-700">{isIn ? '入庫数' : '出庫数'}</label>
@@ -1522,7 +1617,20 @@ function EntryScreen({ type, onSave, onCancel, assets, staff }) {
 
           <div className="flex justify-between items-center pt-6 border-t border-slate-100">
             <div className="flex gap-2">
-              <Button variant="action" onClick={() => setForm({...form, assetId: '', quantity: 0, memo: ''})}>新規入力</Button>
+              <Button
+                variant="action"
+                onClick={() => setForm({
+                  ...form,
+                  assetId: '',
+                  quantity: 0,
+                  actualDeliveryPrice: 0,
+                  expirationDate: '',
+                  lotNumber: '',
+                  memo: '',
+                })}
+              >
+                新規入力
+              </Button>
               <Button variant="danger" ghost><Trash2 size={18} /> 削除</Button>
             </div>
             <div className="flex gap-2">
