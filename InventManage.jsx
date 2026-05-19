@@ -1232,6 +1232,17 @@ function DetailRow({ label, value, mono = false }) {
   );
 }
 
+function InfoLine({ label, value, className = '', valueClassName = '', strong = false }) {
+  return (
+    <div className={`grid grid-cols-[72px_minmax(0,1fr)] gap-2 ${className}`}>
+      <span className="text-xs font-bold text-slate-500">{label}</span>
+      <span className={`min-w-0 break-words text-slate-700 ${strong ? 'font-bold' : 'font-medium'} ${valueClassName}`}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
 function MovementHistoryScreen({ movements, setView, assets, staff = [], updateMovement, deleteMovement }) {
   const [filterType, setFilterType] = useState('all');
   const [movementSearchTerm, setMovementSearchTerm] = useState('');
@@ -1345,7 +1356,6 @@ function MovementHistoryScreen({ movements, setView, assets, staff = [], updateM
     <Card className="max-h-[90vh] flex flex-col">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-3xl font-bold text-slate-800">入出庫データ一覧/修正</h2>
-        <Button variant="secondary" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
       </div>
 
       <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -1560,15 +1570,16 @@ function MovementHistoryScreen({ movements, setView, assets, staff = [], updateM
         </div>
       )}
 
-      <div className="flex gap-4 mt-6">
+      <div className="flex justify-end gap-3 mt-6">
         <Button variant="secondary"><Printer size={18} /> 一覧印刷</Button>
+        <Button variant="secondary" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
       </div>
     </Card>
   );
 }
 
 // --- Searchable Asset Input ---
-function AssetSearchInput({ assets, value, onChange, isIn, showListSignal }) {
+function AssetSearchInput({ assets, value, onChange, isIn, showListSignal, inputRef = null }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
@@ -1616,6 +1627,7 @@ function AssetSearchInput({ assets, value, onChange, isIn, showListSignal }) {
     <div className="relative w-full" ref={containerRef}>
       <div className="relative flex items-center">
         <input 
+          ref={inputRef}
           type="text"
           placeholder="資産コードまたは品名で検索..."
           className={`w-full p-2 pr-10 border rounded-md outline-none focus:ring-2 transition-all ${
@@ -1674,12 +1686,33 @@ function EntryScreen({ type, onSave, onCancel, assets, movements = [], staff }) 
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [assetListSignal, setAssetListSignal] = useState(0);
+  const [staffCodeInput, setStaffCodeInput] = useState(staff[0]?.id || '');
+  const assetInputRef = useRef(null);
 
   useEffect(() => {
     if (!form.staffId && staff.length > 0) {
       setForm((current) => ({ ...current, staffId: staff[0].id }));
+      setStaffCodeInput(staff[0].id);
     }
   }, [form.staffId, staff]);
+
+  useEffect(() => {
+    setStaffCodeInput(form.staffId || '');
+  }, [form.staffId]);
+
+  const selectStaffByCode = ({ focusAsset = false } = {}) => {
+    const normalizedCode = staffCodeInput.trim();
+    const selectedStaff = staff.find((member) => String(member.id) === normalizedCode);
+    if (!selectedStaff) {
+      setSaveError(`担当者番号 ${normalizedCode || '未入力'} は見つかりません。`);
+      return;
+    }
+    setSaveError('');
+    setForm((current) => ({ ...current, staffId: String(selectedStaff.id) }));
+    if (focusAsset) {
+      window.setTimeout(() => assetInputRef.current?.focus(), 0);
+    }
+  };
 
   const selectedAsset = assets.find(a => a.id === form.assetId);
   const selectedAssetMovements = selectedAsset
@@ -1755,14 +1788,30 @@ function EntryScreen({ type, onSave, onCancel, assets, movements = [], staff }) 
           <div className="grid grid-cols-3 items-center gap-4">
             <label className="font-bold text-slate-700">担当者</label>
             <div className="col-span-2 flex gap-2">
+              <input
+                value={staffCodeInput}
+                onChange={(e) => setStaffCodeInput(e.target.value)}
+                onBlur={selectStaffByCode}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    selectStaffByCode({ focusAsset: true });
+                  }
+                }}
+                className={`w-16 p-2 text-center rounded border outline-none focus:ring-2 ${
+                  isIn ? 'bg-emerald-50 focus:ring-emerald-200' : 'bg-rose-50 focus:ring-rose-200'
+                }`}
+              />
               <select 
                 className={`flex-1 p-2 border rounded-md outline-none focus:ring-2 ${isIn ? 'focus:ring-emerald-500' : 'focus:ring-rose-500'}`}
                 value={form.staffId}
-                onChange={(e) => setForm({...form, staffId: e.target.value})}
+                onChange={(e) => {
+                  setForm({...form, staffId: e.target.value});
+                  setStaffCodeInput(e.target.value);
+                }}
               >
-                {staff.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {staff.map(s => <option key={s.id} value={s.id}>{s.id} {s.name}</option>)}
               </select>
-              <input readOnly value={form.staffId} className="w-16 p-2 bg-slate-100 text-center rounded border" />
             </div>
           </div>
 
@@ -1775,6 +1824,7 @@ function EntryScreen({ type, onSave, onCancel, assets, movements = [], staff }) 
                 onChange={(id) => setForm({...form, assetId: id})}
                 isIn={isIn}
                 showListSignal={assetListSignal}
+                inputRef={assetInputRef}
               />
               <Button
                 variant="action"
@@ -1786,44 +1836,15 @@ function EntryScreen({ type, onSave, onCancel, assets, movements = [], staff }) 
             </div>
           </div>
 
-          <div className="bg-slate-50 p-4 rounded-lg space-y-2 text-sm border border-slate-200">
-            <div className="grid grid-cols-3">
-              <span className="text-slate-500 font-bold">メーカー:</span>
-              <span className="col-span-2 font-medium">{selectedAsset?.maker || '-'}</span>
-            </div>
-            <div className="grid grid-cols-3">
-              <span className="text-slate-500 font-bold">品名:</span>
-              <span className="col-span-2 font-medium">{selectedAsset?.name || '-'}</span>
-            </div>
-            <div className="grid grid-cols-3">
-              <span className="text-slate-500 font-bold">分類:</span>
-              <span className="col-span-2">{selectedAsset?.parentCategory || '-'}</span>
-            </div>
-            <div className="grid grid-cols-3">
-              <span className="text-slate-500 font-bold">取引先:</span>
-              <span className="col-span-2">{selectedAsset?.supplier || '-'}</span>
-            </div>
-            <div className="grid grid-cols-3">
-              <span className="text-slate-500 font-bold">購入価格:</span>
-              <span className="col-span-2">¥{(selectedAsset?.deliveryPrice || 0).toLocaleString()}</span>
-            </div>
-            <div className="grid grid-cols-3">
-              <span className="text-slate-500 font-bold">購入単位:</span>
-              <span className="col-span-2">{selectedAsset?.purchaseUnit || '-'}</span>
-            </div>
-            <div className="grid grid-cols-3">
-              <span className="text-slate-500 font-bold">使用単価:</span>
-              <span className="col-span-2">¥{(selectedAsset?.usageUnitPrice || 0).toLocaleString()}</span>
-            </div>
-            <div className="grid grid-cols-3">
-              <span className="text-slate-500 font-bold">使用単位:</span>
-              <span className="col-span-2">{selectedAsset?.usageUnit || '-'}</span>
-            </div>
-            <div className="grid grid-cols-3">
-              <span className="text-slate-500 font-bold">現在庫:</span>
-              <span className={`col-span-2 font-bold ${currentStock <= 0 ? 'text-rose-600' : 'text-slate-700'}`}>
-                {selectedAsset ? currentStock.toLocaleString() : '-'} {selectedAsset?.usageUnit || ''}
-              </span>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+            <div className="grid grid-cols-2 gap-x-5 gap-y-2">
+              <InfoLine label="メーカー" value={selectedAsset?.maker || '-'} />
+              <InfoLine label="分類" value={selectedAsset?.parentCategory || '-'} />
+              <InfoLine label="品名" value={selectedAsset?.name || '-'} className="col-span-2" strong />
+              <InfoLine label="取引先" value={selectedAsset?.supplier || '-'} />
+              <InfoLine label="現在庫" value={`${selectedAsset ? currentStock.toLocaleString() : '-'} ${selectedAsset?.usageUnit || ''}`} valueClassName={`font-bold ${currentStock <= 0 ? 'text-rose-600' : 'text-slate-700'}`} />
+              <InfoLine label="購入" value={`¥${(selectedAsset?.deliveryPrice || 0).toLocaleString()} / ${selectedAsset?.purchaseUnit || '-'}`} />
+              <InfoLine label="使用" value={`¥${(selectedAsset?.usageUnitPrice || 0).toLocaleString()} / ${selectedAsset?.usageUnit || '-'}`} />
             </div>
           </div>
 
@@ -1865,16 +1886,6 @@ function EntryScreen({ type, onSave, onCancel, assets, movements = [], staff }) 
                   onChange={(e) => setForm({...form, expirationDate: e.target.value})}
                 />
               </div>
-
-              <div className="grid grid-cols-3 items-center gap-4">
-                <label className="font-bold text-slate-700">ロット番号</label>
-                <input
-                  type="text"
-                  className="col-span-2 p-2 border rounded-md"
-                  value={form.lotNumber}
-                  onChange={(e) => setForm({...form, lotNumber: e.target.value})}
-                />
-              </div>
             </>
           )}
 
@@ -1903,24 +1914,7 @@ function EntryScreen({ type, onSave, onCancel, assets, movements = [], staff }) 
             />
           </div>
 
-          <div className="flex justify-between items-center pt-6 border-t border-slate-100">
-            <div className="flex gap-2">
-              <Button
-                variant="action"
-                onClick={() => setForm({
-                  ...form,
-                  assetId: '',
-                  quantity: 0,
-                  actualDeliveryPrice: 0,
-                  expirationDate: '',
-                  lotNumber: '',
-                  memo: '',
-                })}
-              >
-                新規入力
-              </Button>
-              <Button variant="danger" ghost><Trash2 size={18} /> 削除</Button>
-            </div>
+          <div className="flex justify-end items-center pt-6 border-t border-slate-100">
             <div className="flex gap-2">
               <Button variant={btnVariant} className="px-10" onClick={handleSubmit} disabled={isSaving}>
                 {isSaving ? '登録中...' : '登録'}
