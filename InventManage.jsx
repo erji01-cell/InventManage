@@ -1231,17 +1231,25 @@ function MovementHistoryScreen({ movements, setView, assets, staff = [], updateM
   const [movementSaveError, setMovementSaveError] = useState('');
   const [isMovementSaving, setIsMovementSaving] = useState(false);
 
-  const filtered = movements.filter(m => {
-    if (filterType === 'in') return m.type === 'in';
-    if (filterType === 'out') return m.type === 'out';
-    return true;
-  });
+  const filtered = [...movements]
+    .filter(m => {
+      const movementType = normalizeMovementType(m.type);
+      if (filterType === 'in') return movementType === 'in';
+      if (filterType === 'out') return movementType === 'out';
+      return true;
+    })
+    .sort((a, b) => {
+      const dateA = Date.parse(String(a.date || '').replaceAll('/', '-')) || 0;
+      const dateB = Date.parse(String(b.date || '').replaceAll('/', '-')) || 0;
+      if (dateA !== dateB) return dateB - dateA;
+      return Number(b.id || 0) - Number(a.id || 0);
+    });
 
   const openMovementDetail = (movement, asset) => {
     setSelectedMovement({ movement, asset });
     setMovementEditForm({
       date: movement.date || '',
-      type: movement.type || 'in',
+      type: normalizeMovementType(movement.type),
       quantity: movement.quantity || 0,
       actualDeliveryPrice: movement.actualDeliveryPrice ?? 0,
       staffId: movement.staffId || '',
@@ -1374,6 +1382,7 @@ function MovementHistoryScreen({ movements, setView, assets, staff = [], updateM
           <tbody>
             {filtered.map(m => {
               const asset = assets.find(a => a.id === m.assetId);
+              const movementType = normalizeMovementType(m.type);
               return (
                 <tr key={m.id} className="hover:bg-slate-50 transition-colors border-b border-slate-100 group align-top">
                   <td className="px-3 py-3 text-slate-500 whitespace-nowrap">{m.date}</td>
@@ -1389,15 +1398,15 @@ function MovementHistoryScreen({ movements, setView, assets, staff = [], updateM
                       {asset?.name || '-'}
                     </button>
                   </td>
-                  <td className={`px-2 py-3 text-right font-bold ${m.type === 'in' ? 'text-emerald-600' : 'text-slate-300'}`}>
-                    {m.type === 'in' ? m.quantity : 0}
+                  <td className={`px-2 py-3 text-right font-bold ${movementType === 'in' ? 'text-emerald-600' : 'text-slate-300'}`}>
+                    {movementType === 'in' ? m.quantity : 0}
                   </td>
-                  <td className={`px-2 py-3 text-right font-bold ${m.type === 'out' ? 'text-rose-600' : 'text-slate-300'}`}>
-                    {m.type === 'out' ? m.quantity : 0}
+                  <td className={`px-2 py-3 text-right font-bold ${movementType === 'out' ? 'text-rose-600' : 'text-slate-300'}`}>
+                    {movementType === 'out' ? m.quantity : 0}
                   </td>
                   <td className="px-2 py-3 text-center">{asset?.usageUnit}</td>
                   <td className="px-3 py-3 text-right whitespace-nowrap">
-                    {m.type === 'in' ? `¥${m.actualDeliveryPrice.toLocaleString()}` : '-'}
+                    {movementType === 'in' ? `¥${m.actualDeliveryPrice.toLocaleString()}` : '-'}
                   </td>
                   <td className="px-3 py-3 whitespace-nowrap">{m.expirationDate || '-'}</td>
                   <td className="px-2 py-3 text-center">
