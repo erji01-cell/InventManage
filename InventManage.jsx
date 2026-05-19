@@ -1227,10 +1227,13 @@ function DetailRow({ label, value, mono = false }) {
 
 function MovementHistoryScreen({ movements, setView, assets, staff = [], updateMovement, deleteMovement }) {
   const [filterType, setFilterType] = useState('all');
+  const [movementSearchTerm, setMovementSearchTerm] = useState('');
   const [selectedMovement, setSelectedMovement] = useState(null);
   const [movementEditForm, setMovementEditForm] = useState(null);
   const [movementSaveError, setMovementSaveError] = useState('');
   const [isMovementSaving, setIsMovementSaving] = useState(false);
+
+  const normalizedSearchTerm = movementSearchTerm.trim().toLowerCase();
 
   const displayedMovements = movements
     .map(m => ({ ...m, normalizedType: normalizeMovementType(m.type) }))
@@ -1238,6 +1241,18 @@ function MovementHistoryScreen({ movements, setView, assets, staff = [], updateM
       if (filterType === 'in') return m.normalizedType === 'in';
       if (filterType === 'out') return m.normalizedType === 'out';
       return true;
+    })
+    .filter(m => {
+      if (!normalizedSearchTerm) return true;
+      const asset = assets.find(a => a.id === m.assetId);
+      return [
+        m.assetId,
+        m.staffName,
+        m.memo,
+        asset?.maker,
+        asset?.name,
+        asset?.category,
+      ].some(value => String(value || '').toLowerCase().includes(normalizedSearchTerm));
     })
     .sort((a, b) => {
       const dateA = Date.parse(String(a.date || '').replaceAll('/', '-')) || 0;
@@ -1359,7 +1374,17 @@ function MovementHistoryScreen({ movements, setView, assets, staff = [], updateM
           <div className="text-sm bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full font-bold">
             品名をクリックで個別画面表示
           </div>
-          <Button variant="primary" className="w-28">抽出</Button>
+          <div className="relative">
+            <input
+              type="text"
+              value={movementSearchTerm}
+              onChange={(event) => setMovementSearchTerm(event.target.value)}
+              placeholder="ID・品名・メーカーで抽出"
+              className="w-64 rounded-md border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+            />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          </div>
+          <Button variant="primary" className="w-28" onClick={() => setMovementSearchTerm(movementSearchTerm.trim())}>抽出</Button>
         </div>
       </div>
 
@@ -1909,12 +1934,14 @@ function EntryScreen({ type, onSave, onCancel, assets, movements = [], staff }) 
 
 function StockStatusScreen({ assets, movements, setView }) {
   const [selectedMonth, setSelectedMonth] = useState(5);
+  const [stockSearchTerm, setStockSearchTerm] = useState('');
+  const fiscalMonths = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
 
   const stockData = useMemo(() => {
     return assets.map(asset => {
       const assetMovements = movements.filter(m => m.assetId === asset.id);
-      const inboundTotal = assetMovements.filter(m => m.type === 'in').reduce((sum, m) => sum + m.quantity, 0);
-      const outboundTotal = assetMovements.filter(m => m.type === 'out').reduce((sum, m) => sum + m.quantity, 0);
+      const inboundTotal = assetMovements.filter(m => normalizeMovementType(m.type) === 'in').reduce((sum, m) => sum + m.quantity, 0);
+      const outboundTotal = assetMovements.filter(m => normalizeMovementType(m.type) === 'out').reduce((sum, m) => sum + m.quantity, 0);
       const initialStock = asset.openingStock || 0; 
       const currentStock = initialStock + inboundTotal - outboundTotal;
       const stockValue = currentStock * asset.usageUnitPrice;
@@ -1923,69 +1950,119 @@ function StockStatusScreen({ assets, movements, setView }) {
     });
   }, [assets, movements]);
 
+  const normalizedStockSearch = stockSearchTerm.trim().toLowerCase();
+  const filteredStockData = useMemo(() => {
+    if (!normalizedStockSearch) return stockData;
+
+    return stockData.filter(row => [
+      row.id,
+      row.maker,
+      row.name,
+      row.kanaName,
+      row.category,
+      row.parentGenericName,
+    ].some(value => String(value || '').toLowerCase().includes(normalizedStockSearch)));
+  }, [stockData, normalizedStockSearch]);
+
+  const totalStockValue = filteredStockData.reduce((sum, row) => sum + row.stockValue, 0);
+  const activeStockCount = filteredStockData.filter(row => row.currentStock > 0).length;
+
   return (
-    <Card className="max-h-[90vh] flex flex-col">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold text-slate-800">在 庫 表</h2>
+    <Card className="max-h-[90vh] flex flex-col gap-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight text-slate-800">在庫表</h2>
+          <p className="mt-1 text-sm text-slate-500">月度を選択し、品名・メーカー・IDで絞り込めます。</p>
+        </div>
         <Button variant="secondary" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
       </div>
 
-      <div className="flex flex-wrap gap-6 items-end mb-6">
-        <div className="space-y-2">
-          <p className="text-sm font-bold text-slate-500">月度選択</p>
-          <div className="flex bg-white border border-slate-200 rounded-lg p-1">
-            {[7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6].map(m => (
-              <button key={m} onClick={() => setSelectedMonth(m)} className={`w-10 h-8 rounded text-sm ${selectedMonth === m ? 'bg-blue-600 text-white font-bold' : 'hover:bg-slate-100 text-slate-600'}`}>{m}</button>
-            ))}
+      <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[auto_1fr_auto] xl:items-end">
+          <div className="space-y-2">
+            <p className="text-sm font-bold text-slate-500">月度選択</p>
+            <div className="flex rounded-md border border-slate-200 bg-white p-1 shadow-sm">
+              {fiscalMonths.map(month => (
+                <button
+                  key={month}
+                  onClick={() => setSelectedMonth(month)}
+                  className={`h-9 w-10 rounded text-sm transition-colors ${selectedMonth === month ? 'bg-blue-600 text-white font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-100'}`}
+                >
+                  {month}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        <div className="flex-1 space-y-2">
-          <p className="text-sm font-bold text-slate-500">品名(ヒンメイ)検索</p>
-          <div className="flex gap-2">
-            <input type="text" className="flex-1 p-2 border border-slate-200 rounded-md" />
-            <Button>最初検索</Button>
+          <div className="space-y-2">
+            <p className="text-sm font-bold text-slate-500">品名・メーカー検索</p>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <input
+                type="text"
+                value={stockSearchTerm}
+                onChange={(event) => setStockSearchTerm(event.target.value)}
+                className="w-full rounded-md border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                placeholder="ID・品名・メーカー・分類で検索"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 xl:w-[360px]">
+            <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
+              <p className="text-xs font-bold text-slate-400">表示件数</p>
+              <p className="mt-1 text-right text-lg font-bold text-slate-800">{filteredStockData.length.toLocaleString()}</p>
+            </div>
+            <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
+              <p className="text-xs font-bold text-slate-400">在庫あり</p>
+              <p className="mt-1 text-right text-lg font-bold text-emerald-700">{activeStockCount.toLocaleString()}</p>
+            </div>
+            <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2">
+              <p className="text-xs font-bold text-blue-500">在庫金額</p>
+              <p className="mt-1 text-right text-lg font-bold text-blue-700">¥{totalStockValue.toLocaleString()}</p>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="overflow-auto border border-slate-200 rounded-lg flex-1 text-sm">
-        <table className="w-full text-left border-collapse min-w-[1000px]">
-          <thead className="bg-slate-100 sticky top-0 z-10">
+      <div className="overflow-auto rounded-lg border border-slate-200 flex-1 text-sm shadow-sm">
+        <table className="w-full min-w-[1080px] border-collapse text-left">
+          <thead className="sticky top-0 z-10 bg-slate-100 text-slate-700">
             <tr>
-              <th className="p-3 border-b border-slate-200">資産コード</th>
-              <th className="p-3 border-b border-slate-200">メーカー</th>
-              <th className="p-3 border-b border-slate-200">品 名</th>
-              <th className="p-3 border-b border-slate-200 text-right bg-rose-50/50">前月在庫</th>
-              <th className="p-3 border-b border-slate-200 text-right bg-blue-50/50">入庫数</th>
-              <th className="p-3 border-b border-slate-200 text-right bg-blue-50/50">出庫数</th>
-              <th className="p-3 border-b border-slate-200 text-right bg-rose-50/50 font-bold">在庫数</th>
-              <th className="p-3 border-b border-slate-200 text-center">使用単位</th>
-              <th className="p-3 border-b border-slate-200 text-right">使用単価</th>
-              <th className="p-3 border-b border-slate-200 text-right font-bold text-blue-800">在庫金額</th>
+              <th className="border-b border-slate-200 px-3 py-2 w-20">ID</th>
+              <th className="border-b border-slate-200 px-3 py-2 w-36">メーカー</th>
+              <th className="border-b border-slate-200 px-3 py-2 min-w-[320px]">品名</th>
+              <th className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-right w-20">前月在庫</th>
+              <th className="border-b border-slate-200 bg-emerald-50/70 px-3 py-2 text-right w-20">入庫数</th>
+              <th className="border-b border-slate-200 bg-rose-50/70 px-3 py-2 text-right w-20">出庫数</th>
+              <th className="border-b border-slate-200 bg-blue-50/70 px-3 py-2 text-right font-bold w-20">在庫数</th>
+              <th className="border-b border-slate-200 px-3 py-2 text-center w-20">単位</th>
+              <th className="border-b border-slate-200 px-3 py-2 text-right w-28">使用単価</th>
+              <th className="border-b border-slate-200 bg-blue-50/70 px-3 py-2 text-right font-bold w-32">在庫金額</th>
             </tr>
           </thead>
           <tbody>
-            {stockData.map(row => (
-              <tr key={row.id} className="hover:bg-slate-50 border-b border-slate-100">
-                <td className="p-3 font-mono">{row.id}</td>
-                <td className="p-3">{row.maker}</td>
-                <td className="p-3 font-medium">{row.name}</td>
-                <td className="p-3 text-right bg-rose-50/20">{row.prevMonth}</td>
-                <td className="p-3 text-right bg-blue-50/20">{row.inbound}</td>
-                <td className="p-3 text-right bg-blue-50/20">{row.outbound}</td>
-                <td className="p-3 text-right bg-rose-50/20 font-bold">{row.currentStock}</td>
-                <td className="p-3 text-center">{row.usageUnit}</td>
-                <td className="p-3 text-right">¥{row.usageUnitPrice.toLocaleString()}</td>
-                <td className="p-3 text-right font-bold text-blue-600 bg-blue-50/10">¥{row.stockValue.toLocaleString()}</td>
+            {filteredStockData.map(row => (
+              <tr key={row.id} className="border-b border-slate-100 transition-colors hover:bg-blue-50/30">
+                <td className="px-3 py-2 font-mono text-slate-600">{row.id}</td>
+                <td className="px-3 py-2 whitespace-normal break-words">{row.maker || '-'}</td>
+                <td className="px-3 py-2 font-bold text-slate-800">{row.name}</td>
+                <td className="bg-slate-50/60 px-3 py-2 text-right">{row.prevMonth.toLocaleString()}</td>
+                <td className="bg-emerald-50/40 px-3 py-2 text-right text-emerald-700 font-bold">{row.inbound.toLocaleString()}</td>
+                <td className="bg-rose-50/40 px-3 py-2 text-right text-rose-700 font-bold">{row.outbound.toLocaleString()}</td>
+                <td className="bg-blue-50/40 px-3 py-2 text-right font-bold text-slate-900">{row.currentStock.toLocaleString()}</td>
+                <td className="px-3 py-2 text-center">{row.usageUnit || '-'}</td>
+                <td className="px-3 py-2 text-right">¥{row.usageUnitPrice.toLocaleString()}</td>
+                <td className="bg-blue-50/50 px-3 py-2 text-right font-bold text-blue-700">¥{row.stockValue.toLocaleString()}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      <div className="flex justify-end mt-6">
-        <Button variant="secondary"><Printer size={18} /> 印 刷</Button>
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-slate-400">表示中の行だけが検索結果として反映されます。</p>
+        <Button variant="secondary"><Printer size={18} /> 印刷</Button>
       </div>
     </Card>
   );
