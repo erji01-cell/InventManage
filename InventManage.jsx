@@ -177,6 +177,15 @@ const toNullableNumber = (value) => {
   return Number.isFinite(number) ? number : null;
 };
 
+function getNextParentId(assets) {
+  const maxId = assets.reduce((max, asset) => {
+    const match = String(asset.parentId || '').match(/^P-(\d+)$/);
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 0);
+
+  return `P-${String(maxId + 1).padStart(4, '0')}`;
+}
+
 function normalizeAsset(row, parentMap, supplierMap) {
   const parent = parentMap.get(row.parent_id);
   const supplier = supplierMap.get(row.supplier_id);
@@ -485,6 +494,99 @@ export default function App() {
     setMovements(prev => prev.filter(m => m.id !== id));
   };
 
+  const createAsset = async (data) => {
+    let parent = data.parentId
+      ? assets.find(asset => asset.parentId === data.parentId)
+      : assets.find(asset =>
+          asset.parentCategory === data.parentCategory &&
+          asset.parentGenericName === data.parentGenericName
+        );
+
+    if (!parent) {
+      const parentRows = await supabaseRequest(
+        'invent_parent_assets?select=id&order=id.desc&limit=1',
+        {},
+        authSession
+      );
+      const nextParentId = getNextParentId(parentRows.map(row => ({ parentId: row.id })));
+
+      const [createdParent] = await supabaseRequest(
+        'invent_parent_assets?select=*',
+        {
+          method: 'POST',
+          headers: {
+            Prefer: 'return=representation',
+          },
+          body: JSON.stringify({
+            id: nextParentId,
+            category: data.parentCategory,
+            generic_name: data.parentGenericName,
+            safety_stock: null,
+          }),
+        },
+        authSession
+      );
+      parent = {
+        parentId: createdParent.id,
+        parentCategory: createdParent.category,
+        parentGenericName: createdParent.generic_name,
+      };
+    }
+
+    const [createdAsset] = await supabaseRequest(
+      'invent_child_assets?select=*',
+      {
+        method: 'POST',
+        headers: {
+          Prefer: 'return=representation',
+        },
+        body: JSON.stringify({
+          parent_id: parent.parentId,
+          maker: data.maker,
+          brand_name: data.name,
+          kana_name: null,
+          opening_stock: 0,
+          delivery_price: data.deliveryPrice,
+          purchase_unit: data.purchaseUnit || null,
+          pack_size: data.packSize,
+          usage_unit: data.usageUnit || null,
+          supplier_id: data.supplierId,
+          jan_code: data.janCode || null,
+          child_memo: data.memo || null,
+          is_active: true,
+        }),
+      },
+      authSession
+    );
+
+    const parentMap = new Map([
+      [parent.parentId, {
+        id: parent.parentId,
+        category: parent.parentCategory,
+        generic_name: parent.parentGenericName,
+      }],
+    ]);
+    const supplierMap = new Map(suppliers.map((supplier) => [supplier.id, supplier]));
+    const normalized = normalizeAsset(createdAsset, parentMap, supplierMap);
+    setAssets(prev => [...prev, normalized].sort((a, b) => Number(a.id) - Number(b.id)));
+    return normalized;
+  };
+
+  const deleteAsset = async (assetId) => {
+    await supabaseRequest(
+      `invent_child_assets?id=eq.${assetId}`,
+      {
+        method: 'PATCH',
+        headers: {
+          Prefer: 'return=minimal',
+        },
+        body: JSON.stringify({ is_active: false }),
+      },
+      authSession
+    );
+    setAssets(prev => prev.filter(asset => asset.id !== String(assetId)));
+  };
+
   const updateAsset = async (assetId, data) => {
     const [updated] = await supabaseRequest(
       `invent_child_assets?id=eq.${assetId}&select=*`,
@@ -549,7 +651,7 @@ export default function App() {
   const renderView = () => {
     switch (view) {
       case 'menu': return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} />;
-      case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} onUpdateAsset={updateAsset} onUpdateParentAsset={updateParentAsset} setView={setView} />;
+      case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} onCreateAsset={createAsset} onUpdateAsset={updateAsset} onUpdateParentAsset={updateParentAsset} onDeleteAsset={deleteAsset} setView={setView} />;
       case 'history': return <MovementHistoryScreen movements={movements} setMovements={setMovements} setView={setView} assets={assets} deleteMovement={deleteMovement} />;
       case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => setView('menu')} assets={assets} staff={staff} />;
       case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => setView('menu')} assets={assets} staff={staff} />;
@@ -637,13 +739,15 @@ const createAssetEditForm = (asset) => ({
   supplierId: asset?.supplierId || '',
   janCode: asset?.janCode || '',
   memo: asset?.memo || '',
+  parentId: asset?.parentId || '',
   parentCategory: asset?.parentCategory || '',
   parentGenericName: asset?.parentGenericName || '',
 });
 
-function AssetMasterScreen({ assets, suppliers, onUpdateAsset, onUpdateParentAsset, setView }) {
+function AssetMasterScreen({ assets, suppliers, onCreateAsset, onUpdateAsset, onUpdateParentAsset, onDeleteAsset, setView }) {
   const [filter, setFilter] = useState('');
   const [selectedAssetId, setSelectedAssetId] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState(() => createAssetEditForm(null));
   const [saveError, setSaveError] = useState('');
@@ -654,35 +758,74 @@ function AssetMasterScreen({ assets, suppliers, onUpdateAsset, onUpdateParentAss
     a.parentCategory.includes(filter) ||
     a.supplier.includes(filter)
   );
+  const parentOptions = useMemo(() => {
+    const parents = new Map();
+    assets.forEach(asset => {
+      if (!asset.parentId || parents.has(asset.parentId)) return;
+      parents.set(asset.parentId, {
+        id: asset.parentId,
+        category: asset.parentCategory || '',
+        genericName: asset.parentGenericName || '',
+      });
+    });
+    return Array.from(parents.values()).sort((a, b) =>
+      `${a.genericName}${a.category}`.localeCompare(`${b.genericName}${b.category}`, 'ja')
+    );
+  }, [assets]);
   const selectedAsset =
     filteredAssets.find(asset => asset.id === selectedAssetId) ||
     filteredAssets[0] ||
     null;
 
   useEffect(() => {
+    if (isCreating) return;
     setIsEditing(false);
     setSaveError('');
     setEditForm(createAssetEditForm(selectedAsset));
-  }, [selectedAsset?.id]);
+  }, [selectedAsset?.id, isCreating]);
 
   const updateEditForm = (key, value) => {
     setEditForm(prev => ({ ...prev, [key]: value }));
   };
 
+  const updateParentSelection = (parentId) => {
+    const parent = parentOptions.find(option => option.id === parentId);
+    setEditForm(prev => ({
+      ...prev,
+      parentId,
+      parentCategory: parent?.category || '',
+      parentGenericName: parent?.genericName || '',
+    }));
+  };
+
+  const updateNewParentField = (key, value) => {
+    setEditForm(prev => ({ ...prev, parentId: '', [key]: value }));
+  };
+
   const startEdit = () => {
+    setIsCreating(false);
     setEditForm(createAssetEditForm(selectedAsset));
     setSaveError('');
     setIsEditing(true);
   };
 
+  const startCreate = () => {
+    setSelectedAssetId('');
+    setIsCreating(true);
+    setIsEditing(true);
+    setSaveError('');
+    setEditForm(createAssetEditForm(null));
+  };
+
   const cancelEdit = () => {
     setEditForm(createAssetEditForm(selectedAsset));
     setSaveError('');
+    setIsCreating(false);
     setIsEditing(false);
   };
 
   const saveEdit = async () => {
-    if (!selectedAsset) return;
+    if (!isCreating && !selectedAsset) return;
 
     const deliveryPrice = toNullableNumber(editForm.deliveryPrice);
     const packSize = toNullableNumber(editForm.packSize);
@@ -712,6 +855,27 @@ function AssetMasterScreen({ assets, suppliers, onUpdateAsset, onUpdateParentAss
     setSaveError('');
 
     try {
+      if (isCreating) {
+        const created = await onCreateAsset({
+          maker: editForm.maker.trim(),
+          name: editForm.name.trim(),
+          deliveryPrice,
+          purchaseUnit: editForm.purchaseUnit.trim(),
+          packSize: Math.trunc(packSize),
+          usageUnit: editForm.usageUnit.trim(),
+          supplierId,
+          janCode: editForm.janCode.trim(),
+          memo: editForm.memo.trim(),
+          parentId: editForm.parentId,
+          parentCategory: editForm.parentCategory.trim(),
+          parentGenericName: editForm.parentGenericName.trim(),
+        });
+        setSelectedAssetId(created.id);
+        setIsCreating(false);
+        setIsEditing(false);
+        return;
+      }
+
       await onUpdateParentAsset(selectedAsset.parentId, {
         category: editForm.parentCategory.trim(),
         generic_name: editForm.parentGenericName.trim(),
@@ -736,6 +900,26 @@ function AssetMasterScreen({ assets, suppliers, onUpdateAsset, onUpdateParentAss
     }
   };
 
+  const deleteSelectedAsset = async () => {
+    if (!selectedAsset || isSaving) return;
+    const confirmed = window.confirm(`${selectedAsset.name} を削除しますか？`);
+    if (!confirmed) return;
+
+    setIsSaving(true);
+    setSaveError('');
+
+    try {
+      await onDeleteAsset(selectedAsset.id);
+      setSelectedAssetId('');
+      setIsCreating(false);
+      setIsEditing(false);
+    } catch (err) {
+      setSaveError(err.message || '資産を削除できませんでした。');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <Card className="max-h-[90vh] flex flex-col">
       <div className="flex justify-between items-center mb-6">
@@ -754,7 +938,8 @@ function AssetMasterScreen({ assets, suppliers, onUpdateAsset, onUpdateParentAss
             onChange={(e) => setFilter(e.target.value)}
           />
         </div>
-        <Button onClick={() => setFilter('')}>最初から検索</Button>
+        <Button>検索</Button>
+        <Button variant="secondary" onClick={() => setFilter('')}>リセット</Button>
       </div>
 
       <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -774,7 +959,10 @@ function AssetMasterScreen({ assets, suppliers, onUpdateAsset, onUpdateParentAss
                 return (
                   <tr
                     key={asset.id}
-                    onClick={() => setSelectedAssetId(asset.id)}
+                    onClick={() => {
+                      setIsCreating(false);
+                      setSelectedAssetId(asset.id);
+                    }}
                     className={`cursor-pointer border-b border-slate-100 transition-colors ${
                       isSelected ? 'bg-blue-50' : 'hover:bg-slate-50'
                     }`}
@@ -791,7 +979,7 @@ function AssetMasterScreen({ assets, suppliers, onUpdateAsset, onUpdateParentAss
         </div>
 
         <aside className="overflow-auto rounded-lg border border-slate-200 bg-slate-50 p-4">
-          {selectedAsset ? (
+          {selectedAsset || isCreating ? (
             <div className="space-y-4 text-sm">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xs font-bold text-slate-400">詳細情報</p>
@@ -820,7 +1008,7 @@ function AssetMasterScreen({ assets, suppliers, onUpdateAsset, onUpdateParentAss
               {isEditing ? (
                 <>
                   <div className="grid grid-cols-2 gap-3">
-                    <DetailItem label="ID" value={selectedAsset.id || '-'} mono />
+                    <DetailItem label="ID" value={isCreating ? '新規' : selectedAsset.id || '-'} mono />
                     <EditField
                       label="取引先"
                       type="select"
@@ -842,11 +1030,31 @@ function AssetMasterScreen({ assets, suppliers, onUpdateAsset, onUpdateParentAss
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                     <p className="mb-3 text-xs font-bold text-amber-700">大分類</p>
                     <div className="space-y-3">
-                      <EditField label="分類" value={editForm.parentCategory} onChange={(value) => updateEditForm('parentCategory', value)} />
-                      <EditField label="大分類名" value={editForm.parentGenericName} onChange={(value) => updateEditForm('parentGenericName', value)} />
+                      <EditField label="分類" value={editForm.parentCategory} onChange={(value) => updateNewParentField('parentCategory', value)} />
+                      {isCreating && (
+                        <EditField
+                          label="既存ジェネリック名"
+                          type="select"
+                          value={editForm.parentId}
+                          onChange={updateParentSelection}
+                          options={[
+                            { value: '', label: '新しいジェネリック名で登録' },
+                            ...parentOptions.map(parent => ({
+                              value: parent.id,
+                              label: `${parent.genericName || parent.id} / ${parent.category || '-'}`,
+                            })),
+                          ]}
+                        />
+                      )}
+                      <EditField
+                        label="大分類名"
+                        value={editForm.parentGenericName}
+                        onChange={(value) => updateNewParentField('parentGenericName', value)}
+                        disabled={isCreating && Boolean(editForm.parentId)}
+                      />
                     </div>
                     <p className="mt-2 text-xs text-amber-700">
-                      同じ大分類に紐づく他の資産にも反映されます。
+                      {isCreating ? '既存ジェネリック名を選ぶと、その親IDに子資産として追加されます。' : '同じ大分類に紐づく他の資産にも反映されます。'}
                     </p>
                   </div>
 
@@ -858,7 +1066,7 @@ function AssetMasterScreen({ assets, suppliers, onUpdateAsset, onUpdateParentAss
                   <div className="grid grid-cols-3 gap-3">
                     <EditField label="入数" type="number" value={editForm.packSize} onChange={(value) => updateEditForm('packSize', value)} align="right" />
                     <EditField label="使用単位" value={editForm.usageUnit} onChange={(value) => updateEditForm('usageUnit', value)} />
-                    <DetailItem label="使用単価" value={`¥${selectedAsset.usageUnitPrice.toLocaleString()}`} align="right" />
+                    <DetailItem label="使用単価" value={`¥${(selectedAsset?.usageUnitPrice || 0).toLocaleString()}`} align="right" />
                   </div>
 
                   <EditField label="jan_code" value={editForm.janCode} onChange={(value) => updateEditForm('janCode', value)} mono />
@@ -885,6 +1093,18 @@ function AssetMasterScreen({ assets, suppliers, onUpdateAsset, onUpdateParentAss
                     <DetailRow label="大分類名" value={selectedAsset.parentGenericName || '-'} />
                     <DetailRow label="摘要" value={selectedAsset.memo || '-'} />
                   </div>
+
+                  <div className="grid grid-cols-2 gap-2 border-t border-slate-200 pt-4">
+                    <Button variant="action" className="w-full px-3 py-2 text-sm" onClick={startCreate}>
+                      <PlusCircle size={18} />
+                      新規登録
+                    </Button>
+                    <Button variant="danger" className="w-full px-3 py-2 text-sm" onClick={deleteSelectedAsset} disabled={!selectedAsset || isSaving}>
+                      <Trash2 size={18} />
+                      削除
+                    </Button>
+                  </div>
+
                 </>
               )}
 
@@ -898,9 +1118,6 @@ function AssetMasterScreen({ assets, suppliers, onUpdateAsset, onUpdateParentAss
       </div>
 
       <div className="flex gap-4 mt-6">
-        <Button variant="action"><PlusCircle size={18} /> 新規入力</Button>
-        <Button variant="action" className="text-red-600 border-red-100"><Trash2 size={18} /> 削除</Button>
-        <Button variant="action" className="text-green-600 border-green-100"><Save size={18} /> 登録</Button>
         <div className="flex-1" />
         <Button variant="secondary"><Printer size={18} /> 一覧印刷</Button>
       </div>
@@ -919,8 +1136,8 @@ function DetailItem({ label, value, align = 'left', mono = false }) {
   );
 }
 
-function EditField({ label, value, onChange, type = 'text', options = null, align = 'left', mono = false, multiline = false }) {
-  const inputClass = `mt-1 w-full rounded-md border border-slate-200 bg-white px-2 py-2 text-sm font-bold text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 ${
+function EditField({ label, value, onChange, type = 'text', options = null, align = 'left', mono = false, multiline = false, disabled = false }) {
+  const inputClass = `mt-1 w-full rounded-md border border-slate-200 bg-white px-2 py-2 text-sm font-bold text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed ${
     align === 'right' ? 'text-right' : ''
   } ${mono ? 'font-mono' : ''}`;
 
@@ -928,7 +1145,7 @@ function EditField({ label, value, onChange, type = 'text', options = null, alig
     <label className="block rounded-md border border-slate-200 bg-white p-3">
       <span className="text-xs font-bold text-slate-400">{label}</span>
       {options ? (
-        <select className={inputClass} value={value} onChange={(event) => onChange(event.target.value)}>
+        <select className={inputClass} value={value} onChange={(event) => onChange(event.target.value)} disabled={disabled}>
           {options.map(option => (
             <option key={option.value} value={option.value}>{option.label}</option>
           ))}
@@ -938,6 +1155,7 @@ function EditField({ label, value, onChange, type = 'text', options = null, alig
           className={`${inputClass} min-h-24 resize-y font-normal`}
           value={value}
           onChange={(event) => onChange(event.target.value)}
+          disabled={disabled}
         />
       ) : (
         <input
@@ -947,6 +1165,7 @@ function EditField({ label, value, onChange, type = 'text', options = null, alig
           min={type === 'number' ? 0 : undefined}
           step={type === 'number' ? 'any' : undefined}
           onChange={(event) => onChange(event.target.value)}
+          disabled={disabled}
         />
       )}
     </label>
