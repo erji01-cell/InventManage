@@ -217,9 +217,10 @@ function normalizeAsset(row, parentMap, supplierMap) {
 }
 
 function normalizeMovementType(value) {
-  if (value === 'in' || value === '入庫') return 'in';
-  if (value === 'out' || value === '出庫') return 'out';
-  return value || 'in';
+  const text = String(value || '').trim().toLowerCase();
+  if (text === 'in') return 'in';
+  if (text === 'out') return 'out';
+  return '';
 }
 
 function normalizeMovement(row, staffMap) {
@@ -1231,11 +1232,11 @@ function MovementHistoryScreen({ movements, setView, assets, staff = [], updateM
   const [movementSaveError, setMovementSaveError] = useState('');
   const [isMovementSaving, setIsMovementSaving] = useState(false);
 
-  const filtered = [...movements]
+  const displayedMovements = movements
+    .map(m => ({ ...m, normalizedType: normalizeMovementType(m.type) }))
     .filter(m => {
-      const movementType = normalizeMovementType(m.type);
-      if (filterType === 'in') return movementType === 'in';
-      if (filterType === 'out') return movementType === 'out';
+      if (filterType === 'in') return m.normalizedType === 'in';
+      if (filterType === 'out') return m.normalizedType === 'out';
       return true;
     })
     .sort((a, b) => {
@@ -1249,7 +1250,7 @@ function MovementHistoryScreen({ movements, setView, assets, staff = [], updateM
     setSelectedMovement({ movement, asset });
     setMovementEditForm({
       date: movement.date || '',
-      type: normalizeMovementType(movement.type),
+      type: normalizeMovementType(movement.type) || 'in',
       quantity: movement.quantity || 0,
       actualDeliveryPrice: movement.actualDeliveryPrice ?? 0,
       staffId: movement.staffId || '',
@@ -1380,11 +1381,12 @@ function MovementHistoryScreen({ movements, setView, assets, staff = [], updateM
             </tr>
           </thead>
           <tbody>
-            {filtered.map(m => {
+            {displayedMovements.map((m, index) => {
               const asset = assets.find(a => a.id === m.assetId);
-              const movementType = normalizeMovementType(m.type);
+              const movementType = m.normalizedType;
+              if (filterType !== 'all' && movementType !== filterType) return null;
               return (
-                <tr key={m.id} className="hover:bg-slate-50 transition-colors border-b border-slate-100 group align-top">
+                <tr key={`${filterType}-${m.id || 'movement'}-${movementType}-${m.assetId}-${m.date}-${index}`} className="hover:bg-slate-50 transition-colors border-b border-slate-100 group align-top">
                   <td className="px-3 py-3 text-slate-500 whitespace-nowrap">{m.date}</td>
                   <td className="px-3 py-3 w-20 max-w-20 whitespace-normal break-words">{asset?.category || '-'}</td>
                   <td className="px-3 py-3 font-mono">{m.assetId}</td>
