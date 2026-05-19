@@ -466,7 +466,7 @@ export default function App() {
           movement_date: data.date,
           movement_type: data.type,
           quantity: Number(data.quantity),
-          actual_delivery_price: actualDeliveryPrice,
+          actual_delivery_price: data.type === 'in' ? actualDeliveryPrice : null,
           expiration_date: data.expirationDate || null,
           lot_number: data.lotNumber || null,
           staff_code: staffMember ? Number(staffMember.id) : null,
@@ -660,8 +660,8 @@ export default function App() {
       case 'menu': return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} />;
       case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} onCreateAsset={createAsset} onUpdateAsset={updateAsset} onUpdateParentAsset={updateParentAsset} onDeleteAsset={deleteAsset} setView={setView} />;
       case 'history': return <MovementHistoryScreen movements={movements} setMovements={setMovements} setView={setView} assets={assets} deleteMovement={deleteMovement} />;
-      case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => setView('menu')} assets={assets} staff={staff} />;
-      case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => setView('menu')} assets={assets} staff={staff} />;
+      case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => setView('menu')} assets={assets} movements={movements} staff={staff} />;
+      case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => setView('menu')} assets={assets} movements={movements} staff={staff} />;
       case 'stock': return <StockStatusScreen assets={assets} movements={movements} setView={setView} />;
       default: return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} />;
     }
@@ -1389,7 +1389,7 @@ function AssetSearchInput({ assets, value, onChange, isIn, showListSignal }) {
   );
 }
 
-function EntryScreen({ type, onSave, onCancel, assets, staff }) {
+function EntryScreen({ type, onSave, onCancel, assets, movements = [], staff }) {
   const isIn = type === 'in';
   const title = isIn ? '入庫データ入力・修正' : '出庫データ入力・修正';
   const accentColor = isIn ? 'text-emerald-700' : 'text-rose-700';
@@ -1416,22 +1416,38 @@ function EntryScreen({ type, onSave, onCancel, assets, staff }) {
   }, [form.staffId, staff]);
 
   const selectedAsset = assets.find(a => a.id === form.assetId);
+  const selectedAssetMovements = selectedAsset
+    ? movements.filter(movement => movement.assetId === selectedAsset.id)
+    : [];
+  const inboundTotal = selectedAssetMovements
+    .filter(movement => movement.type === 'in')
+    .reduce((sum, movement) => sum + movement.quantity, 0);
+  const outboundTotal = selectedAssetMovements
+    .filter(movement => movement.type === 'out')
+    .reduce((sum, movement) => sum + movement.quantity, 0);
+  const currentStock = selectedAsset
+    ? selectedAsset.openingStock + inboundTotal - outboundTotal
+    : 0;
 
   useEffect(() => {
-    if (!selectedAsset || !isIn) return;
+    if (!selectedAsset) return;
     setForm((current) => ({
       ...current,
       actualDeliveryPrice: selectedAsset.deliveryPrice || 0,
     }));
-  }, [selectedAsset?.id, isIn]);
+  }, [selectedAsset?.id]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.assetId || form.quantity <= 0 || isSaving) return;
     const actualDeliveryPrice = Number(form.actualDeliveryPrice || 0);
     const masterDeliveryPrice = Number(selectedAsset?.deliveryPrice || 0);
-    if (isIn && actualDeliveryPrice < 0) {
-      setSaveError('実購入価格は0以上で入力してください。');
+    if (actualDeliveryPrice < 0) {
+      setSaveError(`${isIn ? '実購入価格' : '評価単価'}は0以上で入力してください。`);
+      return;
+    }
+    if (!isIn && Number(form.quantity) > currentStock) {
+      setSaveError('出庫数が現在庫を超えています。');
       return;
     }
     const updateMasterDeliveryPrice = isIn && actualDeliveryPrice !== masterDeliveryPrice
@@ -1536,6 +1552,12 @@ function EntryScreen({ type, onSave, onCancel, assets, staff }) {
             <div className="grid grid-cols-3">
               <span className="text-slate-500 font-bold">使用単位:</span>
               <span className="col-span-2">{selectedAsset?.usageUnit || '-'}</span>
+            </div>
+            <div className="grid grid-cols-3">
+              <span className="text-slate-500 font-bold">現在庫:</span>
+              <span className={`col-span-2 font-bold ${currentStock <= 0 ? 'text-rose-600' : 'text-slate-700'}`}>
+                {selectedAsset ? currentStock.toLocaleString() : '-'} {selectedAsset?.usageUnit || ''}
+              </span>
             </div>
           </div>
 
