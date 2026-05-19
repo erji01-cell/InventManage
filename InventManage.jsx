@@ -216,6 +216,12 @@ function normalizeAsset(row, parentMap, supplierMap) {
   };
 }
 
+function normalizeMovementType(value) {
+  if (value === 'in' || value === '入庫') return 'in';
+  if (value === 'out' || value === '出庫') return 'out';
+  return value || 'in';
+}
+
 function normalizeMovement(row, staffMap) {
   const staffId = row.staff_code ? String(row.staff_code) : '';
   const staff = staffMap.get(row.staff_code);
@@ -224,7 +230,7 @@ function normalizeMovement(row, staffMap) {
     id: row.id,
     assetId: String(row.child_asset_id),
     date: row.movement_date,
-    type: row.movement_type,
+    type: normalizeMovementType(row.movement_type),
     quantity: toNumber(row.quantity),
     actualDeliveryPrice: toNumber(row.actual_delivery_price),
     expirationDate: row.expiration_date || '',
@@ -501,6 +507,27 @@ export default function App() {
     setMovements(prev => prev.filter(m => m.id !== id));
   };
 
+  const updateMovement = async (id, data) => {
+    const [updated] = await supabaseRequest(
+      `invent_stock_movements?id=eq.${id}&select=*`,
+      {
+        method: 'PATCH',
+        headers: {
+          Prefer: 'return=representation',
+        },
+        body: JSON.stringify(data),
+      },
+      authSession
+    );
+
+    const staffMap = new Map(staff.map((member) => [Number(member.id), member]));
+    const normalized = normalizeMovement(updated, staffMap);
+    setMovements(prev => prev.map(m => (
+      String(m.id) === String(normalized.id) ? normalized : m
+    )));
+    return normalized;
+  };
+
   const createAsset = async (data) => {
     let parent = data.parentId
       ? assets.find(asset => asset.parentId === data.parentId)
@@ -659,7 +686,7 @@ export default function App() {
     switch (view) {
       case 'menu': return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} />;
       case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} onCreateAsset={createAsset} onUpdateAsset={updateAsset} onUpdateParentAsset={updateParentAsset} onDeleteAsset={deleteAsset} setView={setView} />;
-      case 'history': return <MovementHistoryScreen movements={movements} setMovements={setMovements} setView={setView} assets={assets} deleteMovement={deleteMovement} />;
+      case 'history': return <MovementHistoryScreen movements={movements} setMovements={setMovements} setView={setView} assets={assets} staff={staff} updateMovement={updateMovement} deleteMovement={deleteMovement} />;
       case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => setView('menu')} assets={assets} movements={movements} staff={staff} />;
       case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => setView('menu')} assets={assets} movements={movements} staff={staff} />;
       case 'stock': return <StockStatusScreen assets={assets} movements={movements} setView={setView} />;
@@ -1143,6 +1170,15 @@ function DetailItem({ label, value, align = 'left', mono = false }) {
   );
 }
 
+function EditableDetail({ label, children }) {
+  return (
+    <label className="block rounded-md border border-slate-200 bg-white p-3">
+      <span className="text-xs font-bold text-slate-400">{label}</span>
+      {children}
+    </label>
+  );
+}
+
 function EditField({ label, value, onChange, type = 'text', options = null, align = 'left', mono = false, multiline = false, disabled = false }) {
   const inputClass = `mt-1 w-full rounded-md border border-slate-200 bg-white px-2 py-2 text-sm font-bold text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed ${
     align === 'right' ? 'text-right' : ''
@@ -1188,14 +1224,91 @@ function DetailRow({ label, value, mono = false }) {
   );
 }
 
-function MovementHistoryScreen({ movements, setView, assets, deleteMovement }) {
+function MovementHistoryScreen({ movements, setView, assets, staff = [], updateMovement, deleteMovement }) {
   const [filterType, setFilterType] = useState('all');
+  const [selectedMovement, setSelectedMovement] = useState(null);
+  const [movementEditForm, setMovementEditForm] = useState(null);
+  const [movementSaveError, setMovementSaveError] = useState('');
+  const [isMovementSaving, setIsMovementSaving] = useState(false);
 
   const filtered = movements.filter(m => {
     if (filterType === 'in') return m.type === 'in';
     if (filterType === 'out') return m.type === 'out';
     return true;
   });
+
+  const openMovementDetail = (movement, asset) => {
+    setSelectedMovement({ movement, asset });
+    setMovementEditForm({
+      date: movement.date || '',
+      type: movement.type || 'in',
+      quantity: movement.quantity || 0,
+      actualDeliveryPrice: movement.actualDeliveryPrice ?? 0,
+      staffId: movement.staffId || '',
+      staffName: movement.staffName || '',
+      memo: movement.memo || '',
+    });
+    setMovementSaveError('');
+  };
+
+  const updateMovementEditForm = (field, value) => {
+    setMovementEditForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const closeMovementDetail = () => {
+    setSelectedMovement(null);
+    setMovementEditForm(null);
+    setMovementSaveError('');
+  };
+
+  const saveMovementDetail = async () => {
+    if (!selectedMovement || !movementEditForm) return;
+
+    const quantity = Number(movementEditForm.quantity);
+    const actualDeliveryPrice = Number(movementEditForm.actualDeliveryPrice || 0);
+    if (!movementEditForm.date) {
+      setMovementSaveError('入出庫日を入力してください。');
+      return;
+    }
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      setMovementSaveError('数量は1以上で入力してください。');
+      return;
+    }
+    if (movementEditForm.type === 'in' && (!Number.isFinite(actualDeliveryPrice) || actualDeliveryPrice < 0)) {
+      setMovementSaveError('実購入単価は0以上で入力してください。');
+      return;
+    }
+
+    const staffMember = staff.find((member) => String(member.id) === String(movementEditForm.staffId));
+    setIsMovementSaving(true);
+    setMovementSaveError('');
+    try {
+      const updated = await updateMovement(selectedMovement.movement.id, {
+        movement_date: movementEditForm.date,
+        movement_type: movementEditForm.type,
+        quantity,
+        actual_delivery_price: movementEditForm.type === 'in' ? actualDeliveryPrice : null,
+        staff_code: staffMember ? Number(staffMember.id) : null,
+        staff_name: staffMember?.name || movementEditForm.staffName || null,
+        memo: movementEditForm.memo || null,
+      });
+      const updatedAsset = assets.find((asset) => asset.id === updated.assetId) || selectedMovement.asset;
+      setSelectedMovement({ movement: updated, asset: updatedAsset });
+      setMovementEditForm({
+        date: updated.date || '',
+        type: updated.type || 'in',
+        quantity: updated.quantity || 0,
+        actualDeliveryPrice: updated.actualDeliveryPrice ?? 0,
+        staffId: updated.staffId || '',
+        staffName: updated.staffName || '',
+        memo: updated.memo || '',
+      });
+    } catch (err) {
+      setMovementSaveError(err.message || '入出庫データを保存できませんでした。');
+    } finally {
+      setIsMovementSaving(false);
+    }
+  };
 
   return (
     <Card className="max-h-[90vh] flex flex-col">
@@ -1204,11 +1317,11 @@ function MovementHistoryScreen({ movements, setView, assets, deleteMovement }) {
         <Button variant="secondary" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
       </div>
 
-      <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 mb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-4">
-          <div className="flex items-center gap-4">
-            <span className="font-bold text-slate-600 w-20">入出庫</span>
-            <div className="flex bg-white border border-slate-200 rounded-lg p-1">
+      <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-wrap items-end gap-5">
+          <div className="space-y-2">
+            <span className="block text-sm font-bold text-slate-500">入出庫</span>
+            <div className="flex bg-white border border-slate-200 rounded-md p-1">
               <button 
                 onClick={() => setFilterType('all')}
                 className={`px-4 py-1 rounded-md text-sm ${filterType === 'all' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-600'}`}
@@ -1223,66 +1336,74 @@ function MovementHistoryScreen({ movements, setView, assets, deleteMovement }) {
               >出庫</button>
             </div>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="font-bold text-slate-600 w-20">入出庫日</span>
-            <input type="date" className="border border-slate-200 rounded p-1" />
-            <span>〜</span>
-            <input type="date" className="border border-slate-200 rounded p-1" />
+          <div className="space-y-2">
+            <span className="block text-sm font-bold text-slate-500">入出庫日</span>
+            <div className="flex items-center gap-2">
+              <input type="date" className="w-36 border border-slate-200 rounded-md px-3 py-2" />
+              <span className="text-slate-400">〜</span>
+              <input type="date" className="w-36 border border-slate-200 rounded-md px-3 py-2" />
+            </div>
           </div>
         </div>
 
-        <div className="flex flex-col justify-end items-end gap-2">
+        <div className="flex items-center gap-3">
           <div className="text-sm bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full font-bold">
-            品名をダブルクリックで修正画面表示
+            品名をクリックで個別画面表示
           </div>
-          <Button variant="primary" className="w-32">抽出</Button>
+          <Button variant="primary" className="w-28">抽出</Button>
         </div>
       </div>
 
       <div className="overflow-auto border border-slate-200 rounded-lg flex-1">
-        <table className="w-full text-left border-collapse min-w-[1300px]">
-          <thead className="bg-slate-100 sticky top-0">
+        <table className="w-full text-left border-collapse min-w-[1180px] text-sm">
+          <thead className="bg-slate-100 sticky top-0 z-10">
             <tr>
-              <th className="p-3 border-b border-slate-200">入出庫日</th>
-              <th className="p-3 border-b border-slate-200">分類</th>
-              <th className="p-3 border-b border-slate-200">資産コード</th>
-              <th className="p-3 border-b border-slate-200">メーカー</th>
-              <th className="p-3 border-b border-slate-200">品 名</th>
-              <th className="p-3 border-b border-slate-200 text-right">入庫数</th>
-              <th className="p-3 border-b border-slate-200 text-right">出庫数</th>
-              <th className="p-3 border-b border-slate-200">単位</th>
-              <th className="p-3 border-b border-slate-200 text-right">実購入価格</th>
-              <th className="p-3 border-b border-slate-200">使用期限</th>
-              <th className="p-3 border-b border-slate-200">ロット番号</th>
-              <th className="p-3 border-b border-slate-200">担当者名</th>
-              <th className="p-3 border-b border-slate-200">操作</th>
+              <th className="px-3 py-2 border-b border-slate-200 w-24">日付</th>
+              <th className="px-3 py-2 border-b border-slate-200 w-20">分類</th>
+              <th className="px-3 py-2 border-b border-slate-200 w-20">ID</th>
+              <th className="px-3 py-2 border-b border-slate-200 w-28">メーカー</th>
+              <th className="px-3 py-2 border-b border-slate-200 min-w-[300px]">品名</th>
+              <th className="px-2 py-2 border-b border-slate-200 text-right w-16">入庫</th>
+              <th className="px-2 py-2 border-b border-slate-200 text-right w-16">出庫</th>
+              <th className="px-2 py-2 border-b border-slate-200 text-center w-14">単位</th>
+              <th className="px-3 py-2 border-b border-slate-200 text-right w-28">実購入価格</th>
+              <th className="px-3 py-2 border-b border-slate-200 w-24">使用期限</th>
+              <th className="px-2 py-2 border-b border-slate-200 text-center w-12">操作</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map(m => {
               const asset = assets.find(a => a.id === m.assetId);
               return (
-                <tr key={m.id} className="hover:bg-slate-50 transition-colors border-b border-slate-100 group">
-                  <td className="p-3 text-slate-500">{m.date}</td>
-                  <td className="p-3">{asset?.category || '-'}</td>
-                  <td className="p-3 font-mono">{m.assetId}</td>
-                  <td className="p-3">{asset?.maker}</td>
-                  <td className="p-3 font-medium text-blue-700">{asset?.name}</td>
-                  <td className={`p-3 text-right font-bold ${m.type === 'in' ? 'text-emerald-600' : 'text-slate-300'}`}>
+                <tr key={m.id} className="hover:bg-slate-50 transition-colors border-b border-slate-100 group align-top">
+                  <td className="px-3 py-3 text-slate-500 whitespace-nowrap">{m.date}</td>
+                  <td className="px-3 py-3 w-20 max-w-20 whitespace-normal break-words">{asset?.category || '-'}</td>
+                  <td className="px-3 py-3 font-mono">{m.assetId}</td>
+                  <td className="px-3 py-3 w-28 max-w-28 whitespace-normal break-words">{asset?.maker}</td>
+                  <td className="px-3 py-3 min-w-[300px] font-medium whitespace-normal break-words">
+                    <button
+                      type="button"
+                      className="text-left text-blue-700 hover:text-blue-900 hover:underline"
+                      onClick={() => openMovementDetail(m, asset)}
+                    >
+                      {asset?.name || '-'}
+                    </button>
+                  </td>
+                  <td className={`px-2 py-3 text-right font-bold ${m.type === 'in' ? 'text-emerald-600' : 'text-slate-300'}`}>
                     {m.type === 'in' ? m.quantity : 0}
                   </td>
-                  <td className={`p-3 text-right font-bold ${m.type === 'out' ? 'text-rose-600' : 'text-slate-300'}`}>
+                  <td className={`px-2 py-3 text-right font-bold ${m.type === 'out' ? 'text-rose-600' : 'text-slate-300'}`}>
                     {m.type === 'out' ? m.quantity : 0}
                   </td>
-                  <td className="p-3">{asset?.usageUnit}</td>
-                  <td className="p-3 text-right">¥{m.actualDeliveryPrice.toLocaleString()}</td>
-                  <td className="p-3">{m.expirationDate || '-'}</td>
-                  <td className="p-3">{m.lotNumber || '-'}</td>
-                  <td className="p-3 text-slate-600">{m.staffName}</td>
-                  <td className="p-3">
+                  <td className="px-2 py-3 text-center">{asset?.usageUnit}</td>
+                  <td className="px-3 py-3 text-right whitespace-nowrap">
+                    {m.type === 'in' ? `¥${m.actualDeliveryPrice.toLocaleString()}` : '-'}
+                  </td>
+                  <td className="px-3 py-3 whitespace-nowrap">{m.expirationDate || '-'}</td>
+                  <td className="px-2 py-3 text-center">
                     <button 
                       onClick={() => deleteMovement(m.id)}
-                      className="text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                      className="text-slate-300 hover:text-red-500 transition-colors group-hover:text-slate-500"
                     >
                       <Trash2 size={16} />
                     </button>
@@ -1293,6 +1414,108 @@ function MovementHistoryScreen({ movements, setView, assets, deleteMovement }) {
           </tbody>
         </table>
       </div>
+
+      {selectedMovement && movementEditForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-lg bg-white p-6 shadow-xl">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold text-slate-400">入出庫データ詳細</p>
+                <h3 className="mt-1 text-xl font-bold text-slate-800">{selectedMovement.asset?.name || '-'}</h3>
+                <p className="mt-1 text-sm text-slate-500">{selectedMovement.asset?.maker || '-'}</p>
+              </div>
+              <Button variant="secondary" onClick={closeMovementDetail}>
+                <X size={18} /> 閉じる
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-sm">
+              <EditableDetail label="入出庫日">
+                <input
+                  type="date"
+                  value={movementEditForm.date}
+                  onChange={(event) => updateMovementEditForm('date', event.target.value)}
+                  className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+              </EditableDetail>
+              <EditableDetail label="区分">
+                <select
+                  value={movementEditForm.type}
+                  onChange={(event) => updateMovementEditForm('type', event.target.value)}
+                  className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                >
+                  <option value="in">入庫</option>
+                  <option value="out">出庫</option>
+                </select>
+              </EditableDetail>
+              <DetailItem label="資産コード" value={selectedMovement.movement.assetId || '-'} mono />
+              <DetailItem label="分類" value={selectedMovement.asset?.category || '-'} />
+              <EditableDetail label="数量">
+                <input
+                  type="number"
+                  min="1"
+                  value={movementEditForm.quantity}
+                  onChange={(event) => updateMovementEditForm('quantity', event.target.value)}
+                  className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-right text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+              </EditableDetail>
+              <DetailItem label="単位" value={selectedMovement.asset?.usageUnit || '-'} />
+              <EditableDetail label="実購入単価">
+                <input
+                  type="number"
+                  min="0"
+                  value={movementEditForm.type === 'in' ? movementEditForm.actualDeliveryPrice : ''}
+                  onChange={(event) => updateMovementEditForm('actualDeliveryPrice', event.target.value)}
+                  disabled={movementEditForm.type !== 'in'}
+                  placeholder={movementEditForm.type === 'in' ? '' : '-'}
+                  className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-right text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50 disabled:text-slate-400"
+                />
+              </EditableDetail>
+              <DetailItem label="使用期限" value={selectedMovement.movement.expirationDate || '-'} />
+              <DetailItem label="ロット番号" value={selectedMovement.movement.lotNumber || '-'} />
+              <EditableDetail label="担当者名">
+                <select
+                  value={movementEditForm.staffId}
+                  onChange={(event) => updateMovementEditForm('staffId', event.target.value)}
+                  className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                >
+                  <option value="">未設定</option>
+                  {staff.map((member) => (
+                    <option key={member.id} value={member.id}>{member.name}</option>
+                  ))}
+                </select>
+              </EditableDetail>
+            </div>
+
+            <div className="mt-4 border-t border-slate-200 pt-4 text-sm">
+              <EditableDetail label="摘要">
+                <textarea
+                  value={movementEditForm.memo}
+                  onChange={(event) => updateMovementEditForm('memo', event.target.value)}
+                  rows={3}
+                  className="mt-1 w-full resize-y rounded-md border border-slate-200 px-3 py-2 text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                  placeholder="摘要を入力"
+                />
+              </EditableDetail>
+            </div>
+
+            {movementSaveError && (
+              <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {movementSaveError}
+              </div>
+            )}
+
+            <div className="mt-6 flex justify-end gap-3">
+              <Button variant="secondary" onClick={closeMovementDetail} disabled={isMovementSaving}>
+                閉じる
+              </Button>
+              <Button variant="success" onClick={saveMovementDetail} disabled={isMovementSaving}>
+                <Save size={18} /> {isMovementSaving ? '保存中...' : '保存'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="flex gap-4 mt-6">
         <Button variant="secondary"><Printer size={18} /> 一覧印刷</Button>
