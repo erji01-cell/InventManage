@@ -1994,7 +1994,6 @@ function StockStatusScreen({ assets, movements, setView }) {
   }, [stockData, normalizedStockSearch]);
 
   const totalStockValue = filteredStockData.reduce((sum, row) => sum + row.stockValue, 0);
-  const activeStockCount = filteredStockData.filter(row => row.currentStock > 0).length;
 
   return (
     <Card className="max-h-[90vh] flex flex-col gap-5">
@@ -2003,19 +2002,18 @@ function StockStatusScreen({ assets, movements, setView }) {
           <h2 className="text-3xl font-bold tracking-tight text-slate-800">在庫表</h2>
           <p className="mt-1 text-sm text-slate-500">月度を選択し、品名・メーカー・IDで絞り込めます。</p>
         </div>
-        <Button variant="secondary" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
       </div>
 
       <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[auto_1fr_auto_auto] xl:items-end">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[auto_minmax(260px,420px)_auto_auto] xl:items-end">
           <div className="space-y-2">
             <p className="text-sm font-bold text-slate-500">月度選択</p>
-            <div className="flex rounded-md border border-slate-200 bg-white p-1 shadow-sm">
+            <div className="flex w-max rounded-md border border-slate-200 bg-white p-1 shadow-sm">
               {fiscalMonths.map(month => (
                 <button
                   key={month}
                   onClick={() => setSelectedMonth(month)}
-                  className={`h-9 w-10 rounded text-sm transition-colors ${selectedMonth === month ? 'bg-blue-600 text-white font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-100'}`}
+                  className={`h-9 w-8 rounded text-sm transition-colors ${selectedMonth === month ? 'bg-blue-600 text-white font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-100'}`}
                 >
                   {month}
                 </button>
@@ -2041,14 +2039,10 @@ function StockStatusScreen({ assets, movements, setView }) {
             <RefreshCcw size={16} /> リセット
           </Button>
 
-          <div className="grid grid-cols-3 gap-2 xl:w-[360px]">
+          <div className="grid grid-cols-2 gap-2 xl:w-[260px]">
             <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
               <p className="text-xs font-bold text-slate-400">表示件数</p>
               <p className="mt-1 text-right text-lg font-bold text-slate-800">{filteredStockData.length.toLocaleString()}</p>
-            </div>
-            <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
-              <p className="text-xs font-bold text-slate-400">在庫あり</p>
-              <p className="mt-1 text-right text-lg font-bold text-emerald-700">{activeStockCount.toLocaleString()}</p>
             </div>
             <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2">
               <p className="text-xs font-bold text-blue-500">在庫金額</p>
@@ -2095,7 +2089,10 @@ function StockStatusScreen({ assets, movements, setView }) {
 
       <div className="flex items-center justify-between">
         <p className="text-xs text-slate-400">表示中の行だけが検索結果として反映されます。</p>
-        <Button variant="secondary"><Printer size={18} /> 印刷</Button>
+        <div className="flex gap-3">
+          <Button variant="secondary"><Printer size={18} /> 印刷</Button>
+          <Button variant="secondary" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
+        </div>
       </div>
     </Card>
   );
