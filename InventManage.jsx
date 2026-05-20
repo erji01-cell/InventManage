@@ -116,6 +116,7 @@ export default function App() {
       await updateAsset(asset.id, { delivery_price: actualDeliveryPrice });
     }
 
+    clearEntryState();
     setView('history');
   };
 
@@ -309,10 +310,16 @@ export default function App() {
   };
 
   const [entryAssetId, setEntryAssetId] = useState(null);
+  const [savedEntryForm, setSavedEntryForm] = useState(null);
 
   const navigateToEntry = (type, assetId) => {
     setEntryAssetId(assetId || null);
     setView(type === 'in' ? 'inbound' : 'outbound');
+  };
+
+  const clearEntryState = () => {
+    setEntryAssetId(null);
+    setSavedEntryForm(null);
   };
 
   const renderView = () => {
@@ -320,8 +327,8 @@ export default function App() {
       case 'menu': return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} />;
       case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} onCreateAsset={createAsset} onUpdateAsset={updateAsset} onUpdateParentAsset={updateParentAsset} onDeleteAsset={deleteAsset} setView={setView} onNavigateEntry={navigateToEntry} />;
       case 'history': return <MovementHistoryScreen movements={movements} setMovements={setMovements} setView={setView} assets={assets} staff={staff} updateMovement={updateMovement} deleteMovement={deleteMovement} />;
-      case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => setView('menu')} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} />;
-      case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => setView('menu')} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} />;
+      case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} />;
+      case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} />;
       case 'stock': return <StockStatusScreen assets={assets} movements={movements} setView={setView} />;
       default: return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} />;
     }

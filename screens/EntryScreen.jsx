@@ -3,21 +3,26 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Button, Card, InfoLine } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
 
-export default function EntryScreen({ type, onSave, onCancel, assets, movements = [], staff, setView, initialAssetId = null }) {
+export default function EntryScreen({ type, onSave, onCancel, assets, movements = [], staff, setView, initialAssetId = null, savedEntryForm = null, onSaveForm }) {
   const isIn = type === 'in';
   const title = isIn ? '入庫データ入力・修正' : '出庫データ入力・修正';
   const accentColor = isIn ? 'text-emerald-700' : 'text-rose-700';
   const btnVariant = isIn ? 'success' : 'danger';
 
-  const [form, setForm] = useState({
-    staffId: staff[0]?.id || '',
-    assetId: initialAssetId || '',
-    date: new Date().toISOString().split('T')[0],
-    quantity: 0,
-    actualDeliveryPrice: 0,
-    expirationDate: '',
-    lotNumber: '',
-    memo: ''
+  const [form, setForm] = useState(() => {
+    if (initialAssetId && savedEntryForm) {
+      return { ...savedEntryForm, assetId: initialAssetId };
+    }
+    return {
+      staffId: staff[0]?.id || '',
+      assetId: initialAssetId || '',
+      date: new Date().toISOString().split('T')[0],
+      quantity: 0,
+      actualDeliveryPrice: 0,
+      expirationDate: '',
+      lotNumber: '',
+      memo: '',
+    };
   });
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -129,7 +134,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
               <Button
                 variant="action"
                 className="whitespace-nowrap"
-                onClick={() => setView('assets')}
+                onClick={() => { onSaveForm?.(form); setView('assets'); }}
               >
                 資産マスタ
               </Button>
