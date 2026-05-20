@@ -162,39 +162,27 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
           </div>
 
           {isIn && (
-            <>
-              <div className="grid grid-cols-3 items-center gap-4">
-                <label className="font-bold text-slate-700">実購入価格</label>
-                <div className="col-span-2 flex gap-2 items-center">
-                  <input
-                    type="number"
-                    min="0"
-                    className="flex-1 p-2 border rounded-md bg-emerald-50 text-right"
-                    value={form.actualDeliveryPrice}
-                    onChange={(e) => setForm({...form, actualDeliveryPrice: Number(e.target.value) || 0})}
-                  />
-                  <span className="font-bold text-slate-600">円</span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 items-center gap-4">
-                <label className="font-bold text-slate-700">使用期限</label>
+            <div className="grid grid-cols-3 items-center gap-4">
+              <label className="font-bold text-slate-700">実購入価格</label>
+              <div className="col-span-2 flex gap-2 items-center">
                 <input
-                  type="date"
-                  className="col-span-2 p-2 border rounded-md"
-                  value={form.expirationDate}
-                  onChange={(e) => setForm({...form, expirationDate: e.target.value})}
+                  type="number"
+                  min="0"
+                  className="flex-1 p-2 border rounded-md bg-emerald-50 text-right"
+                  value={form.actualDeliveryPrice}
+                  onChange={(e) => setForm({...form, actualDeliveryPrice: Number(e.target.value) || 0})}
                 />
+                <span className="font-bold text-slate-600">円</span>
               </div>
-            </>
+            </div>
           )}
 
           <div className="grid grid-cols-3 items-center gap-4">
             <label className="font-bold text-slate-700">{isIn ? '入庫数' : '出庫数'}</label>
             <div className="col-span-2 space-y-1">
               <div className="flex gap-2 items-center">
-                <input 
-                  type="number" 
+                <input
+                  type="number"
                   className={`flex-1 p-2 border rounded-md ${isIn ? 'bg-emerald-50' : 'bg-rose-50'}`}
                   value={form.quantity}
                   onChange={(e) => setForm({...form, quantity: parseInt(e.target.value) || 0})}
@@ -204,6 +192,18 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
               <p className="text-xs text-rose-500 font-bold">{isIn ? '入庫数' : '出庫数'}は 使用単位 で入力して下さい</p>
             </div>
           </div>
+
+          {isIn && (
+            <div className="grid grid-cols-3 items-center gap-4">
+              <label className="font-bold text-slate-700">使用期限</label>
+              <input
+                type="date"
+                className="col-span-2 p-2 border rounded-md"
+                value={form.expirationDate}
+                onChange={(e) => setForm({...form, expirationDate: e.target.value})}
+              />
+            </div>
+          )}
 
           <div className="grid grid-cols-3 items-start gap-4">
             <label className="font-bold text-slate-700">摘要</label>
