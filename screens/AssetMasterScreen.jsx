@@ -31,7 +31,8 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
     a.name.includes(filter) ||
     a.maker.includes(filter) ||
     a.parentCategory.includes(filter) ||
-    a.supplier.includes(filter)
+    a.supplier.includes(filter) ||
+    String(a.id).includes(filter)
   );
   const parentOptions = useMemo(() => {
     const parents = new Map();
@@ -213,7 +214,7 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400" size={18} />
           <input 
             type="text" 
-            placeholder="品名 (ヒンメイ) で検索..." 
+            placeholder="ID・品名 (ヒンメイ) で検索..."
             className="w-full rounded-md border border-blue-200 bg-blue-50 py-2.5 pl-10 pr-4 text-sm font-medium shadow-inner outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
