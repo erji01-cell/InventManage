@@ -22,7 +22,30 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [assetListSignal, setAssetListSignal] = useState(0);
+  const [staffCodeInput, setStaffCodeInput] = useState('');
   const assetInputRef = useRef(null);
+
+  useEffect(() => {
+    setStaffCodeInput(form.staffId || '');
+  }, [form.staffId]);
+
+  const selectStaffByCode = ({ focusAsset = false } = {}) => {
+    const normalizedCode = staffCodeInput.trim();
+    if (!normalizedCode) {
+      setForm((current) => ({ ...current, staffId: '' }));
+      return;
+    }
+    const selectedStaff = staff.find((member) => String(member.id) === normalizedCode);
+    if (!selectedStaff) {
+      setSaveError(`担当者番号 ${normalizedCode} は見つかりません。`);
+      return;
+    }
+    setSaveError('');
+    setForm((current) => ({ ...current, staffId: String(selectedStaff.id) }));
+    if (focusAsset) {
+      window.setTimeout(() => assetInputRef.current?.focus(), 0);
+    }
+  };
 
 
   const selectedAsset = assets.find(a => a.id === form.assetId);
@@ -98,9 +121,24 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-3 items-center gap-4">
             <label className="font-bold text-slate-700">担当者</label>
-            <div className="col-span-2">
+            <div className="col-span-2 flex gap-2">
+              <input
+                value={staffCodeInput}
+                onChange={(e) => setStaffCodeInput(e.target.value)}
+                onBlur={() => selectStaffByCode()}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    selectStaffByCode({ focusAsset: true });
+                  }
+                }}
+                placeholder="コード"
+                className={`w-16 p-2 text-center rounded border outline-none focus:ring-2 ${
+                  isIn ? 'bg-emerald-50 focus:ring-emerald-200' : 'bg-rose-50 focus:ring-rose-200'
+                }`}
+              />
               <select
-                className={`w-full p-2 border rounded-md outline-none focus:ring-2 ${isIn ? 'focus:ring-emerald-500' : 'focus:ring-rose-500'}`}
+                className={`flex-1 p-2 border rounded-md outline-none focus:ring-2 ${isIn ? 'focus:ring-emerald-500' : 'focus:ring-rose-500'}`}
                 value={form.staffId}
                 onChange={(e) => setForm({...form, staffId: e.target.value})}
               >
