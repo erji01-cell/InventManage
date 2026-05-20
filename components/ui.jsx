@@ -31,9 +31,9 @@ export const Card = ({ children, className = "" }) => (
 
 export function DetailItem({ label, value, align = 'left', mono = false }) {
   return (
-    <div className="rounded-md border border-slate-200 bg-white p-3 shadow-sm">
+    <div className="rounded-md border border-slate-200 bg-white px-3 py-2 shadow-sm">
       <p className="text-xs font-bold text-slate-400">{label}</p>
-      <p className={`mt-2 flex min-h-6 items-center justify-center text-center text-base font-black text-slate-800 ${mono ? 'font-mono' : ''}`}>
+      <p className={`mt-1 flex items-center justify-center text-center text-base font-black text-slate-800 ${mono ? 'font-mono' : ''}`}>
         {value}
       </p>
     </div>

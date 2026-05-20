@@ -181,9 +181,6 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="text-sm bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full font-bold">
-            品名をクリックで個別画面表示
-          </div>
           <div className="relative">
             <input
               type="text"
@@ -220,19 +217,13 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
               const movementType = m.normalizedType;
               if (filterType !== 'all' && movementType !== filterType) return null;
               return (
-                <tr key={`${filterType}-${m.id || 'movement'}-${movementType}-${m.assetId}-${m.date}-${index}`} className="hover:bg-slate-50 transition-colors border-b border-slate-100 group align-top">
+                <tr key={`${filterType}-${m.id || 'movement'}-${movementType}-${m.assetId}-${m.date}-${index}`} className="cursor-pointer hover:bg-blue-50 transition-colors border-b border-slate-100 group align-top" onClick={() => openMovementDetail(m, asset)}>
                   <td className="px-3 py-3 text-slate-500 whitespace-nowrap">{m.date}</td>
                   <td className="px-3 py-3 w-20 max-w-20 whitespace-normal break-words">{asset?.category || '-'}</td>
                   <td className="px-3 py-3 font-mono">{m.assetId}</td>
                   <td className="px-3 py-3 w-28 max-w-28 whitespace-normal break-words">{asset?.maker}</td>
-                  <td className="px-3 py-3 min-w-[300px] font-medium whitespace-normal break-words">
-                    <button
-                      type="button"
-                      className="text-left text-blue-700 hover:text-blue-900 hover:underline"
-                      onClick={() => openMovementDetail(m, asset)}
-                    >
-                      {asset?.name || '-'}
-                    </button>
+                  <td className="px-3 py-3 min-w-[300px] font-medium whitespace-normal break-words text-blue-700">
+                    {asset?.name || '-'}
                   </td>
                   <td className={`px-2 py-3 text-right font-bold ${movementType === 'in' ? 'text-emerald-600' : 'text-slate-300'}`}>
                     {movementType === 'in' ? m.quantity : 0}
@@ -246,8 +237,8 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
                   </td>
                   <td className="px-3 py-3 whitespace-nowrap">{m.expirationDate || '-'}</td>
                   <td className="px-2 py-3 text-center">
-                    <button 
-                      onClick={() => deleteMovement(m.id)}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); deleteMovement(m.id); }}
                       className="text-slate-300 hover:text-red-500 transition-colors group-hover:text-slate-500"
                     >
                       <Trash2 size={16} />
