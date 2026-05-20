@@ -198,13 +198,13 @@ export default function StockStatusScreen({ assets, movements, setView }) {
                 <td className="px-3 py-2 font-mono text-slate-600">{row.id}</td>
                 <td className="px-3 py-2 whitespace-normal break-words">{row.maker || '-'}</td>
                 <td className="px-3 py-2 font-bold text-slate-800">{row.name}</td>
-                <td className="bg-slate-50/60 px-3 py-2 text-right">{row.prevMonth.toLocaleString()}</td>
+                <td className={`px-3 py-2 text-right ${row.prevMonth < 0 ? 'bg-red-50 text-red-600 font-bold' : 'bg-slate-50/60'}`}>{row.prevMonth.toLocaleString()}</td>
                 <td className="bg-emerald-50/40 px-3 py-2 text-right text-emerald-700 font-bold">{row.inbound.toLocaleString()}</td>
                 <td className="bg-rose-50/40 px-3 py-2 text-right text-rose-700 font-bold">{row.outbound.toLocaleString()}</td>
-                <td className="bg-blue-50/40 px-3 py-2 text-right font-bold text-slate-900">{row.currentStock.toLocaleString()}</td>
+                <td className={`px-3 py-2 text-right font-bold ${row.currentStock < 0 ? 'bg-red-50 text-red-600' : 'bg-blue-50/40 text-slate-900'}`}>{row.currentStock.toLocaleString()}</td>
                 <td className="px-3 py-2 text-center">{row.usageUnit || '-'}</td>
                 <td className="px-3 py-2 text-right">¥{row.usageUnitPrice.toLocaleString()}</td>
-                <td className="bg-blue-50/50 px-3 py-2 text-right font-bold text-blue-700">¥{row.stockValue.toLocaleString()}</td>
+                <td className={`px-3 py-2 text-right font-bold ${row.stockValue < 0 ? 'bg-red-50 text-red-600' : 'bg-blue-50/50 text-blue-700'}`}>¥{row.stockValue.toLocaleString()}</td>
               </tr>
             ))}
           </tbody>
