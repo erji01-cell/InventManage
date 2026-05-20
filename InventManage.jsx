@@ -992,7 +992,7 @@ function AssetMasterScreen({ assets, suppliers, onCreateAsset, onUpdateAsset, on
       <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="overflow-auto rounded-lg border border-slate-200 shadow-sm">
           <table className="w-full text-left border-collapse min-w-[800px] text-sm">
-            <thead className="sticky top-0 bg-slate-900 text-white">
+            <thead className="bg-slate-100 sticky top-0">
               <tr>
                 <th className="p-3 w-20">ID</th>
                 <th className="p-3 w-40">メーカー</th>
@@ -1255,18 +1255,32 @@ function InfoLine({ label, value, className = '', valueClassName = '', strong = 
 function MovementHistoryScreen({ movements, setView, assets, staff = [], updateMovement, deleteMovement }) {
   const [filterType, setFilterType] = useState('all');
   const [movementSearchTerm, setMovementSearchTerm] = useState('');
+  const [movementDateFrom, setMovementDateFrom] = useState('');
+  const [movementDateTo, setMovementDateTo] = useState('');
+  const [appliedDateFrom, setAppliedDateFrom] = useState('');
+  const [appliedDateTo, setAppliedDateTo] = useState('');
   const [selectedMovement, setSelectedMovement] = useState(null);
   const [movementEditForm, setMovementEditForm] = useState(null);
   const [movementSaveError, setMovementSaveError] = useState('');
   const [isMovementSaving, setIsMovementSaving] = useState(false);
 
   const normalizedSearchTerm = movementSearchTerm.trim().toLowerCase();
+  const appliedFromDate = parseLocalDate(appliedDateFrom);
+  const appliedToDate = parseLocalDate(appliedDateTo);
 
   const displayedMovements = movements
     .map(m => ({ ...m, normalizedType: normalizeMovementType(m.type) }))
     .filter(m => {
       if (filterType === 'in') return m.normalizedType === 'in';
       if (filterType === 'out') return m.normalizedType === 'out';
+      return true;
+    })
+    .filter(m => {
+      if (!appliedFromDate && !appliedToDate) return true;
+      const movementDate = parseLocalDate(m.date);
+      if (!movementDate) return false;
+      if (appliedFromDate && movementDate < appliedFromDate) return false;
+      if (appliedToDate && movementDate > appliedToDate) return false;
       return true;
     })
     .filter(m => {
@@ -1310,6 +1324,11 @@ function MovementHistoryScreen({ movements, setView, assets, staff = [], updateM
     setSelectedMovement(null);
     setMovementEditForm(null);
     setMovementSaveError('');
+  };
+
+  const applyMovementDateFilter = () => {
+    setAppliedDateFrom(movementDateFrom);
+    setAppliedDateTo(movementDateTo);
   };
 
   const saveMovementDetail = async () => {
@@ -1389,9 +1408,22 @@ function MovementHistoryScreen({ movements, setView, assets, staff = [], updateM
           <div className="space-y-2">
             <span className="block text-sm font-bold text-slate-500">入出庫日</span>
             <div className="flex items-center gap-2">
-              <input type="date" className="w-36 border border-slate-200 rounded-md px-3 py-2" />
+              <input
+                type="date"
+                value={movementDateFrom}
+                onChange={(event) => setMovementDateFrom(event.target.value)}
+                className="w-36 border border-slate-200 rounded-md px-3 py-2"
+              />
               <span className="text-slate-400">〜</span>
-              <input type="date" className="w-36 border border-slate-200 rounded-md px-3 py-2" />
+              <input
+                type="date"
+                value={movementDateTo}
+                onChange={(event) => setMovementDateTo(event.target.value)}
+                className="w-36 border border-slate-200 rounded-md px-3 py-2"
+              />
+              <Button variant="primary" className="h-[42px] px-5" onClick={applyMovementDateFilter}>
+                抽出
+              </Button>
             </div>
           </div>
         </div>
@@ -1410,7 +1442,6 @@ function MovementHistoryScreen({ movements, setView, assets, staff = [], updateM
             />
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           </div>
-          <Button variant="primary" className="w-28" onClick={() => setMovementSearchTerm(movementSearchTerm.trim())}>抽出</Button>
         </div>
       </div>
 
