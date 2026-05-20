@@ -10,7 +10,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
   const btnVariant = isIn ? 'success' : 'danger';
 
   const [form, setForm] = useState({
-    staffId: staff[0]?.id || '',
+    staffId: '',
     assetId: '',
     date: new Date().toISOString().split('T')[0],
     quantity: 0,
@@ -24,11 +24,6 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
   const [assetListSignal, setAssetListSignal] = useState(0);
   const assetInputRef = useRef(null);
 
-  useEffect(() => {
-    if (!form.staffId && staff.length > 0) {
-      setForm((current) => ({ ...current, staffId: staff[0].id }));
-    }
-  }, [form.staffId, staff]);
 
   const selectedAsset = assets.find(a => a.id === form.assetId);
   const selectedAssetMovements = selectedAsset
@@ -109,6 +104,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
                 value={form.staffId}
                 onChange={(e) => setForm({...form, staffId: e.target.value})}
               >
+                <option value="">-- 担当者を選択 --</option>
                 {staff.map(s => <option key={s.id} value={s.id}>{s.id} {s.name}</option>)}
               </select>
             </div>
