@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Button, Card, InfoLine } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
 
-export default function EntryScreen({ type, onSave, onCancel, assets, movements = [], staff, setView }) {
+export default function EntryScreen({ type, onSave, onCancel, assets, movements = [], staff, setView, initialAssetId = null }) {
   const isIn = type === 'in';
   const title = isIn ? '入庫データ入力・修正' : '出庫データ入力・修正';
   const accentColor = isIn ? 'text-emerald-700' : 'text-rose-700';
@@ -11,7 +11,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
 
   const [form, setForm] = useState({
     staffId: staff[0]?.id || '',
-    assetId: '',
+    assetId: initialAssetId || '',
     date: new Date().toISOString().split('T')[0],
     quantity: 0,
     actualDeliveryPrice: 0,

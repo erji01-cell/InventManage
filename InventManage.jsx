@@ -308,13 +308,20 @@ export default function App() {
     )));
   };
 
+  const [entryAssetId, setEntryAssetId] = useState(null);
+
+  const navigateToEntry = (type, assetId) => {
+    setEntryAssetId(assetId || null);
+    setView(type === 'in' ? 'inbound' : 'outbound');
+  };
+
   const renderView = () => {
     switch (view) {
       case 'menu': return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} />;
-      case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} onCreateAsset={createAsset} onUpdateAsset={updateAsset} onUpdateParentAsset={updateParentAsset} onDeleteAsset={deleteAsset} setView={setView} />;
+      case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} onCreateAsset={createAsset} onUpdateAsset={updateAsset} onUpdateParentAsset={updateParentAsset} onDeleteAsset={deleteAsset} setView={setView} onNavigateEntry={navigateToEntry} />;
       case 'history': return <MovementHistoryScreen movements={movements} setMovements={setMovements} setView={setView} assets={assets} staff={staff} updateMovement={updateMovement} deleteMovement={deleteMovement} />;
-      case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => setView('menu')} assets={assets} movements={movements} staff={staff} setView={setView} />;
-      case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => setView('menu')} assets={assets} movements={movements} staff={staff} setView={setView} />;
+      case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => setView('menu')} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} />;
+      case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => setView('menu')} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} />;
       case 'stock': return <StockStatusScreen assets={assets} movements={movements} setView={setView} />;
       default: return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} />;
     }

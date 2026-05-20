@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { PlusCircle, Printer, Search, Trash2, X } from 'lucide-react';
+import { LogIn, LogOut, PlusCircle, Printer, Search, Trash2, X } from 'lucide-react';
 
 import { Button, Card, DetailItem, DetailRow, EditField } from '../components/ui.jsx';
 import { toNullableNumber } from '../utils/inventory.js';
@@ -19,7 +19,7 @@ const createAssetEditForm = (asset) => ({
   parentGenericName: asset?.parentGenericName || '',
 });
 
-export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, onUpdateAsset, onUpdateParentAsset, onDeleteAsset, setView }) {
+export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, onUpdateAsset, onUpdateParentAsset, onDeleteAsset, setView, onNavigateEntry }) {
   const [filter, setFilter] = useState('');
   const [selectedAssetId, setSelectedAssetId] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -378,14 +378,15 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
                     <DetailRow label="摘要" value={selectedAsset.memo || '-'} />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 border-t border-slate-200 pt-4">
-                    <Button variant="action" className="w-full px-3 py-2 text-sm" onClick={startCreate}>
-                      <PlusCircle size={18} />
-                      新規登録
+                  <div className="grid grid-cols-3 gap-2 border-t border-slate-200 pt-4">
+                    <Button variant="success" className="w-full px-3 py-2 text-sm" onClick={() => onNavigateEntry('in', selectedAsset?.id)} disabled={!selectedAsset}>
+                      <LogIn size={16} /> 入庫
                     </Button>
-                    <Button variant="danger" className="w-full px-3 py-2 text-sm" onClick={deleteSelectedAsset} disabled={!selectedAsset || isSaving}>
-                      <Trash2 size={18} />
-                      削除
+                    <Button variant="danger" className="w-full px-3 py-2 text-sm bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100" onClick={() => onNavigateEntry('out', selectedAsset?.id)} disabled={!selectedAsset}>
+                      <LogOut size={16} /> 出庫
+                    </Button>
+                    <Button variant="secondary" className="w-full px-3 py-2 text-sm" onClick={deleteSelectedAsset} disabled={!selectedAsset || isSaving}>
+                      <Trash2 size={16} /> 削除
                     </Button>
                   </div>
 
@@ -402,6 +403,9 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
       </div>
 
       <div className="flex gap-4 mt-6">
+        <Button variant="action" onClick={startCreate}>
+          <PlusCircle size={18} /> 新規登録
+        </Button>
         <div className="flex-1" />
         <Button variant="action"><Printer size={18} /> 一覧印刷</Button>
         <Button variant="secondary" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
