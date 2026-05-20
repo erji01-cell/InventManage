@@ -22,33 +22,13 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [assetListSignal, setAssetListSignal] = useState(0);
-  const [staffCodeInput, setStaffCodeInput] = useState(staff[0]?.id || '');
   const assetInputRef = useRef(null);
 
   useEffect(() => {
     if (!form.staffId && staff.length > 0) {
       setForm((current) => ({ ...current, staffId: staff[0].id }));
-      setStaffCodeInput(staff[0].id);
     }
   }, [form.staffId, staff]);
-
-  useEffect(() => {
-    setStaffCodeInput(form.staffId || '');
-  }, [form.staffId]);
-
-  const selectStaffByCode = ({ focusAsset = false } = {}) => {
-    const normalizedCode = staffCodeInput.trim();
-    const selectedStaff = staff.find((member) => String(member.id) === normalizedCode);
-    if (!selectedStaff) {
-      setSaveError(`担当者番号 ${normalizedCode || '未入力'} は見つかりません。`);
-      return;
-    }
-    setSaveError('');
-    setForm((current) => ({ ...current, staffId: String(selectedStaff.id) }));
-    if (focusAsset) {
-      window.setTimeout(() => assetInputRef.current?.focus(), 0);
-    }
-  };
 
   const selectedAsset = assets.find(a => a.id === form.assetId);
   const selectedAssetMovements = selectedAsset
@@ -123,28 +103,11 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-3 items-center gap-4">
             <label className="font-bold text-slate-700">担当者</label>
-            <div className="col-span-2 flex gap-2">
-              <input
-                value={staffCodeInput}
-                onChange={(e) => setStaffCodeInput(e.target.value)}
-                onBlur={selectStaffByCode}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    selectStaffByCode({ focusAsset: true });
-                  }
-                }}
-                className={`w-16 p-2 text-center rounded border outline-none focus:ring-2 ${
-                  isIn ? 'bg-emerald-50 focus:ring-emerald-200' : 'bg-rose-50 focus:ring-rose-200'
-                }`}
-              />
-              <select 
-                className={`flex-1 p-2 border rounded-md outline-none focus:ring-2 ${isIn ? 'focus:ring-emerald-500' : 'focus:ring-rose-500'}`}
+            <div className="col-span-2">
+              <select
+                className={`w-full p-2 border rounded-md outline-none focus:ring-2 ${isIn ? 'focus:ring-emerald-500' : 'focus:ring-rose-500'}`}
                 value={form.staffId}
-                onChange={(e) => {
-                  setForm({...form, staffId: e.target.value});
-                  setStaffCodeInput(e.target.value);
-                }}
+                onChange={(e) => setForm({...form, staffId: e.target.value})}
               >
                 {staff.map(s => <option key={s.id} value={s.id}>{s.id} {s.name}</option>)}
               </select>
