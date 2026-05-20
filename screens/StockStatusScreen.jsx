@@ -1,18 +1,49 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Printer, RefreshCcw, Search, X } from 'lucide-react';
 
 import { Button, Card } from '../components/ui.jsx';
 import { normalizeMovementType, parseLocalDate } from '../utils/inventory.js';
 
 export default function StockStatusScreen({ assets, movements, setView }) {
-  const [selectedMonth, setSelectedMonth] = useState(5);
-  const [stockSearchTerm, setStockSearchTerm] = useState('');
   const fiscalMonths = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
   const today = new Date();
   const fiscalEndYear = today.getMonth() + 1 >= 7 ? today.getFullYear() + 1 : today.getFullYear();
-  const selectedYear = selectedMonth >= 7 ? fiscalEndYear - 1 : fiscalEndYear;
-  const monthStart = new Date(selectedYear, selectedMonth - 1, 1);
-  const nextMonthStart = new Date(selectedYear, selectedMonth, 1);
+  const currentFiscalIndex = fiscalMonths.indexOf(today.getMonth() + 1);
+  const initialIndex = currentFiscalIndex >= 0 ? currentFiscalIndex : 10;
+
+  const [rangeFrom, setRangeFrom] = useState(initialIndex);
+  const [rangeTo, setRangeTo] = useState(initialIndex);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragAnchor, setDragAnchor] = useState(null);
+  const [stockSearchTerm, setStockSearchTerm] = useState('');
+
+  useEffect(() => {
+    const handleMouseUp = () => setIsDragging(false);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => document.removeEventListener('mouseup', handleMouseUp);
+  }, []);
+
+  const handleMonthMouseDown = (idx) => {
+    setDragAnchor(idx);
+    setRangeFrom(idx);
+    setRangeTo(idx);
+    setIsDragging(true);
+  };
+
+  const handleMonthMouseEnter = (idx) => {
+    if (!isDragging || dragAnchor === null) return;
+    setRangeFrom(Math.min(dragAnchor, idx));
+    setRangeTo(Math.max(dragAnchor, idx));
+  };
+
+  const fromMonth = fiscalMonths[rangeFrom];
+  const toMonth = fiscalMonths[rangeTo];
+  const getYearForMonth = (m) => m >= 7 ? fiscalEndYear - 1 : fiscalEndYear;
+  const monthStart = new Date(getYearForMonth(fromMonth), fromMonth - 1, 1);
+  const nextMonthStart = new Date(getYearForMonth(toMonth), toMonth, 1);
+
+  const startLabel = rangeFrom === 0 ? '期首在庫' : '月初在庫';
+  const endLabel = rangeTo === 11 ? '期末在庫' : '月末在庫';
 
   const stockData = useMemo(() => {
     return assets.map(asset => {
@@ -42,7 +73,7 @@ export default function StockStatusScreen({ assets, movements, setView }) {
 
       return { ...asset, prevMonth: monthStartStock, inbound: inboundTotal, outbound: outboundTotal, currentStock, stockValue };
     });
-  }, [assets, movements, monthStart, nextMonthStart]);
+  }, [assets, movements, monthStart.getTime(), nextMonthStart.getTime()]);
 
   const normalizedStockSearch = stockSearchTerm.trim().toLowerCase();
   const filteredStockData = useMemo(() => {
@@ -62,27 +93,55 @@ export default function StockStatusScreen({ assets, movements, setView }) {
 
   return (
     <Card className="max-h-[90vh] flex flex-col gap-5">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight text-slate-800">在庫表</h2>
-          <p className="mt-1 text-sm text-slate-500">月度を選択し、品名・メーカー・IDで絞り込めます。</p>
-        </div>
+      <div className="border-b border-slate-200 pb-4">
+        <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-500">Inventory Status</p>
+        <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-900">在庫表</h2>
+        <p className="mt-2 text-sm text-slate-500">月度を選択し、品名・メーカー・IDで絞り込めます。</p>
       </div>
 
       <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[auto_minmax(260px,420px)_auto_auto] xl:items-end">
           <div className="space-y-2">
-            <p className="text-sm font-bold text-slate-500">月度選択</p>
-            <div className="flex w-max rounded-md border border-slate-200 bg-white p-1 shadow-sm">
-              {fiscalMonths.map(month => (
-                <button
-                  key={month}
-                  onClick={() => setSelectedMonth(month)}
-                  className={`h-9 w-8 rounded text-sm transition-colors ${selectedMonth === month ? 'bg-blue-600 text-white font-bold shadow-sm' : 'text-slate-600 hover:bg-slate-100'}`}
-                >
-                  {month}
-                </button>
-              ))}
+            <div className="flex items-baseline gap-2">
+              <p className="text-sm font-bold text-slate-500">月度選択</p>
+              {rangeFrom !== rangeTo && (
+                <p className="text-xs text-blue-600 font-bold">{fromMonth}月〜{toMonth}月</p>
+              )}
+            </div>
+            <div
+              className="flex w-max rounded-md border border-slate-200 bg-white p-1 shadow-sm select-none"
+              onMouseLeave={() => { if (isDragging) setIsDragging(false); }}
+            >
+              {fiscalMonths.map((month, idx) => {
+                const isFrom = idx === rangeFrom;
+                const isTo = idx === rangeTo;
+                const inRange = idx > rangeFrom && idx < rangeTo;
+                const isSingle = rangeFrom === rangeTo && isFrom;
+
+                let cls = 'h-9 w-8 text-sm transition-colors cursor-pointer ';
+                if (isSingle) {
+                  cls += 'bg-blue-600 text-white font-bold shadow-sm rounded';
+                } else if (isFrom) {
+                  cls += 'bg-blue-600 text-white font-bold shadow-sm rounded-l';
+                } else if (isTo) {
+                  cls += 'bg-blue-600 text-white font-bold shadow-sm rounded-r';
+                } else if (inRange) {
+                  cls += 'bg-blue-100 text-blue-700 font-medium';
+                } else {
+                  cls += 'text-slate-600 hover:bg-slate-100 rounded';
+                }
+
+                return (
+                  <button
+                    key={month}
+                    className={cls}
+                    onMouseDown={() => handleMonthMouseDown(idx)}
+                    onMouseEnter={() => handleMonthMouseEnter(idx)}
+                  >
+                    {month}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -124,10 +183,10 @@ export default function StockStatusScreen({ assets, movements, setView }) {
               <th className="border-b border-slate-200 px-3 py-2 w-20">ID</th>
               <th className="border-b border-slate-200 px-3 py-2 w-36">メーカー</th>
               <th className="border-b border-slate-200 px-3 py-2 min-w-[320px]">品名</th>
-              <th className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-right w-20">月初在庫</th>
+              <th className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-right w-20">{startLabel}</th>
               <th className="border-b border-slate-200 bg-emerald-50/70 px-3 py-2 text-right w-20">入庫数</th>
               <th className="border-b border-slate-200 bg-rose-50/70 px-3 py-2 text-right w-20">出庫数</th>
-              <th className="border-b border-slate-200 bg-blue-50/70 px-3 py-2 text-right font-bold w-20">月末在庫</th>
+              <th className="border-b border-slate-200 bg-blue-50/70 px-3 py-2 text-right font-bold w-20">{endLabel}</th>
               <th className="border-b border-slate-200 px-3 py-2 text-center w-20">単位</th>
               <th className="border-b border-slate-200 px-3 py-2 text-right w-28">使用単価</th>
               <th className="border-b border-slate-200 bg-blue-50/70 px-3 py-2 text-right font-bold w-32">在庫金額</th>
