@@ -134,8 +134,11 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
 
   return (
     <Card className="max-h-[90vh] flex flex-col">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-3xl font-bold text-slate-800">入出庫データ一覧/修正</h2>
+      <div className="mb-5 flex items-end justify-between border-b border-slate-200 pb-4">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-500">Stock Movement</p>
+          <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-900">入出庫データ</h2>
+        </div>
       </div>
 
       <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-6 flex flex-wrap items-end justify-between gap-4">

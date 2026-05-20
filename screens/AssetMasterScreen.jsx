@@ -202,7 +202,7 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-500">Asset Master</p>
           <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-900">資産マスタ</h2>
         </div>
-        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-right">
+        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 flex items-center gap-2">
           <p className="text-xs font-bold text-slate-400">表示件数</p>
           <p className="text-lg font-black text-slate-800">{filteredAssets.length.toLocaleString()}</p>
         </div>
