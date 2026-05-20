@@ -3,7 +3,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Button, Card, InfoLine } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
 
-export default function EntryScreen({ type, onSave, onCancel, assets, movements = [], staff }) {
+export default function EntryScreen({ type, onSave, onCancel, assets, movements = [], staff, setView }) {
   const isIn = type === 'in';
   const title = isIn ? '入庫データ入力・修正' : '出庫データ入力・修正';
   const accentColor = isIn ? 'text-emerald-700' : 'text-rose-700';
@@ -129,9 +129,9 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
               <Button
                 variant="action"
                 className="whitespace-nowrap"
-                onClick={() => setAssetListSignal((value) => value + 1)}
+                onClick={() => setView('assets')}
               >
-                資産一覧/選択
+                資産マスタ
               </Button>
             </div>
           </div>
