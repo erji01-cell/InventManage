@@ -1160,8 +1160,8 @@ function AssetMasterScreen({ assets, suppliers, onCreateAsset, onUpdateAsset, on
 
       <div className="flex gap-4 mt-6">
         <div className="flex-1" />
-        <Button variant="secondary"><Printer size={18} /> 一覧印刷</Button>
-        <Button variant="secondary" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
+        <Button variant="action"><Printer size={18} /> 一覧印刷</Button>
+        <Button variant="action" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
       </div>
     </Card>
   );
@@ -1571,8 +1571,8 @@ function MovementHistoryScreen({ movements, setView, assets, staff = [], updateM
       )}
 
       <div className="flex justify-end gap-3 mt-6">
-        <Button variant="secondary"><Printer size={18} /> 一覧印刷</Button>
-        <Button variant="secondary" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
+        <Button variant="action"><Printer size={18} /> 一覧印刷</Button>
+        <Button variant="action" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
       </div>
     </Card>
   );
@@ -2081,12 +2081,10 @@ function StockStatusScreen({ assets, movements, setView }) {
         </table>
       </div>
 
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-slate-400">表示中の行だけが検索結果として反映されます。</p>
-        <div className="flex gap-3">
-          <Button variant="secondary"><Printer size={18} /> 印刷</Button>
-          <Button variant="secondary" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
-        </div>
+      <div className="flex gap-4 mt-6">
+        <div className="flex-1" />
+        <Button variant="action"><Printer size={18} /> 一覧印刷</Button>
+        <Button variant="action" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
       </div>
     </Card>
   );
