@@ -966,7 +966,6 @@ function AssetMasterScreen({ assets, suppliers, onCreateAsset, onUpdateAsset, on
     <Card className="max-h-[90vh] flex flex-col">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-3xl font-bold text-slate-800">資産マスタ</h2>
-        <Button variant="secondary" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
       </div>
 
       <div className="flex gap-4 mb-6 bg-slate-50 p-4 rounded-lg">
@@ -1162,6 +1161,7 @@ function AssetMasterScreen({ assets, suppliers, onCreateAsset, onUpdateAsset, on
       <div className="flex gap-4 mt-6">
         <div className="flex-1" />
         <Button variant="secondary"><Printer size={18} /> 一覧印刷</Button>
+        <Button variant="secondary" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
       </div>
     </Card>
   );
