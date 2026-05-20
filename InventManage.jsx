@@ -968,18 +968,17 @@ function AssetMasterScreen({ assets, suppliers, onCreateAsset, onUpdateAsset, on
         <h2 className="text-3xl font-bold text-slate-800">資産マスタ</h2>
       </div>
 
-      <div className="flex gap-4 mb-6 bg-slate-50 p-4 rounded-lg">
+      <div className="flex gap-4 mb-6 bg-blue-50 p-4 rounded-lg border border-blue-100">
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400" size={18} />
           <input 
             type="text" 
             placeholder="品名 (ヒンメイ) で検索..." 
-            className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
+            className="w-full pl-10 pr-4 py-2 border border-blue-200 bg-white rounded-md focus:ring-2 focus:ring-blue-500 outline-none"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           />
         </div>
-        <Button>検索</Button>
         <Button variant="secondary" onClick={() => setFilter('')}>リセット</Button>
       </div>
 
@@ -1161,7 +1160,7 @@ function AssetMasterScreen({ assets, suppliers, onCreateAsset, onUpdateAsset, on
       <div className="flex gap-4 mt-6">
         <div className="flex-1" />
         <Button variant="action"><Printer size={18} /> 一覧印刷</Button>
-        <Button variant="action" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
+        <Button variant="secondary" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
       </div>
     </Card>
   );
@@ -1171,7 +1170,7 @@ function DetailItem({ label, value, align = 'left', mono = false }) {
   return (
     <div className="rounded-md border border-slate-200 bg-white p-3">
       <p className="text-xs font-bold text-slate-400">{label}</p>
-      <p className={`mt-1 font-bold text-slate-700 ${align === 'right' ? 'text-right' : ''} ${mono ? 'font-mono' : ''}`}>
+      <p className={`mt-2 flex min-h-6 items-center justify-center text-center font-bold text-slate-700 ${mono ? 'font-mono' : ''}`}>
         {value}
       </p>
     </div>
@@ -1572,7 +1571,7 @@ function MovementHistoryScreen({ movements, setView, assets, staff = [], updateM
 
       <div className="flex justify-end gap-3 mt-6">
         <Button variant="action"><Printer size={18} /> 一覧印刷</Button>
-        <Button variant="action" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
+        <Button variant="secondary" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
       </div>
     </Card>
   );
@@ -2084,7 +2083,7 @@ function StockStatusScreen({ assets, movements, setView }) {
       <div className="flex gap-4 mt-6">
         <div className="flex-1" />
         <Button variant="action"><Printer size={18} /> 一覧印刷</Button>
-        <Button variant="action" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
+        <Button variant="secondary" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
       </div>
     </Card>
   );
