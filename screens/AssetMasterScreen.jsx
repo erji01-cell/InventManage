@@ -198,7 +198,7 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
 
   return (
     <Card className="max-h-[90vh] flex flex-col bg-white">
-      <div className="mb-5 flex items-start justify-between border-b border-slate-200 pb-4">
+      <div className="mb-5 flex items-end justify-between border-b border-slate-200 pb-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-500">Asset Master</p>
           <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-900">資産マスタ</h2>
