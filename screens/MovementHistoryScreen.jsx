@@ -145,12 +145,20 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
   };
 
   return (
-    <Card className="max-h-[90vh] flex flex-col">
+    <Card className="max-h-[90vh] flex flex-col relative">
+      <button
+        onClick={() => setView('menu')}
+        className="absolute top-3 right-3 rounded-full p-1 text-slate-300 hover:bg-slate-100 hover:text-slate-600 transition-colors z-10"
+        title="閉じる"
+      >
+        <X size={20} />
+      </button>
       <div className="mb-5 flex items-end justify-between border-b border-slate-200 pb-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-500">Stock Movement</p>
           <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-900">入出庫データ</h2>
         </div>
+        <Button variant="primary"><Printer size={18} /> 一覧印刷</Button>
       </div>
 
       <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-6 flex flex-wrap items-end justify-between gap-4">
@@ -367,10 +375,6 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
         </div>
       )}
 
-      <div className="flex justify-end gap-3 mt-6">
-        <Button variant="action"><Printer size={18} /> 一覧印刷</Button>
-        <Button variant="secondary" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
-      </div>
     </Card>
   );
 }

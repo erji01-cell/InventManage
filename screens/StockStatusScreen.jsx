@@ -92,11 +92,21 @@ export default function StockStatusScreen({ assets, movements, setView }) {
   const totalStockValue = filteredStockData.reduce((sum, row) => sum + row.stockValue, 0);
 
   return (
-    <Card className="max-h-[90vh] flex flex-col gap-5">
-      <div className="border-b border-slate-200 pb-4">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-500">Inventory Status</p>
-        <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-900">在庫表</h2>
-        <p className="mt-2 text-sm text-slate-500">月度を選択し、品名・メーカー・IDで絞り込めます。</p>
+    <Card className="max-h-[90vh] flex flex-col gap-5 relative">
+      <button
+        onClick={() => setView('menu')}
+        className="absolute top-3 right-3 rounded-full p-1 text-slate-300 hover:bg-slate-100 hover:text-slate-600 transition-colors z-10"
+        title="閉じる"
+      >
+        <X size={20} />
+      </button>
+      <div className="flex items-end justify-between border-b border-slate-200 pb-4">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-500">Inventory Status</p>
+          <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-900">在庫表</h2>
+          <p className="mt-2 text-sm text-slate-500">月度を選択し、品名・メーカー・IDで絞り込めます。</p>
+        </div>
+        <Button variant="primary"><Printer size={18} /> 一覧印刷</Button>
       </div>
 
       <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
@@ -211,11 +221,6 @@ export default function StockStatusScreen({ assets, movements, setView }) {
         </table>
       </div>
 
-      <div className="flex gap-4 mt-6">
-        <div className="flex-1" />
-        <Button variant="action"><Printer size={18} /> 一覧印刷</Button>
-        <Button variant="secondary" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
-      </div>
     </Card>
   );
 }
