@@ -210,7 +210,7 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-500">Asset Master</p>
           <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-900">資産マスタ</h2>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 mr-8">
           <Button variant="success" onClick={startCreate}>
             <PlusCircle size={18} /> 新規登録
           </Button>
