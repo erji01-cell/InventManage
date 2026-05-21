@@ -68,7 +68,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
       return;
     }
     if (!isIn && Number(form.quantity) > currentStock) {
-      setSaveError('出庫数が現在庫を超えています。');
+      setSaveError(`出庫数が現在庫（${currentStock.toLocaleString()}）を超えています。在庫がマイナスになるため登録できません。`);
       return;
     }
     const updateMasterDeliveryPrice = isIn && actualDeliveryPrice !== masterDeliveryPrice
@@ -195,6 +195,12 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
                 <span className="font-bold text-slate-600">{selectedAsset?.usageUnit || '個'}</span>
               </div>
               <p className="text-xs text-rose-500 font-bold">{isIn ? '入庫数' : '出庫数'}は 使用単位 で入力して下さい</p>
+              {!isIn && selectedAsset && form.quantity > 0 && (
+                <div className={`flex items-center gap-2 rounded-md px-3 py-2 text-xs font-bold ${(currentStock - form.quantity) < 0 ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}>
+                  <span>登録後在庫: {(currentStock - form.quantity).toLocaleString()} {selectedAsset.usageUnit}</span>
+                  {(currentStock - form.quantity) < 0 && <span>⚠ 在庫がマイナスになります</span>}
+                </div>
+              )}
             </div>
           </div>
 
@@ -219,6 +225,12 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
             />
           </div>
 
+          {saveError && (
+            <div className="rounded-md border border-red-300 bg-red-50 p-3 text-sm font-bold text-red-700">
+              ⚠ {saveError}
+            </div>
+          )}
+
           <div className="flex justify-end items-center pt-6 border-t border-slate-100">
             <div className="flex gap-2">
               <Button variant={btnVariant} className="px-10" onClick={handleSubmit} disabled={isSaving}>
@@ -227,11 +239,6 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
               <Button variant="secondary" onClick={onCancel}>閉じる</Button>
             </div>
           </div>
-          {saveError && (
-            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-              {saveError}
-            </div>
-          )}
         </form>
       </Card>
     </div>
