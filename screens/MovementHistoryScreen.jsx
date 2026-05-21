@@ -266,10 +266,6 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
                 <h3 className="mt-1 text-xl font-bold text-slate-800">{selectedMovement.asset?.name || '-'}</h3>
                 <p className="mt-1 text-sm text-slate-500">{selectedMovement.asset?.maker || '-'}</p>
               </div>
-              <Button variant="secondary" onClick={closeMovementDetail}>
-                <X size={18} /> 閉じる
-              </Button>
-            </div>
 
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="col-span-2">
