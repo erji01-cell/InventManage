@@ -90,6 +90,15 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
 
     const quantity = Number(movementEditForm.quantity);
     const actualDeliveryPrice = Number(movementEditForm.actualDeliveryPrice || 0);
+    const assetIdNum = Number(movementEditForm.assetId);
+    if (!movementEditForm.assetId || !Number.isFinite(assetIdNum) || assetIdNum <= 0) {
+      setMovementSaveError('品名を選択してください。');
+      return;
+    }
+    if (!assets.find((a) => String(a.id) === String(movementEditForm.assetId))) {
+      setMovementSaveError('選択された品名が見つかりません。');
+      return;
+    }
     if (!movementEditForm.date) {
       setMovementSaveError('入出庫日を入力してください。');
       return;

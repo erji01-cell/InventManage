@@ -147,6 +147,10 @@ export default function App() {
       authSession
     );
 
+    if (!updated) {
+      throw new Error('入出庫データを更新できませんでした。データが見つからないか、変更権限がない可能性があります。');
+    }
+
     const staffMap = new Map(staff.map((member) => [Number(member.id), member]));
     const normalized = normalizeMovement(updated, staffMap);
     setMovements(prev => prev.map(m => (
