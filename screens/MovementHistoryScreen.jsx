@@ -5,9 +5,10 @@ import { Button, Card, DetailItem, EditableDetail } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
 import { normalizeMovementType, parseLocalDate } from '../utils/inventory.js';
 
-export default function MovementHistoryScreen({ movements, setView, assets, staff = [], updateMovement, deleteMovement, initialAssetId = '' }) {
+export default function MovementHistoryScreen({ movements, setView, assets, staff = [], updateMovement, deleteMovement, pinnedAssetId = '' }) {
   const [filterType, setFilterType] = useState('all');
-  const [movementSearchTerm, setMovementSearchTerm] = useState(initialAssetId);
+  const [movementSearchTerm, setMovementSearchTerm] = useState('');
+  const [pinnedId, setPinnedId] = useState(pinnedAssetId);
   const [movementDateFrom, setMovementDateFrom] = useState('');
   const [movementDateTo, setMovementDateTo] = useState('');
   const [appliedDateFrom, setAppliedDateFrom] = useState('');
@@ -51,6 +52,7 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
 
   const displayedMovements = movements
     .map(m => ({ ...m, normalizedType: normalizeMovementType(m.type) }))
+    .filter(m => !pinnedId || m.assetId === pinnedId)
     .filter(m => {
       if (filterType === 'in') return m.normalizedType === 'in';
       if (filterType === 'out') return m.normalizedType === 'out';
@@ -245,7 +247,16 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
         </div>
       </div>
 
-      <div className="overflow-auto border border-slate-200 rounded-lg flex-1">
+      {pinnedId && (() => {
+        const pinnedAsset = assets.find(a => a.id === pinnedId);
+        return (
+          <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm font-bold text-blue-700 w-fit">
+            <span>絞り込み中: {pinnedAsset?.name || pinnedId}</span>
+            <button onClick={() => setPinnedId('')} className="ml-1 text-blue-400 hover:text-blue-700">×</button>
+          </div>
+        );
+      })()}
+            <div className="overflow-auto border border-slate-200 rounded-lg flex-1">
         <table className="w-full text-left border-collapse min-w-[1180px] text-sm">
           <thead className="bg-slate-100 sticky top-0 z-10">
             <tr>

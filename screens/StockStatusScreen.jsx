@@ -4,7 +4,7 @@ import { Printer, RefreshCcw, Search, X } from 'lucide-react';
 import { Button, Card } from '../components/ui.jsx';
 import { normalizeMovementType, parseLocalDate } from '../utils/inventory.js';
 
-export default function StockStatusScreen({ assets, movements, setView, initialAssetId = '' }) {
+export default function StockStatusScreen({ assets, movements, setView, pinnedAssetId = '' }) {
   const fiscalMonths = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
   const today = new Date();
   const fiscalEndYear = today.getMonth() + 1 >= 7 ? today.getFullYear() + 1 : today.getFullYear();
@@ -15,7 +15,8 @@ export default function StockStatusScreen({ assets, movements, setView, initialA
   const [rangeTo, setRangeTo] = useState(initialIndex);
   const [isDragging, setIsDragging] = useState(false);
   const [dragAnchor, setDragAnchor] = useState(null);
-  const [stockSearchTerm, setStockSearchTerm] = useState(initialAssetId);
+  const [stockSearchTerm, setStockSearchTerm] = useState('');
+  const [pinnedId, setPinnedId] = useState(pinnedAssetId);
 
   useEffect(() => {
     const handleMouseUp = () => setIsDragging(false);
@@ -77,9 +78,11 @@ export default function StockStatusScreen({ assets, movements, setView, initialA
 
   const normalizedStockSearch = stockSearchTerm.trim().toLowerCase();
   const filteredStockData = useMemo(() => {
-    if (!normalizedStockSearch) return stockData;
+    const pinFiltered = pinnedId ? stockData.filter(row => row.id === pinnedId) : stockData;
+    if (!normalizedStockSearch) return pinFiltered;
+    return pinFiltered
 
-    return stockData.filter(row => [
+    return pinFiltered.filter(row => [
       row.id,
       row.maker,
       row.name,
@@ -186,7 +189,16 @@ export default function StockStatusScreen({ assets, movements, setView, initialA
         </div>
       </div>
 
-      <div className="overflow-auto rounded-lg border border-slate-200 flex-1 text-sm shadow-sm">
+      {pinnedId && (() => {
+        const pinnedAsset = assets.find(a => a.id === pinnedId);
+        return (
+          <div className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-100 px-3 py-2 text-sm font-bold text-amber-800 w-fit">
+            <span>絞り込み中: {pinnedAsset?.name || pinnedId}</span>
+            <button onClick={() => setPinnedId('')} className="ml-1 text-amber-500 hover:text-amber-800">×</button>
+          </div>
+        );
+      })()}
+            <div className="overflow-auto rounded-lg border border-slate-200 flex-1 text-sm shadow-sm">
         <table className="w-full min-w-[1080px] border-collapse text-left">
           <thead className="sticky top-0 z-10 bg-slate-100 text-slate-700">
             <tr>
