@@ -204,6 +204,10 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
           <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-900">資産マスタ</h2>
         </div>
         <div className="flex items-center gap-3">
+          <Button variant="action" onClick={startCreate}>
+            <PlusCircle size={18} /> 新規登録
+          </Button>
+          <Button variant="action"><Printer size={18} /> 一覧印刷</Button>
           <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 flex items-center gap-2">
             <p className="text-xs font-bold text-slate-400">表示件数</p>
             <p className="text-lg font-black text-slate-800">{filteredAssets.length.toLocaleString()}</p>
@@ -411,13 +415,6 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
         </aside>
       </div>
 
-      <div className="flex gap-4 mt-6">
-        <Button variant="action" onClick={startCreate}>
-          <PlusCircle size={18} /> 新規登録
-        </Button>
-        <div className="flex-1" />
-        <Button variant="action"><Printer size={18} /> 一覧印刷</Button>
-      </div>
     </Card>
   );
 }
