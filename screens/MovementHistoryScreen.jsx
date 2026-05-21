@@ -158,7 +158,7 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-500">Stock Movement</p>
           <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-900">入出庫データ</h2>
         </div>
-        <Button variant="primary"><Printer size={18} /> 一覧印刷</Button>
+        <Button variant="primary" className="mr-8"><Printer size={18} /> 一覧印刷</Button>
       </div>
 
       <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-6 flex flex-wrap items-end justify-between gap-4">
