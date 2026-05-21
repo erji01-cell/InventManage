@@ -5,9 +5,9 @@ import { Button, Card, DetailItem, EditableDetail } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
 import { normalizeMovementType, parseLocalDate } from '../utils/inventory.js';
 
-export default function MovementHistoryScreen({ movements, setView, assets, staff = [], updateMovement, deleteMovement }) {
+export default function MovementHistoryScreen({ movements, setView, assets, staff = [], updateMovement, deleteMovement, initialAssetId = '' }) {
   const [filterType, setFilterType] = useState('all');
-  const [movementSearchTerm, setMovementSearchTerm] = useState('');
+  const [movementSearchTerm, setMovementSearchTerm] = useState(initialAssetId);
   const [movementDateFrom, setMovementDateFrom] = useState('');
   const [movementDateTo, setMovementDateTo] = useState('');
   const [appliedDateFrom, setAppliedDateFrom] = useState('');

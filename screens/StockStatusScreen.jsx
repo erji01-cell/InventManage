@@ -4,7 +4,7 @@ import { Printer, RefreshCcw, Search, X } from 'lucide-react';
 import { Button, Card } from '../components/ui.jsx';
 import { normalizeMovementType, parseLocalDate } from '../utils/inventory.js';
 
-export default function StockStatusScreen({ assets, movements, setView }) {
+export default function StockStatusScreen({ assets, movements, setView, initialAssetId = '' }) {
   const fiscalMonths = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
   const today = new Date();
   const fiscalEndYear = today.getMonth() + 1 >= 7 ? today.getFullYear() + 1 : today.getFullYear();
@@ -15,7 +15,7 @@ export default function StockStatusScreen({ assets, movements, setView }) {
   const [rangeTo, setRangeTo] = useState(initialIndex);
   const [isDragging, setIsDragging] = useState(false);
   const [dragAnchor, setDragAnchor] = useState(null);
-  const [stockSearchTerm, setStockSearchTerm] = useState('');
+  const [stockSearchTerm, setStockSearchTerm] = useState(initialAssetId);
 
   useEffect(() => {
     const handleMouseUp = () => setIsDragging(false);

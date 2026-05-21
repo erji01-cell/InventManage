@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { LogIn, LogOut, PlusCircle, Printer, Search, Trash2, X } from 'lucide-react';
+import { ArrowLeftRight, LogIn, LogOut, PlusCircle, Printer, Search, Table2, Trash2, X } from 'lucide-react';
 
 import { Button, Card, DetailItem, DetailRow, EditField } from '../components/ui.jsx';
 import { toNullableNumber } from '../utils/inventory.js';
@@ -19,7 +19,7 @@ const createAssetEditForm = (asset) => ({
   parentGenericName: asset?.parentGenericName || '',
 });
 
-export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, onUpdateAsset, onUpdateParentAsset, onDeleteAsset, setView, onNavigateEntry }) {
+export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, onUpdateAsset, onUpdateParentAsset, onDeleteAsset, setView, onNavigateEntry, onNavigateHistory, onNavigateStock }) {
   const [filter, setFilter] = useState('');
   const [selectedAssetId, setSelectedAssetId] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -391,7 +391,7 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
                     <DetailRow label="摘要" value={selectedAsset.memo || '-'} />
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 border-t border-slate-200 pt-4">
+                  <div className="grid grid-cols-5 gap-2 border-t border-slate-200 pt-4">
                     <Button variant="success" className="w-full px-3 py-2 text-sm" onClick={() => onNavigateEntry('in', selectedAsset?.id)} disabled={!selectedAsset}>
                       <LogIn size={16} /> 入庫
                     </Button>
@@ -400,6 +400,12 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
                     </Button>
                     <Button variant="secondary" className="w-full px-3 py-2 text-sm" onClick={deleteSelectedAsset} disabled={!selectedAsset || isSaving}>
                       <Trash2 size={16} /> 削除
+                    </Button>
+                    <Button className="w-full px-3 py-2 text-sm bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100" onClick={() => onNavigateHistory?.(selectedAsset?.id)} disabled={!selectedAsset}>
+                      <ArrowLeftRight size={16} /> 入出庫
+                    </Button>
+                    <Button className="w-full px-3 py-2 text-sm bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100" onClick={() => onNavigateStock?.(selectedAsset?.id)} disabled={!selectedAsset}>
+                      <Table2 size={16} /> 在庫表
                     </Button>
                   </div>
 
