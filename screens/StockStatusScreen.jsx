@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Printer, RefreshCcw, Search, X } from 'lucide-react';
+import { Printer, RefreshCcw, X } from 'lucide-react';
 
 import { Button, Card } from '../components/ui.jsx';
+import AssetSearchInput from './AssetSearchInput.jsx';
 import { normalizeMovementType, parseLocalDate } from '../utils/inventory.js';
 
 export default function StockStatusScreen({ assets, movements, setView, pinnedAssetId = '' }) {
@@ -159,21 +160,17 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
           </div>
 
           <div className="space-y-2">
-            <p className="text-sm font-bold text-slate-500">品名・メーカー検索</p>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input
-                type="text"
-                value={stockSearchTerm}
-                onChange={(event) => setStockSearchTerm(event.target.value)}
-                className="w-full rounded-md border border-slate-200 bg-white py-2.5 pl-10 pr-3 text-sm shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-                placeholder="ID・品名・メーカー・分類で検索"
-              />
-            </div>
+            <p className="text-sm font-bold text-slate-500">資産を選択して絞り込み</p>
+            <AssetSearchInput
+              assets={assets}
+              value={pinnedId}
+              onChange={(id) => setPinnedId(id)}
+              isIn={true}
+              showListSignal={0}
+            />
           </div>
 
           <Button variant="secondary" className="h-[42px]" onClick={() => {
-            setStockSearchTerm('');
             setRangeFrom(initialIndex);
             setRangeTo(initialIndex);
             setPinnedId('');
