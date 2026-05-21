@@ -19,6 +19,12 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
   const [stockSearchTerm, setStockSearchTerm] = useState('');
   const [pinnedId, setPinnedId] = useState(pinnedAssetId);
 
+  // テキスト変更時: 選択を解除してテキスト検索モードへ
+  const handleSearchTermChange = (term) => {
+    if (pinnedId) setPinnedId('');
+    setStockSearchTerm(term);
+  };
+
   useEffect(() => {
     const handleMouseUp = () => setIsDragging(false);
     document.addEventListener('mouseup', handleMouseUp);
@@ -83,7 +89,7 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
     if (!normalizedStockSearch) return pinFiltered;
     return pinFiltered
 
-    return pinFiltered.filter(row => [
+    return stockData.filter(row => [
       row.id,
       row.maker,
       row.name,
@@ -164,9 +170,10 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
             <AssetSearchInput
               assets={assets}
               value={pinnedId}
-              onChange={(id) => setPinnedId(id)}
+              onChange={(id) => { setPinnedId(id); setStockSearchTerm(''); }}
               isIn={true}
               showListSignal={0}
+              onSearchTermChange={handleSearchTermChange}
             />
           </div>
 
@@ -174,6 +181,7 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
             setRangeFrom(initialIndex);
             setRangeTo(initialIndex);
             setPinnedId('');
+            setStockSearchTerm('');
           }}>
             <RefreshCcw size={16} /> リセット
           </Button>

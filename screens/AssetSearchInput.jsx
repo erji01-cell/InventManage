@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X } from 'lucide-react';
 
-export default function AssetSearchInput({ assets, value, onChange, isIn, showListSignal, inputRef = null }) {
+export default function AssetSearchInput({ assets, value, onChange, isIn, showListSignal, inputRef = null, onSearchTermChange }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
@@ -59,6 +59,7 @@ export default function AssetSearchInput({ assets, value, onChange, isIn, showLi
           onChange={(e) => {
             setSearchTerm(e.target.value);
             setIsOpen(true);
+            onSearchTermChange?.(e.target.value);
           }}
           onFocus={() => setIsOpen(true)}
         />
@@ -70,6 +71,7 @@ export default function AssetSearchInput({ assets, value, onChange, isIn, showLi
                 setSearchTerm('');
                 setIsOpen(false);
                 onChange('');
+                onSearchTermChange?.('');
               }}
               className="text-slate-400 hover:text-slate-600 transition-colors"
             >
