@@ -172,7 +172,12 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
             </div>
           </div>
 
-          <Button variant="secondary" className="h-[42px]" onClick={() => setStockSearchTerm('')}>
+          <Button variant="secondary" className="h-[42px]" onClick={() => {
+            setStockSearchTerm('');
+            setRangeFrom(initialIndex);
+            setRangeTo(initialIndex);
+            setPinnedId('');
+          }}>
             <RefreshCcw size={16} /> リセット
           </Button>
 
