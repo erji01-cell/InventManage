@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Printer, Save, Search, X } from 'lucide-react';
+import { Printer, Save, X } from 'lucide-react';
 
 import { Button, Card, DetailItem, EditableDetail } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
@@ -9,6 +9,11 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
   const [filterType, setFilterType] = useState('all');
   const [movementSearchTerm, setMovementSearchTerm] = useState('');
   const [pinnedId, setPinnedId] = useState(pinnedAssetId);
+
+  const handleSearchTermChange = (term) => {
+    if (pinnedId) setPinnedId('');
+    setMovementSearchTerm(term);
+  };
   const [movementDateFrom, setMovementDateFrom] = useState('');
   const [movementDateTo, setMovementDateTo] = useState('');
   const [appliedDateFrom, setAppliedDateFrom] = useState('');
@@ -52,7 +57,6 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
 
   const displayedMovements = movements
     .map(m => ({ ...m, normalizedType: normalizeMovementType(m.type) }))
-    .filter(m => !pinnedId || m.assetId === pinnedId)
     .filter(m => {
       if (filterType === 'in') return m.normalizedType === 'in';
       if (filterType === 'out') return m.normalizedType === 'out';
@@ -67,6 +71,7 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
       return true;
     })
     .filter(m => {
+      if (pinnedId) return m.assetId === pinnedId;
       if (!normalizedSearchTerm) return true;
       const asset = assets.find(a => a.id === m.assetId);
       return [
@@ -233,17 +238,15 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <input
-              type="text"
-              value={movementSearchTerm}
-              onChange={(event) => setMovementSearchTerm(event.target.value)}
-              placeholder="ID・品名・メーカーで抽出"
-              className="w-80 rounded-md border border-blue-200 bg-blue-50 py-2 pl-9 pr-3 text-sm shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
-            />
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400" size={16} />
-          </div>
+        <div className="flex items-center gap-3 w-80">
+          <AssetSearchInput
+            assets={assets}
+            value={pinnedId}
+            onChange={(id) => { setPinnedId(id); setMovementSearchTerm(''); }}
+            isIn={true}
+            showListSignal={0}
+            onSearchTermChange={handleSearchTermChange}
+          />
         </div>
       </div>
 
