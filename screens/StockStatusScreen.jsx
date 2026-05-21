@@ -85,10 +85,8 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
 
   const normalizedStockSearch = stockSearchTerm.trim().toLowerCase();
   const filteredStockData = useMemo(() => {
-    const pinFiltered = pinnedId ? stockData.filter(row => row.id === pinnedId) : stockData;
-    if (!normalizedStockSearch) return pinFiltered;
-    return pinFiltered
-
+    if (pinnedId) return stockData.filter(row => row.id === pinnedId);
+    if (!normalizedStockSearch) return stockData;
     return stockData.filter(row => [
       row.id,
       row.maker,
@@ -97,7 +95,7 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
       row.category,
       row.parentGenericName,
     ].some(value => String(value || '').toLowerCase().includes(normalizedStockSearch)));
-  }, [stockData, normalizedStockSearch]);
+  }, [stockData, normalizedStockSearch, pinnedId]);
 
   const totalStockValue = filteredStockData.reduce((sum, row) => sum + row.stockValue, 0);
 
