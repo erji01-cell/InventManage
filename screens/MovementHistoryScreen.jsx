@@ -121,7 +121,7 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
         movement_date: movementEditForm.date,
         movement_type: movementEditForm.type,
         quantity,
-        actual_delivery_price: movementEditForm.type === 'in' ? actualDeliveryPrice : null,
+        actual_delivery_price: movementEditForm.type === 'in' ? actualDeliveryPrice : 0,
         staff_code: staffMember ? Number(staffMember.id) : null,
         staff_name: staffMember?.name || movementEditForm.staffName || null,
         memo: movementEditForm.memo || null,

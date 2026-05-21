@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 
 export default function AssetSearchInput({ assets, value, onChange, isIn, showListSignal, inputRef = null }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -48,11 +48,11 @@ export default function AssetSearchInput({ assets, value, onChange, isIn, showLi
   return (
     <div className="relative w-full" ref={containerRef}>
       <div className="relative flex items-center">
-        <input 
+        <input
           ref={inputRef}
           type="text"
           placeholder="資産コードまたは品名で検索..."
-          className={`w-full p-2 pr-10 border rounded-md outline-none focus:ring-2 transition-all ${
+          className={`w-full p-2 pr-16 border rounded-md outline-none focus:ring-2 transition-all ${
             isIn ? 'focus:ring-emerald-500' : 'focus:ring-rose-500'
           }`}
           value={searchTerm}
@@ -62,7 +62,22 @@ export default function AssetSearchInput({ assets, value, onChange, isIn, showLi
           }}
           onFocus={() => setIsOpen(true)}
         />
-        <Search className="absolute right-3 text-slate-400" size={16} />
+        <div className="absolute right-2 flex items-center gap-1">
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm('');
+                setIsOpen(false);
+                onChange('');
+              }}
+              className="text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              <X size={16} />
+            </button>
+          )}
+          <Search className="text-slate-400" size={16} />
+        </div>
       </div>
 
       {isOpen && candidates.length > 0 && (

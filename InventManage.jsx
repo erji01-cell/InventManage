@@ -98,7 +98,7 @@ export default function App() {
           movement_date: data.date,
           movement_type: data.type,
           quantity: Number(data.quantity),
-          actual_delivery_price: data.type === 'in' ? actualDeliveryPrice : null,
+          actual_delivery_price: data.type === 'in' ? actualDeliveryPrice : 0,
           expiration_date: data.expirationDate || null,
           lot_number: data.lotNumber || null,
           staff_code: staffMember ? Number(staffMember.id) : null,
