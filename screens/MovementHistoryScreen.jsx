@@ -238,7 +238,8 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
           </div>
         </div>
 
-        <div className="flex items-center gap-3 w-80">
+        <div className="space-y-2 w-80">
+          <span className="block text-sm font-bold text-slate-500">資産を選択して絞り込み</span>
           <AssetSearchInput
             assets={assets}
             value={pinnedId}
