@@ -109,7 +109,7 @@ export default function StockStatusScreen({ assets, movements, setView }) {
         <Button variant="primary"><Printer size={18} /> 一覧印刷</Button>
       </div>
 
-      <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-[auto_minmax(260px,420px)_auto_auto] xl:items-end">
           <div className="space-y-2">
             <div className="flex items-baseline gap-2">
