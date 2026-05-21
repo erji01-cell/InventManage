@@ -106,7 +106,7 @@ export default function StockStatusScreen({ assets, movements, setView }) {
           <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-900">在庫表</h2>
           <p className="mt-2 text-sm text-slate-500">月度を選択し、品名・メーカー・IDで絞り込めます。</p>
         </div>
-        <Button variant="primary"><Printer size={18} /> 一覧印刷</Button>
+        <Button variant="primary" className="mr-10"><Printer size={18} /> 一覧印刷</Button>
       </div>
 
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
