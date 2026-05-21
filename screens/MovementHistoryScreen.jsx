@@ -108,7 +108,7 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
     setMovementSaveError('');
     try {
       const updated = await updateMovement(selectedMovement.movement.id, {
-        asset_id: movementEditForm.assetId,
+        child_asset_id: Number(movementEditForm.assetId),
         movement_date: movementEditForm.date,
         movement_type: movementEditForm.type,
         quantity,
