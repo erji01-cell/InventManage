@@ -198,14 +198,23 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
 
   return (
     <Card className="max-h-[90vh] flex flex-col bg-white">
-      <div className="mb-5 flex items-end justify-between border-b border-slate-200 pb-4">
+      <div className="mb-5 flex items-start justify-between border-b border-slate-200 pb-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-500">Asset Master</p>
           <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-900">資産マスタ</h2>
         </div>
-        <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 flex items-center gap-2">
-          <p className="text-xs font-bold text-slate-400">表示件数</p>
-          <p className="text-lg font-black text-slate-800">{filteredAssets.length.toLocaleString()}</p>
+        <div className="flex items-center gap-3">
+          <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 flex items-center gap-2">
+            <p className="text-xs font-bold text-slate-400">表示件数</p>
+            <p className="text-lg font-black text-slate-800">{filteredAssets.length.toLocaleString()}</p>
+          </div>
+          <button
+            onClick={() => setView('menu')}
+            className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+            title="閉じる"
+          >
+            <X size={22} />
+          </button>
         </div>
       </div>
 
@@ -408,7 +417,6 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
         </Button>
         <div className="flex-1" />
         <Button variant="action"><Printer size={18} /> 一覧印刷</Button>
-        <Button variant="secondary" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
       </div>
     </Card>
   );
