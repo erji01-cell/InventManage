@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Printer, Save, Search, X } from 'lucide-react';
 
 import { Button, Card, DetailItem, EditableDetail } from '../components/ui.jsx';
@@ -17,7 +17,35 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
   const [movementSaveError, setMovementSaveError] = useState('');
   const [isMovementSaving, setIsMovementSaving] = useState(false);
 
-  const normalizedSearchTerm = movementSearchTerm.trim().toLowerCase();
+  // 品目ごとに日付・ID順で累積計算し、各取引後の残在庫を求める
+  const runningStockMap = useMemo(() => {
+    const map = new Map();
+    const byAsset = new Map();
+    movements.forEach(m => {
+      if (!byAsset.has(m.assetId)) byAsset.set(m.assetId, []);
+      byAsset.get(m.assetId).push(m);
+    });
+    byAsset.forEach((assetMovements, assetId) => {
+      const asset = assets.find(a => a.id === assetId);
+      const openingStock = asset?.openingStock || 0;
+      const sorted = [...assetMovements].sort((a, b) => {
+        const dateA = Date.parse(String(a.date || '').replaceAll('/', '-')) || 0;
+        const dateB = Date.parse(String(b.date || '').replaceAll('/', '-')) || 0;
+        if (dateA !== dateB) return dateA - dateB;
+        return Number(a.id || 0) - Number(b.id || 0);
+      });
+      let stock = openingStock;
+      sorted.forEach(m => {
+        const type = normalizeMovementType(m.type);
+        if (type === 'in') stock += m.quantity;
+        else if (type === 'out') stock -= m.quantity;
+        map.set(String(m.id), stock);
+      });
+    });
+    return map;
+  }, [movements, assets]);
+
+    const normalizedSearchTerm = movementSearchTerm.trim().toLowerCase();
   const appliedFromDate = parseLocalDate(appliedDateFrom);
   const appliedToDate = parseLocalDate(appliedDateTo);
 
@@ -228,6 +256,7 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
               <th className="px-3 py-2 border-b border-slate-200 min-w-[300px]">品名</th>
               <th className="px-2 py-2 border-b border-slate-200 text-right w-16">入庫</th>
               <th className="px-2 py-2 border-b border-slate-200 text-right w-16">出庫</th>
+              <th className="px-2 py-2 border-b border-slate-200 text-right w-20 bg-blue-50/70">残在庫</th>
               <th className="px-2 py-2 border-b border-slate-200 text-center w-14">単位</th>
               <th className="px-3 py-2 border-b border-slate-200 text-right w-28">実購入価格</th>
               <th className="px-3 py-2 border-b border-slate-200 w-24">使用期限</th>
@@ -253,6 +282,7 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
                   <td className={`px-2 py-3 text-right font-bold ${movementType === 'out' ? 'text-rose-600' : 'text-slate-300'}`}>
                     {movementType === 'out' ? m.quantity : 0}
                   </td>
+                  {(() => { const rs = runningStockMap.get(String(m.id)); return <td className={`px-2 py-3 text-right font-bold ${rs !== undefined && rs < 0 ? 'bg-red-50 text-red-600' : 'text-slate-700'}`}>{rs !== undefined ? rs.toLocaleString() : '-'}</td>; })()}
                   <td className="px-2 py-3 text-center">{asset?.usageUnit}</td>
                   <td className="px-3 py-3 text-right whitespace-nowrap">
                     {movementType === 'in' ? `¥${m.actualDeliveryPrice.toLocaleString()}` : '-'}
