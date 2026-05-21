@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Printer, Save, Search, Trash2, X } from 'lucide-react';
+import { Printer, Save, Search, X } from 'lucide-react';
 
 import { Button, Card, DetailItem, EditableDetail } from '../components/ui.jsx';
 import { normalizeMovementType, parseLocalDate } from '../utils/inventory.js';
@@ -211,7 +211,6 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
               <th className="px-2 py-2 border-b border-slate-200 text-center w-14">単位</th>
               <th className="px-3 py-2 border-b border-slate-200 text-right w-28">実購入価格</th>
               <th className="px-3 py-2 border-b border-slate-200 w-24">使用期限</th>
-              <th className="px-2 py-2 border-b border-slate-200 text-center w-12">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -239,14 +238,6 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
                     {movementType === 'in' ? `¥${m.actualDeliveryPrice.toLocaleString()}` : '-'}
                   </td>
                   <td className="px-3 py-3 whitespace-nowrap">{m.expirationDate || '-'}</td>
-                  <td className="px-2 py-3 text-center">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); deleteMovement(m.id); }}
-                      className="text-slate-300 hover:text-red-500 transition-colors group-hover:text-slate-500"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </td>
                 </tr>
               );
             })}
