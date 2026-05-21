@@ -197,7 +197,14 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
   };
 
   return (
-    <Card className="max-h-[90vh] flex flex-col bg-white">
+    <Card className="max-h-[90vh] flex flex-col bg-white relative">
+      <button
+        onClick={() => setView('menu')}
+        className="absolute top-3 right-3 rounded-full p-1 text-slate-300 hover:bg-slate-100 hover:text-slate-600 transition-colors z-10"
+        title="閉じる"
+      >
+        <X size={20} />
+      </button>
       <div className="mb-5 flex items-end justify-between border-b border-slate-200 pb-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-500">Asset Master</p>
@@ -212,13 +219,6 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
             <p className="text-xs font-bold text-slate-400">表示件数</p>
             <p className="text-lg font-black text-slate-800">{filteredAssets.length.toLocaleString()}</p>
           </div>
-          <button
-            onClick={() => setView('menu')}
-            className="rounded-full p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-            title="閉じる"
-          >
-            <X size={22} />
-          </button>
         </div>
       </div>
 
