@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Printer, Save, Search, X } from 'lucide-react';
 
 import { Button, Card, DetailItem, EditableDetail } from '../components/ui.jsx';
+import AssetSearchInput from './AssetSearchInput.jsx';
 import { normalizeMovementType, parseLocalDate } from '../utils/inventory.js';
 
 export default function MovementHistoryScreen({ movements, setView, assets, staff = [], updateMovement, deleteMovement }) {
@@ -57,6 +58,7 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
   const openMovementDetail = (movement, asset) => {
     setSelectedMovement({ movement, asset });
     setMovementEditForm({
+      assetId: movement.assetId || '',
       date: movement.date || '',
       type: normalizeMovementType(movement.type) || 'in',
       quantity: movement.quantity || 0,
@@ -106,6 +108,7 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
     setMovementSaveError('');
     try {
       const updated = await updateMovement(selectedMovement.movement.id, {
+        asset_id: movementEditForm.assetId,
         movement_date: movementEditForm.date,
         movement_type: movementEditForm.type,
         quantity,
@@ -260,6 +263,17 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-sm">
+              <div className="col-span-2">
+                <EditableDetail label="品名">
+                  <AssetSearchInput
+                    assets={assets}
+                    value={movementEditForm.assetId}
+                    onChange={(value) => updateMovementEditForm('assetId', value)}
+                    isIn={movementEditForm.type === 'in'}
+                    showListSignal={0}
+                  />
+                </EditableDetail>
+              </div>
               <EditableDetail label="入出庫日">
                 <input
                   type="date"
@@ -278,8 +292,8 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
                   <option value="out">出庫</option>
                 </select>
               </EditableDetail>
-              <DetailItem label="資産コード" value={selectedMovement.movement.assetId || '-'} mono />
-              <DetailItem label="分類" value={selectedMovement.asset?.category || '-'} />
+              <DetailItem label="資産コード" value={movementEditForm.assetId || '-'} mono />
+              <DetailItem label="分類" value={assets.find(a => a.id === movementEditForm.assetId)?.category || '-'} />
               <EditableDetail label="数量">
                 <input
                   type="number"
