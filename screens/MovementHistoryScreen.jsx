@@ -240,9 +240,9 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
               value={movementSearchTerm}
               onChange={(event) => setMovementSearchTerm(event.target.value)}
               placeholder="ID・品名・メーカーで抽出"
-              className="w-64 rounded-md border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+              className="w-80 rounded-md border border-blue-200 bg-blue-50 py-2 pl-9 pr-3 text-sm shadow-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
             />
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400" size={16} />
           </div>
         </div>
       </div>
