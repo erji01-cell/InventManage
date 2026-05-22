@@ -40,11 +40,11 @@ function PrintDialog({ assets, onClose }) {
     switch (sortOrder) {
       case 'id':           return arr.sort((a, b) => Number(a.id) - Number(b.id));
       case 'category_id':  return arr.sort((a, b) => {
-        const c = a.parentCategory.localeCompare(b.parentCategory, 'ja');
+        const c = String(a.parentId).localeCompare(String(b.parentId), undefined, { numeric: true });
         return c !== 0 ? c : Number(a.id) - Number(b.id);
       });
       case 'category_kana': return arr.sort((a, b) => {
-        const c = a.parentCategory.localeCompare(b.parentCategory, 'ja');
+        const c = String(a.parentId).localeCompare(String(b.parentId), undefined, { numeric: true });
         return c !== 0 ? c : (a.kanaName || a.name).localeCompare(b.kanaName || b.name, 'ja');
       });
       case 'maker': return arr.sort((a, b) => (a.maker || '').localeCompare(b.maker || '', 'ja'));
