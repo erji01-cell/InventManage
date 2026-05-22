@@ -154,7 +154,7 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
 
       await onUpdateParentAsset(selectedAsset.parentId, {
         category: editForm.parentCategory.trim(),
-        generic_name: editForm.parentGenericName.trim(),
+        generic_name: editForm.parentGenericName.trim() || null,
       });
 
       await onUpdateAsset(selectedAsset.id, {

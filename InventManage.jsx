@@ -185,7 +185,7 @@ export default function App() {
           body: JSON.stringify({
             id: nextParentId,
             category: data.parentCategory,
-            generic_name: data.parentGenericName,
+            generic_name: data.parentGenericName || null,
             safety_stock: null,
           }),
         },
@@ -300,6 +300,10 @@ export default function App() {
       },
       authSession
     );
+
+    if (!updated) {
+      throw new Error('大分類を更新できませんでした。データが見つからないか、変更権限がない可能性があります。');
+    }
 
     setAssets(prev => prev.map(asset => (
       asset.parentId === updated.id
