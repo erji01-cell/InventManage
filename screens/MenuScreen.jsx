@@ -181,7 +181,7 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
               {passwordError && (
                 <p className="text-sm text-red-600 font-bold text-center">{passwordError}</p>
               )}
-              <Button variant="primary" className="w-full py-3">確認</Button>
+              <Button type="submit" variant="primary" className="w-full py-3">確認</Button>
               <Button variant="secondary" className="w-full" onClick={closePasswordModal}>キャンセル</Button>
             </form>
           </div>
