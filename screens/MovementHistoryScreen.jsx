@@ -243,7 +243,16 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
           <AssetSearchInput
             assets={assets}
             value={pinnedId}
-            onChange={(id) => { setPinnedId(id); setMovementSearchTerm(''); }}
+            onChange={(id) => {
+              setPinnedId(id);
+              setMovementSearchTerm('');
+              if (!id) {
+                setMovementDateFrom('');
+                setMovementDateTo('');
+                setAppliedDateFrom('');
+                setAppliedDateTo('');
+              }
+            }}
             isIn={true}
             showListSignal={0}
             onSearchTermChange={handleSearchTermChange}
