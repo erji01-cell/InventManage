@@ -36,7 +36,7 @@ export default function MenuScreen({ setView, onLogout, userEmail }) {
 
 function MenuButton({ icon, title, color, onClick }) {
   return (
-    <button 
+    <button
       onClick={onClick}
       className={`${color} p-8 rounded-xl shadow-sm border border-current border-opacity-10 hover:shadow-md transition-all flex flex-col items-center justify-center gap-4 group active:scale-95`}
     >
@@ -44,6 +44,20 @@ function MenuButton({ icon, title, color, onClick }) {
         {icon}
       </div>
       <span className="text-lg font-bold">{title}</span>
+    </button>
+  );
+}
+
+function SmallMenuButton({ icon, title, color, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`${color} py-3 px-4 rounded-xl shadow-sm border border-current border-opacity-10 hover:shadow-md transition-all flex flex-1 items-center justify-center gap-3 group active:scale-95`}
+    >
+      <div className="p-2 bg-white bg-opacity-50 rounded-full group-hover:scale-110 transition-transform">
+        {icon}
+      </div>
+      <span className="text-base font-bold">{title}</span>
     </button>
   );
 }
