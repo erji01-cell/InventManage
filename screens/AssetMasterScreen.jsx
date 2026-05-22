@@ -33,6 +33,8 @@ function PrintDialog({ assets, onClose }) {
   const [enabledCols, setEnabledCols] = useState(() =>
     Object.fromEntries(COLUMN_DEFS.map(col => [col.key, col.defaultOn]))
   );
+  const [pageBreak, setPageBreak] = useState(false);
+  const isGrouped = sortOrder === 'category_id' || sortOrder === 'category_kana';
 
   const toggleCol = (key) => setEnabledCols(prev => ({ ...prev, [key]: !prev[key] }));
 
@@ -84,21 +86,24 @@ function PrintDialog({ assets, onClose }) {
   const handlePrint = () => {
     const sortedAssets = getSortedAssets();
     const selectedCols = COLUMN_DEFS.filter(col => enabledCols[col.key]);
-    const isGrouped = sortOrder === 'category_id' || sortOrder === 'category_kana';
     const sortLabel = SORT_OPTIONS.find(o => o.value === sortOrder)?.label || '';
     const rightAlignKeys = new Set(['id', 'packSize', 'deliveryPrice', 'usageUnitPrice']);
 
     let tableRows = '';
     let currentCategory = null;
-    for (const asset of sortedAssets) {
-      if (isGrouped && asset.parentCategory !== currentCategory) {
+    const grouped = isGrouped;
+    // 改ページ用: カテゴリ境界を先読みするためインデックスでループ
+    for (let i = 0; i < sortedAssets.length; i++) {
+      const asset = sortedAssets[i];
+      if (grouped && asset.parentCategory !== currentCategory) {
         currentCategory = asset.parentCategory;
         tableRows += `<tr class="grp"><td colspan="${selectedCols.length}">${currentCategory}</td></tr>`;
       }
+      const isLastInGroup = grouped && pageBreak && (i === sortedAssets.length - 1 || sortedAssets[i + 1].parentCategory !== asset.parentCategory);
       const cells = selectedCols.map(col =>
         `<td class="${rightAlignKeys.has(col.key) ? 'r' : ''}">${getCellValue(asset, col.key)}</td>`
       ).join('');
-      tableRows += `<tr>${cells}</tr>`;
+      tableRows += `<tr${isLastInGroup ? ' class="pb"' : ''}>${cells}</tr>`;
     }
 
     const headerCells = selectedCols.map(col => `<th>${col.label}</th>`).join('');
@@ -118,6 +123,7 @@ th{background:#e8e8e8;font-weight:bold;text-align:center;white-space:nowrap}
 td.r{text-align:right}
 tr.grp td{background:#d4e8ff;font-weight:bold;font-size:9pt;padding:3px 6px;border-top:2px solid #5588bb}
 tr:nth-child(even):not(.grp){background:#f7f7f7}
+tr.pb{page-break-after:always}
 @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 </style>
 </head><body>
@@ -149,10 +155,18 @@ tr:nth-child(even):not(.grp){background:#f7f7f7}
           <p className="mb-2 text-sm font-bold text-slate-600">並び順</p>
           <div className="space-y-1">
             {SORT_OPTIONS.map(opt => (
-              <label key={opt.value} className={`flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 border transition-colors ${sortOrder === opt.value ? 'border-blue-300 bg-blue-50' : 'border-transparent hover:bg-slate-50'}`}>
-                <input type="radio" name="sortOrder" value={opt.value} checked={sortOrder === opt.value} onChange={() => setSortOrder(opt.value)} className="accent-blue-600" />
-                <span className="text-sm font-medium text-slate-700">{opt.label}</span>
-              </label>
+              <div key={opt.value}>
+                <label className={`flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 border transition-colors ${sortOrder === opt.value ? 'border-blue-300 bg-blue-50' : 'border-transparent hover:bg-slate-50'}`}>
+                  <input type="radio" name="sortOrder" value={opt.value} checked={sortOrder === opt.value} onChange={() => setSortOrder(opt.value)} className="accent-blue-600" />
+                  <span className="text-sm font-medium text-slate-700">{opt.label}</span>
+                </label>
+                {(opt.value === 'category_id' || opt.value === 'category_kana') && sortOrder === opt.value && (
+                  <label className="ml-8 flex cursor-pointer items-center gap-2 rounded-md px-3 py-1.5 border transition-colors border-transparent hover:bg-slate-50">
+                    <input type="checkbox" checked={pageBreak} onChange={() => setPageBreak(v => !v)} className="accent-blue-600" />
+                    <span className="text-sm text-slate-600">分類ごとに改ページ</span>
+                  </label>
+                )}
+              </div>
             ))}
           </div>
         </div>
