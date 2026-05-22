@@ -18,6 +18,7 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
   const [dragAnchor, setDragAnchor] = useState(null);
   const [stockSearchTerm, setStockSearchTerm] = useState('');
   const [pinnedId, setPinnedId] = useState(pinnedAssetId);
+  const [showMinusOnly, setShowMinusOnly] = useState(false);
 
   // テキスト変更時: 選択を解除してテキスト検索モードへ
   const handleSearchTermChange = (term) => {
@@ -97,7 +98,8 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
     ].some(value => String(value || '').toLowerCase().includes(normalizedStockSearch)));
   }, [stockData, normalizedStockSearch, pinnedId]);
 
-  const totalStockValue = filteredStockData.reduce((sum, row) => sum + row.stockValue, 0);
+  const displayData = showMinusOnly ? filteredStockData.filter(row => row.currentStock < 0) : filteredStockData;
+  const totalStockValue = displayData.reduce((sum, row) => sum + row.stockValue, 0);
 
   return (
     <Card className="max-h-[90vh] flex flex-col gap-5 relative">
@@ -168,7 +170,15 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
           </div>
 
           <div className="space-y-2">
-            <p className="text-sm font-bold text-slate-500">資産を選択して絞り込み</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-bold text-slate-500">資産を選択して絞り込み</p>
+              <button
+                onClick={() => setShowMinusOnly(v => !v)}
+                className={`text-xs font-bold px-2 py-0.5 rounded-full border transition-colors ${showMinusOnly ? 'bg-red-500 text-white border-red-500' : 'bg-white text-red-500 border-red-300 hover:bg-red-50'}`}
+              >
+                在庫マイナス
+              </button>
+            </div>
             <AssetSearchInput
               assets={assets}
               value={pinnedId}
@@ -184,6 +194,7 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
             setRangeTo(initialIndex);
             setPinnedId('');
             setStockSearchTerm('');
+            setShowMinusOnly(false);
           }}>
             <RefreshCcw size={16} /> リセット
           </Button>
@@ -191,7 +202,7 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
           <div className="grid grid-cols-2 gap-2 xl:w-[260px]">
             <div className="rounded-md border border-slate-200 bg-white px-3 py-2">
               <p className="text-xs font-bold text-slate-400">表示件数</p>
-              <p className="mt-1 text-right text-lg font-bold text-slate-800">{filteredStockData.length.toLocaleString()}</p>
+              <p className="mt-1 text-right text-lg font-bold text-slate-800">{displayData.length.toLocaleString()}</p>
             </div>
             <div className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2">
               <p className="text-xs font-bold text-blue-500">在庫金額</p>
@@ -227,7 +238,7 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
             </tr>
           </thead>
           <tbody>
-            {filteredStockData.map(row => (
+            {displayData.map(row => (
               <tr key={row.id} className="border-b border-slate-100 transition-colors hover:bg-blue-50/30">
                 <td className="px-3 py-2 font-mono text-slate-600">{row.id}</td>
                 <td className="px-3 py-2 whitespace-normal break-words">{row.maker || '-'}</td>
