@@ -4,6 +4,161 @@ import { ArrowLeftRight, LogIn, LogOut, PlusCircle, Printer, Search, Table2, Tra
 import { Button, Card, DetailItem, DetailRow, EditField } from '../components/ui.jsx';
 import { toNullableNumber } from '../utils/inventory.js';
 
+const COLUMN_DEFS = [
+  { key: 'id',             label: 'ID',       defaultOn: true  },
+  { key: 'maker',          label: 'メーカー',  defaultOn: true  },
+  { key: 'name',           label: '品名',      defaultOn: true  },
+  { key: 'kanaName',       label: 'かな名',    defaultOn: false },
+  { key: 'packSize',       label: '規格',      defaultOn: true  },
+  { key: 'purchaseUnit',   label: '購入単位',  defaultOn: false },
+  { key: 'usageUnit',      label: '使用単位',  defaultOn: true  },
+  { key: 'deliveryPrice',  label: '仕入単価',  defaultOn: true  },
+  { key: 'usageUnitPrice', label: '使用単価',  defaultOn: true  },
+  { key: 'supplier',       label: '発注先',    defaultOn: true  },
+  { key: 'janCode',        label: 'JANコード', defaultOn: false },
+  { key: 'memo',           label: 'メモ',      defaultOn: false },
+];
+
+const SORT_OPTIONS = [
+  { value: 'id',           label: 'ID順' },
+  { value: 'category_id',  label: '分類ごと → ID順' },
+  { value: 'category_kana',label: '分類ごと → アイウエオ順' },
+  { value: 'maker',        label: 'メーカー順' },
+  { value: 'kana',         label: '品名アイウエオ順' },
+];
+
+function PrintDialog({ assets, onClose }) {
+  const [sortOrder, setSortOrder] = useState('id');
+  const [enabledCols, setEnabledCols] = useState(() =>
+    Object.fromEntries(COLUMN_DEFS.map(col => [col.key, col.defaultOn]))
+  );
+
+  const toggleCol = (key) => setEnabledCols(prev => ({ ...prev, [key]: !prev[key] }));
+
+  const getSortedAssets = () => {
+    const arr = [...assets];
+    switch (sortOrder) {
+      case 'id':           return arr.sort((a, b) => Number(a.id) - Number(b.id));
+      case 'category_id':  return arr.sort((a, b) => {
+        const c = a.parentCategory.localeCompare(b.parentCategory, 'ja');
+        return c !== 0 ? c : Number(a.id) - Number(b.id);
+      });
+      case 'category_kana': return arr.sort((a, b) => {
+        const c = a.parentCategory.localeCompare(b.parentCategory, 'ja');
+        return c !== 0 ? c : (a.kanaName || a.name).localeCompare(b.kanaName || b.name, 'ja');
+      });
+      case 'maker': return arr.sort((a, b) => (a.maker || '').localeCompare(b.maker || '', 'ja'));
+      case 'kana':  return arr.sort((a, b) => (a.kanaName || a.name).localeCompare(b.kanaName || b.name, 'ja'));
+      default:      return arr;
+    }
+  };
+
+  const getCellValue = (asset, key) => {
+    switch (key) {
+      case 'deliveryPrice':  return `¥${(asset.deliveryPrice || 0).toLocaleString()}`;
+      case 'usageUnitPrice': return `¥${(asset.usageUnitPrice || 0).toLocaleString()}`;
+      default: return asset[key] != null && asset[key] !== '' ? String(asset[key]) : '-';
+    }
+  };
+
+  const handlePrint = () => {
+    const sortedAssets = getSortedAssets();
+    const selectedCols = COLUMN_DEFS.filter(col => enabledCols[col.key]);
+    const isGrouped = sortOrder === 'category_id' || sortOrder === 'category_kana';
+    const sortLabel = SORT_OPTIONS.find(o => o.value === sortOrder)?.label || '';
+    const rightAlignKeys = new Set(['id', 'packSize', 'deliveryPrice', 'usageUnitPrice']);
+
+    let tableRows = '';
+    let currentCategory = null;
+    for (const asset of sortedAssets) {
+      if (isGrouped && asset.parentCategory !== currentCategory) {
+        currentCategory = asset.parentCategory;
+        tableRows += `<tr class="grp"><td colspan="${selectedCols.length}">${currentCategory}</td></tr>`;
+      }
+      const cells = selectedCols.map(col =>
+        `<td class="${rightAlignKeys.has(col.key) ? 'r' : ''}">${getCellValue(asset, col.key)}</td>`
+      ).join('');
+      tableRows += `<tr>${cells}</tr>`;
+    }
+
+    const headerCells = selectedCols.map(col => `<th>${col.label}</th>`).join('');
+    const dateStr = new Date().toLocaleDateString('ja-JP');
+
+    const html = `<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><title>資産マスタ一覧</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'MS Gothic','Hiragino Kaku Gothic Pro',sans-serif;font-size:9pt;color:#000}
+@page{size:A4;margin:10mm}
+h1{font-size:12pt;font-weight:bold;margin-bottom:3mm}
+.meta{font-size:8pt;color:#555;margin-bottom:4mm}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+th,td{border:1px solid #bbb;padding:2px 4px;vertical-align:top;word-break:break-all;overflow:hidden}
+th{background:#e8e8e8;font-weight:bold;text-align:center;white-space:nowrap}
+td.r{text-align:right}
+tr.grp td{background:#d4e8ff;font-weight:bold;font-size:9pt;padding:3px 6px;border-top:2px solid #5588bb}
+tr:nth-child(even):not(.grp){background:#f7f7f7}
+@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style>
+</head><body>
+<h1>資産マスタ一覧</h1>
+<div class="meta">並び順: ${sortLabel}　／　印刷日: ${dateStr}　／　件数: ${sortedAssets.length}件</div>
+<table><thead><tr>${headerCells}</tr></thead><tbody>${tableRows}</tbody></table>
+</body></html>`;
+
+    const win = window.open('', '_blank', 'width=900,height=700');
+    win.document.write(html);
+    win.document.close();
+    setTimeout(() => { win.focus(); win.print(); }, 400);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="w-[500px] rounded-xl bg-white shadow-2xl border border-slate-200 p-6 space-y-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-blue-500">Print Settings</p>
+            <h3 className="text-xl font-black text-slate-900">一覧印刷の設定</h3>
+          </div>
+          <button onClick={onClose} className="rounded-full p-1 text-slate-400 hover:bg-slate-100 transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div>
+          <p className="mb-2 text-sm font-bold text-slate-600">並び順</p>
+          <div className="space-y-1">
+            {SORT_OPTIONS.map(opt => (
+              <label key={opt.value} className={`flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 border transition-colors ${sortOrder === opt.value ? 'border-blue-300 bg-blue-50' : 'border-transparent hover:bg-slate-50'}`}>
+                <input type="radio" name="sortOrder" value={opt.value} checked={sortOrder === opt.value} onChange={() => setSortOrder(opt.value)} className="accent-blue-600" />
+                <span className="text-sm font-medium text-slate-700">{opt.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="mb-2 text-sm font-bold text-slate-600">印刷する列</p>
+          <div className="grid grid-cols-3 gap-1">
+            {COLUMN_DEFS.map(col => (
+              <label key={col.key} className={`flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 border transition-colors ${enabledCols[col.key] ? 'border-blue-300 bg-blue-50' : 'border-transparent hover:bg-slate-50'}`}>
+                <input type="checkbox" checked={enabledCols[col.key]} onChange={() => toggleCol(col.key)} className="accent-blue-600" />
+                <span className="text-sm font-medium text-slate-700">{col.label}</span>
+              </label>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-slate-400">※ A4に収まるよう列数を調整してください（目安：7〜8列）</p>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+          <Button variant="secondary" onClick={onClose}><X size={16} /> キャンセル</Button>
+          <Button variant="assets" onClick={handlePrint}><Printer size={16} /> 印刷プレビュー</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const createAssetEditForm = (asset) => ({
   maker: asset?.maker || '',
   name: asset?.name || '',
@@ -27,6 +182,7 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
   const [editForm, setEditForm] = useState(() => createAssetEditForm(null));
   const [saveError, setSaveError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
   const filteredAssets = assets.filter(a =>
     a.name.includes(filter) ||
     a.maker.includes(filter) ||
@@ -197,6 +353,10 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
   };
 
   return (
+    <>
+    {showPrintDialog && (
+      <PrintDialog assets={assets} onClose={() => setShowPrintDialog(false)} />
+    )}
     <Card className="max-h-[90vh] flex flex-col bg-white relative">
       <button
         onClick={() => setView('menu')}
@@ -216,7 +376,7 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
           </Button>
           <Button variant="history" onClick={() => setView('history')}><ArrowLeftRight size={18} /> 入出庫</Button>
           <Button variant="stock" onClick={() => setView('stock')}><Table2 size={18} /> 在庫表</Button>
-          <Button variant="assets"><Printer size={18} /> 一覧印刷</Button>
+          <Button variant="assets" onClick={() => setShowPrintDialog(true)}><Printer size={18} /> 一覧印刷</Button>
           <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 flex items-center gap-2">
             <p className="text-xs font-bold text-slate-400">表示件数</p>
             <p className="text-lg font-black text-slate-800">{filteredAssets.length.toLocaleString()}</p>
@@ -432,5 +592,6 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
       </div>
 
     </Card>
+    </>
   );
 }
