@@ -180,7 +180,7 @@ export default function BackupScreen({ session, setView, onRestored }) {
         <h2 className="text-lg font-bold mb-3">自動バックアップ設定</h2>
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={autoEnabled} onChange={toggleAuto} className="w-4 h-4" />
-          <span className="text-sm">アプリ起動時、前回バックアップから 24 時間以上経過していれば自動実行する</span>
+          <span className="text-sm">アプリ起動時に前回から 24 時間以上経過していれば自動実行（実質 1 日 1 回）</span>
         </label>
         <p className="mt-2 text-sm text-slate-600">
           前回バックアップ: <span className="font-bold">{formatDateTime(lastBackup)}</span>

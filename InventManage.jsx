@@ -10,7 +10,7 @@ import LoginScreen from './screens/LoginScreen.jsx';
 import MenuScreen from './screens/MenuScreen.jsx';
 import MovementHistoryScreen from './screens/MovementHistoryScreen.jsx';
 import StockStatusScreen from './screens/StockStatusScreen.jsx';
-import { performBackup, shouldRunAutoBackup, scheduleBeforeUnloadBackup, consumePendingBackup } from './lib/backup.js';
+import { performBackup, shouldRunAutoBackup } from './lib/backup.js';
 
 export default function App() {
   const [view, setView] = useState('menu');
@@ -74,18 +74,14 @@ export default function App() {
     };
   }, [authSession]);
 
-  // Auto-backup on startup: if 24h+ since last, or pending flag set on previous shutdown.
+  // Auto-backup on startup: only if >=24h since last backup.
   useEffect(() => {
     if (!authSession) return;
-    const cleanup = scheduleBeforeUnloadBackup(authSession);
-    const pending = consumePendingBackup();
-    if (pending || shouldRunAutoBackup()) {
-      // Fire-and-forget; don't block UI. Failures are silent (visible in console).
+    if (shouldRunAutoBackup()) {
       performBackup(authSession, { downloadLocal: false }).catch((err) => {
         console.warn('[auto-backup] failed:', err.message);
       });
     }
-    return cleanup;
   }, [authSession]);
 
   const handleLogin = async (email, password) => {
