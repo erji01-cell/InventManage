@@ -4,11 +4,13 @@ import { Button } from './components/ui.jsx';
 import { clearStoredSession, getStoredSession, loadInventoryData, signInWithPassword, signOut, storeSession, supabaseRequest } from './lib/supabase.js';
 import { getNextParentId, normalizeAsset, normalizeMovement, toNumber } from './utils/inventory.js';
 import AssetMasterScreen from './screens/AssetMasterScreen.jsx';
+import BackupScreen from './screens/BackupScreen.jsx';
 import EntryScreen from './screens/EntryScreen.jsx';
 import LoginScreen from './screens/LoginScreen.jsx';
 import MenuScreen from './screens/MenuScreen.jsx';
 import MovementHistoryScreen from './screens/MovementHistoryScreen.jsx';
 import StockStatusScreen from './screens/StockStatusScreen.jsx';
+import { performBackup, shouldRunAutoBackup, scheduleBeforeUnloadBackup, consumePendingBackup } from './lib/backup.js';
 
 export default function App() {
   const [view, setView] = useState('menu');
@@ -70,6 +72,20 @@ export default function App() {
     return () => {
       isMounted = false;
     };
+  }, [authSession]);
+
+  // Auto-backup on startup: if 24h+ since last, or pending flag set on previous shutdown.
+  useEffect(() => {
+    if (!authSession) return;
+    const cleanup = scheduleBeforeUnloadBackup(authSession);
+    const pending = consumePendingBackup();
+    if (pending || shouldRunAutoBackup()) {
+      // Fire-and-forget; don't block UI. Failures are silent (visible in console).
+      performBackup(authSession, { downloadLocal: false }).catch((err) => {
+        console.warn('[auto-backup] failed:', err.message);
+      });
+    }
+    return cleanup;
   }, [authSession]);
 
   const handleLogin = async (email, password) => {
@@ -394,6 +410,7 @@ export default function App() {
       case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} />;
       case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} />;
       case 'stock': return <StockStatusScreen assets={assets} movements={movements} setView={setView} pinnedAssetId={filterAssetId} />;
+      case 'backup': return <BackupScreen session={authSession} setView={setView} onRestored={refreshData} />;
       default: return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} />;
     }
   };
