@@ -6,6 +6,7 @@ import { toNullableNumber } from '../utils/inventory.js';
 
 const COLUMN_DEFS = [
   { key: 'id',             label: 'ID',       defaultOn: true  },
+  { key: 'parentCategory', label: '分類',      defaultOn: false },
   { key: 'maker',          label: 'メーカー',  defaultOn: true  },
   { key: 'name',           label: '品名',      defaultOn: true  },
   { key: 'kanaName',       label: 'かな名',    defaultOn: false },
