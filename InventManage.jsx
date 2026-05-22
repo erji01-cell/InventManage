@@ -136,6 +136,62 @@ export default function App() {
     setView('history');
   };
 
+  const performYearEndUpdate = async () => {
+    // 年度更新前に自動バックアップ（Supabase Storage + ローカルDL）
+    await performBackup(authSession);
+
+    // 各資産の期末在庫を算出
+    const inboundByAsset = new Map();
+    const outboundByAsset = new Map();
+    movements.forEach((m) => {
+      const key = String(m.assetId);
+      const qty = Number(m.quantity) || 0;
+      if (m.type === 'in') {
+        inboundByAsset.set(key, (inboundByAsset.get(key) || 0) + qty);
+      } else if (m.type === 'out') {
+        outboundByAsset.set(key, (outboundByAsset.get(key) || 0) + qty);
+      }
+    });
+
+    // 各資産の opening_stock を期末在庫で更新
+    const updates = assets.map((asset) => {
+      const key = String(asset.id);
+      const ending = Number(asset.openingStock || 0)
+        + (inboundByAsset.get(key) || 0)
+        - (outboundByAsset.get(key) || 0);
+      return { id: asset.id, newOpeningStock: ending };
+    });
+
+    for (const { id, newOpeningStock } of updates) {
+      await supabaseRequest(
+        `invent_child_assets?id=eq.${id}`,
+        {
+          method: 'PATCH',
+          headers: { Prefer: 'return=minimal' },
+          body: JSON.stringify({ opening_stock: newOpeningStock }),
+        },
+        authSession
+      );
+    }
+
+    // 全 movements を削除
+    await supabaseRequest(
+      `invent_stock_movements?id=gte.0`,
+      {
+        method: 'DELETE',
+        headers: { Prefer: 'return=minimal' },
+      },
+      authSession
+    );
+
+    // フロント側 state を更新
+    setAssets((prev) => prev.map((a) => {
+      const u = updates.find((x) => String(x.id) === String(a.id));
+      return u ? { ...a, openingStock: u.newOpeningStock } : a;
+    }));
+    setMovements([]);
+  };
+
   const deleteMovement = async (id) => {
     await supabaseRequest(
       `invent_stock_movements?id=eq.${id}`,
@@ -400,14 +456,14 @@ export default function App() {
 
   const renderView = () => {
     switch (view) {
-      case 'menu': return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} />;
+      case 'menu': return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} />;
       case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} categories={categories} onCreateCategory={createCategory} onCreateAsset={createAsset} onUpdateAsset={updateAsset} onUpdateParentAsset={updateParentAsset} onDeleteAsset={deleteAsset} setView={setView} onNavigateEntry={navigateToEntry} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} />;
       case 'history': return <MovementHistoryScreen movements={movements} setMovements={setMovements} setView={setView} assets={assets} staff={staff} updateMovement={updateMovement} deleteMovement={deleteMovement} pinnedAssetId={filterAssetId} />;
       case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} />;
       case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} />;
       case 'stock': return <StockStatusScreen assets={assets} movements={movements} setView={setView} pinnedAssetId={filterAssetId} />;
       case 'backup': return <BackupScreen session={authSession} setView={setView} onRestored={refreshData} />;
-      default: return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} />;
+      default: return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} />;
     }
   };
 
