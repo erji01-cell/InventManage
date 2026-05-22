@@ -238,25 +238,36 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
           </div>
         </div>
 
-        <div className="space-y-2 w-80">
+        <div className="space-y-2">
           <span className="block text-sm font-bold text-slate-500">資産を選択して絞り込み</span>
-          <AssetSearchInput
-            assets={assets}
-            value={pinnedId}
-            onChange={(id) => {
-              setPinnedId(id);
-              setMovementSearchTerm('');
-              if (!id) {
+          <div className="flex items-center gap-2">
+            <div className="w-80">
+              <AssetSearchInput
+                assets={assets}
+                value={pinnedId}
+                onChange={(id) => {
+                  setPinnedId(id);
+                  setMovementSearchTerm('');
+                }}
+                isIn={true}
+                showListSignal={0}
+                onSearchTermChange={handleSearchTermChange}
+              />
+            </div>
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setPinnedId('');
+                setMovementSearchTerm('');
                 setMovementDateFrom('');
                 setMovementDateTo('');
                 setAppliedDateFrom('');
                 setAppliedDateTo('');
-              }
-            }}
-            isIn={true}
-            showListSignal={0}
-            onSearchTermChange={handleSearchTermChange}
-          />
+              }}
+            >
+              リセット
+            </Button>
+          </div>
         </div>
       </div>
 
