@@ -13,7 +13,7 @@ const COLUMN_DEFS = [
   { key: 'packSize',       label: '規格',      defaultOn: true  },
   { key: 'purchaseUnit',   label: '購入単位',  defaultOn: false },
   { key: 'usageUnit',      label: '使用単位',  defaultOn: true  },
-  { key: 'deliveryPrice',  label: '仕入単価',  defaultOn: true  },
+  { key: 'deliveryPrice',  label: '購入単価',  defaultOn: true  },
   { key: 'usageUnitPrice', label: '使用単価',  defaultOn: true  },
   { key: 'supplier',       label: '発注先',    defaultOn: true  },
   { key: 'janCode',        label: 'JANコード', defaultOn: false },
