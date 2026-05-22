@@ -22,6 +22,7 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
   const [movementEditForm, setMovementEditForm] = useState(null);
   const [movementSaveError, setMovementSaveError] = useState('');
   const [isMovementSaving, setIsMovementSaving] = useState(false);
+  const [showPrintMenu, setShowPrintMenu] = useState(false);
 
   // 品目ごとに日付・ID順で累積計算し、各取引後の残在庫を求める
   const runningStockMap = useMemo(() => {
@@ -120,6 +121,100 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
     setAppliedDateTo(movementDateTo);
   };
 
+  const printStyles = `
+    @page { size: A4 portrait; margin: 12mm 10mm; }
+    * { box-sizing: border-box; }
+    body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif; font-size: 8pt; color: #111; margin: 0; padding: 0; }
+    h1 { font-size: 13pt; font-weight: bold; margin: 0 0 2mm; }
+    .subtitle { font-size: 8pt; color: #555; margin-bottom: 4mm; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    th { background: #f1f5f9; font-weight: bold; text-align: left; padding: 2.5mm 2mm; border: 0.3mm solid #cbd5e1; font-size: 7.5pt; white-space: nowrap; overflow: hidden; }
+    td { padding: 2mm; border: 0.3mm solid #e2e8f0; vertical-align: top; word-break: break-all; overflow: hidden; }
+    tr:nth-child(even) td { background: #f8fafc; }
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
+    .in { color: #059669; font-weight: bold; }
+    .out { color: #e11d48; font-weight: bold; }
+    .neg { color: #dc2626; background: #fff1f2; }
+    .summary { margin-top: 5mm; border: 0.4mm solid #bfdbfe; border-radius: 2mm; padding: 3mm 5mm; background: #eff6ff; }
+    .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; margin-top: 2mm; }
+    .summary-item { text-align: center; }
+    .summary-label { font-size: 7pt; color: #64748b; }
+    .summary-value { font-size: 12pt; font-weight: bold; color: #1e40af; }
+  `;
+
+  const buildPrintDoc = (title, subtitle, tableHTML, summaryHTML = '') => `<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><title>${title}</title>
+<style>${printStyles}</style></head>
+<body>
+<h1>${title}</h1>
+<div class="subtitle">${subtitle}</div>
+${tableHTML}
+${summaryHTML}
+<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close();}<\/script>
+</body></html>`;
+
+  const buildTableHTML = (rows) => {
+    const headers = ['日付','分類','ID','メーカー','品名','入庫','出庫','残在庫','単位','実購入価格','使用期限'];
+    const widths =  ['11%', '8%', '6%', '10%', '22%', '6%', '6%', '7%', '6%', '10%', '8%'];
+    const ths = headers.map((h, i) => `<th style="width:${widths[i]}">${h}</th>`).join('');
+    const tds = rows.map(({ m, asset, rs }) => {
+      const type = m.normalizedType;
+      const rsVal = rs !== undefined ? rs : null;
+      return `<tr>
+        <td>${m.date || '-'}</td>
+        <td>${asset?.category || '-'}</td>
+        <td>${m.assetId}</td>
+        <td>${asset?.maker || '-'}</td>
+        <td>${asset?.name || '-'}</td>
+        <td class="text-right${type === 'in' ? ' in' : ''}">${type === 'in' ? m.quantity.toLocaleString() : '-'}</td>
+        <td class="text-right${type === 'out' ? ' out' : ''}">${type === 'out' ? m.quantity.toLocaleString() : '-'}</td>
+        <td class="text-right${rsVal !== null && rsVal < 0 ? ' neg' : ''}">${rsVal !== null ? rsVal.toLocaleString() : '-'}</td>
+        <td class="text-center">${asset?.usageUnit || '-'}</td>
+        <td class="text-right">${type === 'in' ? '¥' + m.actualDeliveryPrice.toLocaleString() : '-'}</td>
+        <td>${m.expirationDate || '-'}</td>
+      </tr>`;
+    }).join('');
+    return `<table><thead><tr>${ths}</tr></thead><tbody>${tds}</tbody></table>`;
+  };
+
+  const openPrintWindow = (html) => {
+    const w = window.open('', '_blank', 'width=900,height=700');
+    w.document.write(html);
+    w.document.close();
+  };
+
+  const handlePrintList = () => {
+    setShowPrintMenu(false);
+    const today = new Date().toLocaleDateString('ja-JP');
+    const rows = displayedMovements.map(m => ({ m, asset: assets.find(a => a.id === m.assetId), rs: runningStockMap.get(String(m.id)) }));
+    const subtitle = `印刷日: ${today}　件数: ${rows.length}件`;
+    const html = buildPrintDoc('入出庫データ一覧', subtitle, buildTableHTML(rows));
+    openPrintWindow(html);
+  };
+
+  const handlePrintIndividual = () => {
+    if (!pinnedId) return;
+    setShowPrintMenu(false);
+    const asset = assets.find(a => a.id === pinnedId);
+    const today = new Date().toLocaleDateString('ja-JP');
+    const rows = displayedMovements.map(m => ({ m, asset, rs: runningStockMap.get(String(m.id)) }));
+    const totalIn = rows.filter(({ m }) => m.normalizedType === 'in').reduce((s, { m }) => s + m.quantity, 0);
+    const totalOut = rows.filter(({ m }) => m.normalizedType === 'out').reduce((s, { m }) => s + m.quantity, 0);
+    const lastRs = rows.length > 0 ? runningStockMap.get(String(rows[0].m.id)) : null;
+    const subtitle = `${asset?.name || pinnedId}　ID: ${pinnedId}　メーカー: ${asset?.maker || '-'}　印刷日: ${today}`;
+    const summaryHTML = `<div class="summary">
+      <div style="font-weight:bold;font-size:9pt;">サマリー</div>
+      <div class="summary-grid">
+        <div class="summary-item"><div class="summary-label">合計入庫数</div><div class="summary-value" style="color:#059669">${totalIn.toLocaleString()} ${asset?.usageUnit || ''}</div></div>
+        <div class="summary-item"><div class="summary-label">合計出庫数</div><div class="summary-value" style="color:#e11d48">${totalOut.toLocaleString()} ${asset?.usageUnit || ''}</div></div>
+        <div class="summary-item"><div class="summary-label">現在庫</div><div class="summary-value" style="color:${lastRs !== null && lastRs < 0 ? '#dc2626' : '#1e40af'}">${lastRs !== null ? lastRs.toLocaleString() : '-'} ${asset?.usageUnit || ''}</div></div>
+      </div>
+    </div>`;
+    const html = buildPrintDoc(`入出庫データ（個別）`, subtitle, buildTableHTML(rows), summaryHTML);
+    openPrintWindow(html);
+  };
+
   const saveMovementDetail = async () => {
     if (!selectedMovement || !movementEditForm) return;
 
@@ -197,7 +292,7 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
         <div className="flex items-center gap-3 mr-8">
           <Button variant="assets" onClick={() => setView('assets')}><ArrowLeftRight size={18} /> 資産マスタ</Button>
           <Button variant="stock" onClick={() => setView('stock')}><Table2 size={18} /> 在庫表</Button>
-          <Button variant="history"><Printer size={18} /> 一覧印刷</Button>
+          <Button variant="history" onClick={() => setShowPrintMenu(true)}><Printer size={18} /> 印刷</Button>
         </div>
       </div>
 
@@ -334,6 +429,37 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
           </tbody>
         </table>
       </div>
+
+      {showPrintMenu && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-96 flex flex-col gap-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Printer size={22} className="text-slate-600" />
+              <h2 className="text-lg font-black text-slate-800">印刷メニュー</h2>
+            </div>
+            <button
+              onClick={handlePrintList}
+              className="w-full text-left rounded-xl border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-200 p-4 transition-colors"
+            >
+              <div className="font-bold text-slate-800">📄 一覧印刷</div>
+              <div className="text-sm text-slate-500 mt-1">現在の絞り込み結果（{displayedMovements.length}件）を印刷</div>
+            </button>
+            <button
+              onClick={handlePrintIndividual}
+              disabled={!pinnedId}
+              className={`w-full text-left rounded-xl border p-4 transition-colors ${pinnedId ? 'border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-200' : 'border-slate-100 bg-slate-50 opacity-40 cursor-not-allowed'}`}
+            >
+              <div className="font-bold text-slate-800">📋 個別印刷</div>
+              <div className="text-sm text-slate-500 mt-1">
+                {pinnedId
+                  ? `「${assets.find(a => a.id === pinnedId)?.name || pinnedId}」の入出庫履歴＋サマリーを印刷`
+                  : '資産を絞り込み中のみ使用できます'}
+              </div>
+            </button>
+            <Button variant="secondary" className="w-full mt-1" onClick={() => setShowPrintMenu(false)}>キャンセル</Button>
+          </div>
+        </div>
+      )}
 
       {selectedMovement && movementEditForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
