@@ -3,10 +3,10 @@ import { ClipboardList, Database, LogOut, MinusCircle, Package, PlusCircle, Refr
 
 import { Button } from '../components/ui.jsx';
 
-const BACKUP_PASSWORD = '0125';
+const ADMIN_PASSWORD = '0125';
 
 export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpdate }) {
-  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordTarget, setPasswordTarget] = useState(null); // 'backup' | 'yearEnd' | null
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const inputRef = useRef(null);
@@ -35,26 +35,37 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
     }
   };
 
-  const openPasswordModal = () => {
+  const openPasswordModal = (target) => {
+    setPasswordTarget(target);
     setPasswordInput('');
     setPasswordError('');
-    setShowPasswordModal(true);
     setTimeout(() => inputRef.current?.focus(), 50);
+  };
+
+  const closePasswordModal = () => {
+    setPasswordTarget(null);
+    setPasswordInput('');
+    setPasswordError('');
   };
 
   const handlePasswordSubmit = (e) => {
     e.preventDefault();
-    if (passwordInput === BACKUP_PASSWORD) {
-      setShowPasswordModal(false);
-      setPasswordInput('');
-      setPasswordError('');
-      setView('backup');
+    if (passwordInput === ADMIN_PASSWORD) {
+      const target = passwordTarget;
+      closePasswordModal();
+      if (target === 'backup') {
+        setView('backup');
+      } else if (target === 'yearEnd') {
+        setYearEndStep(1);
+      }
     } else {
       setPasswordError('パスワードが違います。');
       setPasswordInput('');
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   };
+
+  const isYearEndPassword = passwordTarget === 'yearEnd';
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh] space-y-12">
@@ -73,8 +84,8 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
         <MenuButton icon={<MinusCircle size={24} />} title="出庫画面" color="bg-rose-50 text-rose-700" onClick={() => setView('outbound')} />
         <MenuButton icon={<Package size={24} />} title="資産マスタ" color="bg-indigo-50 text-indigo-700" onClick={() => setView('assets')} />
         <div className="flex flex-col gap-2">
-          <SmallMenuButton icon={<RefreshCcw size={20} />} title="年度更新" color="bg-slate-50 text-slate-700" onClick={() => setYearEndStep(1)} />
-          <SmallMenuButton icon={<Database size={20} />} title="バックアップ" color="bg-purple-50 text-purple-700" onClick={openPasswordModal} />
+          <SmallMenuButton icon={<RefreshCcw size={20} />} title="年度更新" color="bg-slate-50 text-slate-700" onClick={() => openPasswordModal('yearEnd')} />
+          <SmallMenuButton icon={<Database size={20} />} title="バックアップ" color="bg-purple-50 text-purple-700" onClick={() => openPasswordModal('backup')} />
         </div>
       </div>
 
@@ -145,14 +156,16 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
         </div>
       )}
 
-      {showPasswordModal && (
+      {passwordTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
           <div className="bg-white rounded-2xl shadow-2xl p-8 w-80 flex flex-col items-center gap-5">
             <div className="flex flex-col items-center gap-2">
-              <div className="p-3 bg-purple-100 rounded-full">
-                <Database size={28} className="text-purple-700" />
+              <div className={`p-3 rounded-full ${isYearEndPassword ? 'bg-slate-100' : 'bg-purple-100'}`}>
+                {isYearEndPassword
+                  ? <RefreshCcw size={28} className="text-slate-700" />
+                  : <Database size={28} className="text-purple-700" />}
               </div>
-              <h2 className="text-lg font-black text-slate-800">バックアップ</h2>
+              <h2 className="text-lg font-black text-slate-800">{isYearEndPassword ? '年度更新' : 'バックアップ'}</h2>
               <p className="text-sm text-slate-500">パスワードを入力してください</p>
             </div>
             <form onSubmit={handlePasswordSubmit} className="w-full flex flex-col gap-3">
@@ -161,7 +174,7 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
                 type="password"
                 value={passwordInput}
                 onChange={(e) => { setPasswordInput(e.target.value); setPasswordError(''); }}
-                className="w-full p-3 text-center text-xl tracking-widest border-2 rounded-lg outline-none focus:border-purple-400 bg-purple-50"
+                className={`w-full p-3 text-center text-xl tracking-widest border-2 rounded-lg outline-none ${isYearEndPassword ? 'focus:border-slate-400 bg-slate-50' : 'focus:border-purple-400 bg-purple-50'}`}
                 placeholder="●●●●"
                 maxLength={10}
               />
@@ -169,7 +182,7 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
                 <p className="text-sm text-red-600 font-bold text-center">{passwordError}</p>
               )}
               <Button variant="primary" className="w-full py-3">確認</Button>
-              <Button variant="secondary" className="w-full" onClick={() => setShowPasswordModal(false)}>キャンセル</Button>
+              <Button variant="secondary" className="w-full" onClick={closePasswordModal}>キャンセル</Button>
             </form>
           </div>
         </div>
