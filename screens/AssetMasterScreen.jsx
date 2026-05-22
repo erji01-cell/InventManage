@@ -112,8 +112,8 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
       return;
     }
 
-    if (!editForm.parentCategory.trim() || !editForm.parentGenericName.trim()) {
-      setSaveError('分類と大分類名は必須です。');
+    if (!editForm.parentCategory.trim()) {
+      setSaveError('分類は必須です。');
       return;
     }
 
@@ -346,7 +346,7 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
                         />
                       )}
                       <EditField
-                        label="大分類名"
+                        label="大分類名（任意）"
                         value={editForm.parentGenericName}
                         onChange={(value) => updateNewParentField('parentGenericName', value)}
                         disabled={isCreating && Boolean(editForm.parentId)}
