@@ -461,7 +461,7 @@ export default function App() {
       case 'history': return <MovementHistoryScreen movements={movements} setMovements={setMovements} setView={setView} assets={assets} staff={staff} updateMovement={updateMovement} deleteMovement={deleteMovement} pinnedAssetId={filterAssetId} />;
       case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} />;
       case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} />;
-      case 'stock': return <StockStatusScreen assets={assets} movements={movements} setView={setView} pinnedAssetId={filterAssetId} />;
+      case 'stock': return <StockStatusScreen assets={assets} movements={movements} setView={setView} pinnedAssetId={filterAssetId} onNavigateHistory={navigateToHistory} />;
       case 'backup': return <BackupScreen session={authSession} setView={setView} onRestored={refreshData} />;
       default: return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} />;
     }

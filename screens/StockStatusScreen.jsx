@@ -5,7 +5,7 @@ import { Button, Card } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
 import { normalizeMovementType, parseLocalDate } from '../utils/inventory.js';
 
-export default function StockStatusScreen({ assets, movements, setView, pinnedAssetId = '' }) {
+export default function StockStatusScreen({ assets, movements, setView, pinnedAssetId = '', onNavigateHistory }) {
   const fiscalMonths = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
   const today = new Date();
   const fiscalEndYear = today.getMonth() + 1 >= 7 ? today.getFullYear() + 1 : today.getFullYear();
@@ -239,7 +239,12 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
           </thead>
           <tbody>
             {displayData.map(row => (
-              <tr key={row.id} className="border-b border-slate-100 transition-colors hover:bg-blue-50/30">
+              <tr
+                key={row.id}
+                className="border-b border-slate-100 transition-colors hover:bg-blue-50/60 cursor-pointer"
+                onClick={() => onNavigateHistory?.(row.id)}
+                title="入出庫データを表示"
+              >
                 <td className="px-3 py-2 font-mono text-slate-600">{row.id}</td>
                 <td className="px-3 py-2 whitespace-normal break-words">{row.maker || '-'}</td>
                 <td className="px-3 py-2 font-bold text-slate-800">{row.name}</td>
