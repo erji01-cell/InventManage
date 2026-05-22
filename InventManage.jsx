@@ -265,6 +265,10 @@ export default function App() {
       authSession
     );
 
+    if (!updated) {
+      throw new Error('資産を更新できませんでした。データが見つからないか、変更権限がない可能性があります。');
+    }
+
     setAssets(prev => prev.map(asset => {
       if (asset.id !== String(updated.id)) return asset;
 
