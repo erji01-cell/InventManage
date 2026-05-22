@@ -115,9 +115,9 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
           <p className="mt-2 text-sm text-slate-500">月度を選択し、品名・メーカー・IDで絞り込めます。</p>
         </div>
         <div className="flex items-center gap-3 mr-10">
-          <Button variant="primary" onClick={() => setView('history')}><ArrowLeftRight size={18} /> 入出庫データ</Button>
-          <Button variant="primary" onClick={() => setView('assets')}><Table2 size={18} /> 資産マスタ</Button>
-          <Button variant="primary"><Printer size={18} /> 一覧印刷</Button>
+          <Button variant="history" onClick={() => setView('history')}><ArrowLeftRight size={18} /> 入出庫データ</Button>
+          <Button variant="assets" onClick={() => setView('assets')}><Table2 size={18} /> 資産マスタ</Button>
+          <Button variant="stock"><Printer size={18} /> 一覧印刷</Button>
         </div>
       </div>
 

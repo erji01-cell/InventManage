@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Printer, Save, X } from 'lucide-react';
+import { ArrowLeftRight, Printer, Save, Table2, X } from 'lucide-react';
 
 import { Button, Card, DetailItem, EditableDetail } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
@@ -194,7 +194,11 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
           <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-900">入出庫データ</h2>
           <p className="mt-2 text-sm text-slate-500">残在庫は現在の在庫ではありません</p>
         </div>
-        <Button variant="primary" className="mr-8"><Printer size={18} /> 一覧印刷</Button>
+        <div className="flex items-center gap-3 mr-8">
+          <Button variant="assets" onClick={() => setView('assets')}><ArrowLeftRight size={18} /> 資産マスタ</Button>
+          <Button variant="stock" onClick={() => setView('stock')}><Table2 size={18} /> 在庫表</Button>
+          <Button variant="history"><Printer size={18} /> 一覧印刷</Button>
+        </div>
       </div>
 
       <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-6 flex flex-wrap items-end justify-between gap-4">

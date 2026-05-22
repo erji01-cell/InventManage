@@ -8,7 +8,10 @@ export const Button = ({ children, onClick, variant = 'primary', className = '',
     danger: "bg-red-50 text-red-700 border-red-200 hover:bg-red-100",
     secondary: "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100",
     ghost: "bg-transparent text-gray-500 border-transparent hover:bg-gray-100 shadow-none",
-    action: "bg-white text-blue-600 border-blue-200 hover:bg-blue-50"
+    action: "bg-white text-blue-600 border-blue-200 hover:bg-blue-50",
+    assets: "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 active:bg-blue-200",
+    stock: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 active:bg-amber-200",
+    history: "bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 active:bg-sky-200"
   };
 
   return (
