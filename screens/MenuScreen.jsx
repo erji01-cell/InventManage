@@ -71,9 +71,9 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
     <div className="flex flex-col items-center justify-center min-h-[80vh] space-y-12">
       <div className="text-center">
         <h1 className="text-5xl font-extrabold tracking-tight text-slate-800 mb-2">
-          在庫管理システム <span className="text-orange-500 font-normal">2025年度版</span>
+          在庫管理システム <span className="text-orange-500 font-normal">2026年度版</span>
         </h1>
-        <p className="text-xl text-slate-500">2025.07.01 更新</p>
+        <p className="text-xl text-slate-500">2026.07.01 更新</p>
         {userEmail && <p className="mt-2 text-sm text-slate-400">{userEmail}</p>}
       </div>
 
