@@ -19,6 +19,7 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
   const [stockSearchTerm, setStockSearchTerm] = useState('');
   const [pinnedId, setPinnedId] = useState(pinnedAssetId);
   const [showMinusOnly, setShowMinusOnly] = useState(false);
+  const [showPrintMenu, setShowPrintMenu] = useState(false);
 
   // テキスト変更時: 選択を解除してテキスト検索モードへ
   const handleSearchTermChange = (term) => {
@@ -101,6 +102,94 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
   const displayData = showMinusOnly ? filteredStockData.filter(row => row.currentStock < 0) : filteredStockData;
   const totalStockValue = displayData.reduce((sum, row) => sum + row.stockValue, 0);
 
+  const printStyles = `
+    @page { size: A4 portrait; margin: 12mm 10mm; }
+    * { box-sizing: border-box; }
+    body { font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif; font-size: 8pt; color: #111; margin: 0; padding: 0; }
+    h1 { font-size: 13pt; font-weight: bold; margin: 0 0 2mm; }
+    .subtitle { font-size: 8pt; color: #555; margin-bottom: 4mm; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    th { background: #fef3c7; font-weight: bold; text-align: left; padding: 2.5mm 2mm; border: 0.3mm solid #d4a017; font-size: 7.5pt; white-space: nowrap; overflow: hidden; }
+    td { padding: 2mm; border: 0.3mm solid #e2e8f0; vertical-align: top; word-break: break-all; overflow: hidden; }
+    tr:nth-child(even) td { background: #fffbeb; }
+    .text-right { text-align: right; }
+    .text-center { text-align: center; }
+    .in { color: #059669; font-weight: bold; }
+    .out { color: #e11d48; font-weight: bold; }
+    .neg { color: #dc2626; background: #fff1f2; font-weight: bold; }
+    .total { color: #1e40af; font-weight: bold; }
+    .summary { margin-top: 5mm; border: 0.4mm solid #fcd34d; border-radius: 2mm; padding: 3mm 5mm; background: #fffbeb; display: flex; justify-content: space-between; align-items: center; }
+    .summary-label { font-size: 9pt; color: #92400e; font-weight: bold; }
+    .summary-value { font-size: 14pt; font-weight: bold; color: #b45309; }
+  `;
+
+  const buildPrintDoc = (title, subtitle, tableHTML, summaryHTML = '') => `<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><title>${title}</title>
+<style>${printStyles}</style></head>
+<body>
+<h1>${title}</h1>
+<div class="subtitle">${subtitle}</div>
+${tableHTML}
+${summaryHTML}
+<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close();}<\/script>
+</body></html>`;
+
+  const buildTableHTML = (rows) => {
+    const headers = ['ID','メーカー','品名',startLabel,'入庫数','出庫数',endLabel,'単位','使用単価','在庫金額'];
+    const widths =  ['7%', '12%', '26%', '7%', '7%', '7%', '7%', '5%', '10%', '12%'];
+    const ths = headers.map((h, i) => `<th style="width:${widths[i]}" class="${i >= 3 ? 'text-right' : ''}">${h}</th>`).join('');
+    const tds = rows.map(row => `<tr>
+      <td>${row.id}</td>
+      <td>${row.maker || '-'}</td>
+      <td>${row.name || '-'}</td>
+      <td class="text-right${row.prevMonth < 0 ? ' neg' : ''}">${row.prevMonth.toLocaleString()}</td>
+      <td class="text-right in">${row.inbound.toLocaleString()}</td>
+      <td class="text-right out">${row.outbound.toLocaleString()}</td>
+      <td class="text-right${row.currentStock < 0 ? ' neg' : ' total'}">${row.currentStock.toLocaleString()}</td>
+      <td class="text-center">${row.usageUnit || '-'}</td>
+      <td class="text-right">¥${(row.usageUnitPrice || 0).toLocaleString()}</td>
+      <td class="text-right${row.stockValue < 0 ? ' neg' : ' total'}">¥${row.stockValue.toLocaleString()}</td>
+    </tr>`).join('');
+    return `<table><thead><tr>${ths}</tr></thead><tbody>${tds}</tbody></table>`;
+  };
+
+  const openPrintWindow = (html) => {
+    const w = window.open('', '_blank', 'width=900,height=700');
+    w.document.write(html);
+    w.document.close();
+  };
+
+  const handlePrintList = () => {
+    setShowPrintMenu(false);
+    const today = new Date().toLocaleDateString('ja-JP');
+    const periodLabel = rangeFrom === rangeTo ? `${fromMonth}月度` : `${fromMonth}月〜${toMonth}月`;
+    const subtitle = `期間: ${periodLabel}　印刷日: ${today}　件数: ${displayData.length}件`;
+    const total = displayData.reduce((s, r) => s + r.stockValue, 0);
+    const summaryHTML = `<div class="summary">
+      <div class="summary-label">表示件数: ${displayData.length.toLocaleString()} 件</div>
+      <div><span class="summary-label">在庫金額合計: </span><span class="summary-value">¥${total.toLocaleString()}</span></div>
+    </div>`;
+    const html = buildPrintDoc('在庫表', subtitle, buildTableHTML(displayData), summaryHTML);
+    openPrintWindow(html);
+  };
+
+  const handlePrintMinus = () => {
+    setShowPrintMenu(false);
+    const minusRows = filteredStockData.filter(r => r.currentStock < 0);
+    const today = new Date().toLocaleDateString('ja-JP');
+    const periodLabel = rangeFrom === rangeTo ? `${fromMonth}月度` : `${fromMonth}月〜${toMonth}月`;
+    const subtitle = `在庫マイナス品目のみ　期間: ${periodLabel}　印刷日: ${today}　件数: ${minusRows.length}件`;
+    const total = minusRows.reduce((s, r) => s + r.stockValue, 0);
+    const summaryHTML = `<div class="summary" style="border-color:#fca5a5;background:#fef2f2;">
+      <div class="summary-label" style="color:#991b1b;">マイナス品目: ${minusRows.length.toLocaleString()} 件</div>
+      <div><span class="summary-label" style="color:#991b1b;">マイナス在庫金額合計: </span><span class="summary-value" style="color:#dc2626;">¥${total.toLocaleString()}</span></div>
+    </div>`;
+    const html = buildPrintDoc('在庫表（在庫マイナス品目）', subtitle, buildTableHTML(minusRows), summaryHTML);
+    openPrintWindow(html);
+  };
+
+  const minusCount = filteredStockData.filter(r => r.currentStock < 0).length;
+
   return (
     <Card className="max-h-[90vh] flex flex-col gap-5 relative">
       <button
@@ -119,7 +208,7 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
         <div className="flex items-center gap-3 mr-10">
           <Button variant="history" onClick={() => setView('history')}><ArrowLeftRight size={18} /> 入出庫データ</Button>
           <Button variant="assets" onClick={() => setView('assets')}><Table2 size={18} /> 資産マスタ</Button>
-          <Button variant="primary"><Printer size={18} /> 印刷</Button>
+          <Button variant="primary" onClick={() => setShowPrintMenu(true)}><Printer size={18} /> 印刷</Button>
         </div>
       </div>
 
@@ -260,6 +349,37 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
           </tbody>
         </table>
       </div>
+
+      {showPrintMenu && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-96 flex flex-col gap-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Printer size={22} className="text-slate-600" />
+              <h2 className="text-lg font-black text-slate-800">印刷メニュー</h2>
+            </div>
+            <button
+              onClick={handlePrintList}
+              className="w-full text-left rounded-xl border border-slate-200 bg-slate-50 hover:bg-amber-50 hover:border-amber-200 p-4 transition-colors"
+            >
+              <div className="font-bold text-slate-800">📄 一覧印刷</div>
+              <div className="text-sm text-slate-500 mt-1">現在の絞り込み結果（{displayData.length}件）を印刷</div>
+            </button>
+            <button
+              onClick={handlePrintMinus}
+              disabled={minusCount === 0}
+              className={`w-full text-left rounded-xl border p-4 transition-colors ${minusCount > 0 ? 'border-slate-200 bg-slate-50 hover:bg-red-50 hover:border-red-200' : 'border-slate-100 bg-slate-50 opacity-40 cursor-not-allowed'}`}
+            >
+              <div className="font-bold text-slate-800">⚠ 在庫マイナス品目のみ印刷</div>
+              <div className="text-sm text-slate-500 mt-1">
+                {minusCount > 0
+                  ? `現在の絞り込み内のマイナス品目（${minusCount}件）のみを印刷`
+                  : '在庫マイナス品目はありません'}
+              </div>
+            </button>
+            <Button variant="secondary" className="w-full mt-1" onClick={() => setShowPrintMenu(false)}>キャンセル</Button>
+          </div>
+        </div>
+      )}
 
       <div className="flex justify-end mt-6">
         <Button variant="secondary" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
