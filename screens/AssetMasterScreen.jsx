@@ -425,6 +425,10 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
         </aside>
       </div>
 
+      <div className="flex justify-end mt-6">
+        <Button variant="secondary" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
+      </div>
+
     </Card>
   );
 }

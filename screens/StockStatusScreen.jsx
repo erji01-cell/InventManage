@@ -241,6 +241,10 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
         </table>
       </div>
 
+      <div className="flex justify-end mt-6">
+        <Button variant="secondary" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
+      </div>
+
     </Card>
   );
 }
