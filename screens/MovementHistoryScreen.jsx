@@ -192,6 +192,7 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-500">Stock Movement</p>
           <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-900">入出庫データ</h2>
+          <p className="mt-2 text-sm text-slate-500">残在庫は現在の在庫ではありません</p>
         </div>
         <Button variant="primary" className="mr-8"><Printer size={18} /> 一覧印刷</Button>
       </div>
