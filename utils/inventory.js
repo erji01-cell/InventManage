@@ -14,9 +14,11 @@ export function getNextParentId(assets) {
   return `P-${String(maxId + 1).padStart(4, '0')}`;
 }
 
-export function normalizeAsset(row, parentMap, supplierMap) {
+export function normalizeAsset(row, parentMap, supplierMap, categoryMap = new Map()) {
   const parent = parentMap.get(row.parent_id);
   const supplier = supplierMap.get(row.supplier_id);
+  const category = parent?.category_id ? categoryMap.get(parent.category_id) : null;
+  const categoryName = category?.name || parent?.category || '';
 
   return {
     id: String(row.id),
@@ -24,9 +26,11 @@ export function normalizeAsset(row, parentMap, supplierMap) {
     maker: row.maker,
     name: row.brand_name,
     kanaName: row.kana_name || '',
-    category: parent?.category || '',
+    category: categoryName,
+    categoryId: parent?.category_id || null,
+    categoryOrder: category?.display_order ?? 9999,
     parentGenericName: parent?.generic_name || '',
-    parentCategory: parent?.category || '',
+    parentCategory: categoryName,
     parentSafetyStock: parent?.safety_stock ?? '',
     parentCreatedAt: parent?.created_at || '',
     packSize: toNumber(row.pack_size || 1),

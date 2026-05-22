@@ -43,29 +43,14 @@ function PrintDialog({ assets, onClose }) {
     switch (sortOrder) {
       case 'id':           return arr.sort((a, b) => Number(a.id) - Number(b.id));
       case 'category_id': {
-        // 分類名ごとに最小の分類コードを求め、そのコード順でグループを並べる
-        const catOrder = new Map();
-        arr.forEach(a => {
-          const cur = catOrder.get(a.parentCategory);
-          if (!cur || String(a.parentId).localeCompare(cur, undefined, { numeric: true }) < 0) {
-            catOrder.set(a.parentCategory, String(a.parentId));
-          }
-        });
         return arr.sort((a, b) => {
-          const c = catOrder.get(a.parentCategory).localeCompare(catOrder.get(b.parentCategory), undefined, { numeric: true });
+          const c = (a.categoryOrder ?? 9999) - (b.categoryOrder ?? 9999);
           return c !== 0 ? c : Number(a.id) - Number(b.id);
         });
       }
       case 'category_kana': {
-        const catOrder = new Map();
-        arr.forEach(a => {
-          const cur = catOrder.get(a.parentCategory);
-          if (!cur || String(a.parentId).localeCompare(cur, undefined, { numeric: true }) < 0) {
-            catOrder.set(a.parentCategory, String(a.parentId));
-          }
-        });
         return arr.sort((a, b) => {
-          const c = catOrder.get(a.parentCategory).localeCompare(catOrder.get(b.parentCategory), undefined, { numeric: true });
+          const c = (a.categoryOrder ?? 9999) - (b.categoryOrder ?? 9999);
           return c !== 0 ? c : (a.kanaName || a.name).localeCompare(b.kanaName || b.name, 'ja');
         });
       }
@@ -204,11 +189,11 @@ const createAssetEditForm = (asset) => ({
   janCode: asset?.janCode || '',
   memo: asset?.memo || '',
   parentId: asset?.parentId || '',
-  parentCategory: asset?.parentCategory || '',
+  categoryId: asset?.categoryId || '',
   parentGenericName: asset?.parentGenericName || '',
 });
 
-export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, onUpdateAsset, onUpdateParentAsset, onDeleteAsset, setView, onNavigateEntry, onNavigateHistory, onNavigateStock }) {
+export default function AssetMasterScreen({ assets, suppliers, categories = [], onCreateCategory, onCreateAsset, onUpdateAsset, onUpdateParentAsset, onDeleteAsset, setView, onNavigateEntry, onNavigateHistory, onNavigateStock }) {
   const [filter, setFilter] = useState('');
   const [selectedAssetId, setSelectedAssetId] = useState('');
   const [isCreating, setIsCreating] = useState(false);
@@ -231,6 +216,7 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
       parents.set(asset.parentId, {
         id: asset.parentId,
         category: asset.parentCategory || '',
+        categoryId: asset.categoryId || '',
         genericName: asset.parentGenericName || '',
       });
     });
@@ -259,13 +245,33 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
     setEditForm(prev => ({
       ...prev,
       parentId,
-      parentCategory: parent?.category || '',
+      categoryId: parent?.categoryId || prev.categoryId,
       parentGenericName: parent?.genericName || '',
     }));
   };
 
   const updateNewParentField = (key, value) => {
     setEditForm(prev => ({ ...prev, parentId: '', [key]: value }));
+  };
+
+  const [showNewCategory, setShowNewCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+
+  const handleAddCategory = async () => {
+    const name = newCategoryName.trim();
+    if (!name || !onCreateCategory) return;
+    setIsCreatingCategory(true);
+    try {
+      const created = await onCreateCategory(name);
+      setEditForm(prev => ({ ...prev, parentId: '', categoryId: created.id }));
+      setNewCategoryName('');
+      setShowNewCategory(false);
+    } catch (err) {
+      setSaveError(err.message || '分類を追加できませんでした。');
+    } finally {
+      setIsCreatingCategory(false);
+    }
   };
 
   const startEdit = () => {
@@ -302,7 +308,7 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
       return;
     }
 
-    if (!editForm.parentCategory.trim()) {
+    if (!editForm.categoryId) {
       setSaveError('分類は必須です。');
       return;
     }
@@ -333,7 +339,7 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
           janCode: editForm.janCode.trim(),
           memo: editForm.memo.trim(),
           parentId: editForm.parentId,
-          parentCategory: editForm.parentCategory.trim(),
+          categoryId: Number(editForm.categoryId),
           parentGenericName: editForm.parentGenericName.trim(),
         });
         setSelectedAssetId(created.id);
@@ -342,8 +348,10 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
         return;
       }
 
+      const categoryName = categories.find(c => c.id === Number(editForm.categoryId))?.name || '';
       await onUpdateParentAsset(selectedAsset.parentId, {
-        category: editForm.parentCategory.trim(),
+        category: categoryName,
+        category_id: Number(editForm.categoryId),
         generic_name: editForm.parentGenericName.trim() || null,
       });
 
@@ -525,7 +533,39 @@ export default function AssetMasterScreen({ assets, suppliers, onCreateAsset, on
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                     <p className="mb-3 text-xs font-bold text-amber-700">大分類</p>
                     <div className="space-y-3">
-                      <EditField label="分類" value={editForm.parentCategory} onChange={(value) => updateNewParentField('parentCategory', value)} />
+                      <EditField
+                        label="分類"
+                        type="select"
+                        value={String(editForm.categoryId || '')}
+                        onChange={(value) => updateNewParentField('categoryId', value ? Number(value) : '')}
+                        options={[
+                          { value: '', label: '選択してください' },
+                          ...categories.map(cat => ({ value: String(cat.id), label: cat.name })),
+                        ]}
+                      />
+                      {!showNewCategory ? (
+                        <button type="button" onClick={() => setShowNewCategory(true)} className="text-xs font-bold text-blue-600 hover:underline">
+                          ＋ 新しい分類を追加
+                        </button>
+                      ) : (
+                        <div className="rounded-md border border-blue-200 bg-white p-2 space-y-2">
+                          <input
+                            type="text"
+                            value={newCategoryName}
+                            onChange={(e) => setNewCategoryName(e.target.value)}
+                            placeholder="新しい分類名"
+                            className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                          />
+                          <div className="flex gap-2">
+                            <Button variant="success" className="px-3 py-1 text-xs" onClick={handleAddCategory} disabled={isCreatingCategory || !newCategoryName.trim()}>
+                              {isCreatingCategory ? '追加中...' : '追加'}
+                            </Button>
+                            <Button variant="secondary" className="px-3 py-1 text-xs" onClick={() => { setShowNewCategory(false); setNewCategoryName(''); }} disabled={isCreatingCategory}>
+                              取消
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                       {isCreating && (
                         <EditField
                           label="既存ジェネリック名"

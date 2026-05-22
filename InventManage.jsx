@@ -17,6 +17,7 @@ export default function App() {
   const [movements, setMovements] = useState([]);
   const [staff, setStaff] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(() => Boolean(getStoredSession()));
   const [error, setError] = useState('');
 
@@ -28,6 +29,7 @@ export default function App() {
     setMovements(data.movements);
     setStaff(data.staff);
     setSuppliers(data.suppliers);
+    setCategories(data.categories || []);
   };
 
   useEffect(() => {
@@ -38,6 +40,7 @@ export default function App() {
       setMovements([]);
       setStaff([]);
       setSuppliers([]);
+      setCategories([]);
       setIsLoading(false);
       return () => {
         isMounted = false;
@@ -52,6 +55,7 @@ export default function App() {
         setMovements(data.movements);
         setStaff(data.staff);
         setSuppliers(data.suppliers);
+        setCategories(data.categories || []);
       })
       .catch((err) => {
         if (!isMounted) return;
@@ -159,11 +163,37 @@ export default function App() {
     return normalized;
   };
 
+  const createCategory = async (name) => {
+    const trimmed = (name || '').trim();
+    if (!trimmed) throw new Error('分類名を入力してください。');
+    const existing = categories.find(c => c.name === trimmed);
+    if (existing) return existing;
+
+    const maxOrder = categories
+      .filter(c => c.displayOrder < 9000)
+      .reduce((max, c) => Math.max(max, c.displayOrder), 0);
+    const nextOrder = maxOrder + 10;
+
+    const [created] = await supabaseRequest(
+      'invent_categories?select=*',
+      {
+        method: 'POST',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({ name: trimmed, display_order: nextOrder }),
+      },
+      authSession
+    );
+
+    const normalized = { id: created.id, name: created.name, displayOrder: created.display_order };
+    setCategories(prev => [...prev, normalized].sort((a, b) => a.displayOrder - b.displayOrder));
+    return normalized;
+  };
+
   const createAsset = async (data) => {
     let parent = data.parentId
       ? assets.find(asset => asset.parentId === data.parentId)
       : assets.find(asset =>
-          asset.parentCategory === data.parentCategory &&
+          asset.categoryId === data.categoryId &&
           asset.parentGenericName === data.parentGenericName
         );
 
@@ -175,6 +205,8 @@ export default function App() {
       );
       const nextParentId = getNextParentId(parentRows.map(row => ({ parentId: row.id })));
 
+      const categoryName = categories.find(c => c.id === data.categoryId)?.name || '';
+
       const [createdParent] = await supabaseRequest(
         'invent_parent_assets?select=*',
         {
@@ -184,7 +216,8 @@ export default function App() {
           },
           body: JSON.stringify({
             id: nextParentId,
-            category: data.parentCategory,
+            category: categoryName,
+            category_id: data.categoryId,
             generic_name: data.parentGenericName || null,
             safety_stock: null,
           }),
@@ -193,6 +226,7 @@ export default function App() {
       );
       parent = {
         parentId: createdParent.id,
+        categoryId: createdParent.category_id,
         parentCategory: createdParent.category,
         parentGenericName: createdParent.generic_name,
       };
@@ -228,11 +262,13 @@ export default function App() {
       [parent.parentId, {
         id: parent.parentId,
         category: parent.parentCategory,
+        category_id: parent.categoryId,
         generic_name: parent.parentGenericName,
       }],
     ]);
     const supplierMap = new Map(suppliers.map((supplier) => [supplier.id, supplier]));
-    const normalized = normalizeAsset(createdAsset, parentMap, supplierMap);
+    const categoryMap = new Map(categories.map((cat) => [cat.id, { id: cat.id, name: cat.name, display_order: cat.displayOrder }]));
+    const normalized = normalizeAsset(createdAsset, parentMap, supplierMap, categoryMap);
     setAssets(prev => [...prev, normalized].sort((a, b) => Number(a.id) - Number(b.id)));
     return normalized;
   };
@@ -309,12 +345,17 @@ export default function App() {
       throw new Error('大分類を更新できませんでした。データが見つからないか、変更権限がない可能性があります。');
     }
 
+    const cat = categories.find(c => c.id === updated.category_id);
+    const categoryName = cat?.name || updated.category || '';
+
     setAssets(prev => prev.map(asset => (
       asset.parentId === updated.id
         ? {
             ...asset,
-            category: updated.category,
-            parentCategory: updated.category,
+            category: categoryName,
+            categoryId: updated.category_id,
+            categoryOrder: cat?.displayOrder ?? 9999,
+            parentCategory: categoryName,
             parentGenericName: updated.generic_name,
           }
         : asset
@@ -348,7 +389,7 @@ export default function App() {
   const renderView = () => {
     switch (view) {
       case 'menu': return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} />;
-      case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} onCreateAsset={createAsset} onUpdateAsset={updateAsset} onUpdateParentAsset={updateParentAsset} onDeleteAsset={deleteAsset} setView={setView} onNavigateEntry={navigateToEntry} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} />;
+      case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} categories={categories} onCreateCategory={createCategory} onCreateAsset={createAsset} onUpdateAsset={updateAsset} onUpdateParentAsset={updateParentAsset} onDeleteAsset={deleteAsset} setView={setView} onNavigateEntry={navigateToEntry} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} />;
       case 'history': return <MovementHistoryScreen movements={movements} setMovements={setMovements} setView={setView} assets={assets} staff={staff} updateMovement={updateMovement} deleteMovement={deleteMovement} pinnedAssetId={filterAssetId} />;
       case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} />;
       case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} />;
