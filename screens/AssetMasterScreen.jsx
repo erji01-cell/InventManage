@@ -39,14 +39,33 @@ function PrintDialog({ assets, onClose }) {
     const arr = [...assets];
     switch (sortOrder) {
       case 'id':           return arr.sort((a, b) => Number(a.id) - Number(b.id));
-      case 'category_id':  return arr.sort((a, b) => {
-        const c = String(a.parentId).localeCompare(String(b.parentId), undefined, { numeric: true });
-        return c !== 0 ? c : Number(a.id) - Number(b.id);
-      });
-      case 'category_kana': return arr.sort((a, b) => {
-        const c = String(a.parentId).localeCompare(String(b.parentId), undefined, { numeric: true });
-        return c !== 0 ? c : (a.kanaName || a.name).localeCompare(b.kanaName || b.name, 'ja');
-      });
+      case 'category_id': {
+        // 分類名ごとに最小の分類コードを求め、そのコード順でグループを並べる
+        const catOrder = new Map();
+        arr.forEach(a => {
+          const cur = catOrder.get(a.parentCategory);
+          if (!cur || String(a.parentId).localeCompare(cur, undefined, { numeric: true }) < 0) {
+            catOrder.set(a.parentCategory, String(a.parentId));
+          }
+        });
+        return arr.sort((a, b) => {
+          const c = catOrder.get(a.parentCategory).localeCompare(catOrder.get(b.parentCategory), undefined, { numeric: true });
+          return c !== 0 ? c : Number(a.id) - Number(b.id);
+        });
+      }
+      case 'category_kana': {
+        const catOrder = new Map();
+        arr.forEach(a => {
+          const cur = catOrder.get(a.parentCategory);
+          if (!cur || String(a.parentId).localeCompare(cur, undefined, { numeric: true }) < 0) {
+            catOrder.set(a.parentCategory, String(a.parentId));
+          }
+        });
+        return arr.sort((a, b) => {
+          const c = catOrder.get(a.parentCategory).localeCompare(catOrder.get(b.parentCategory), undefined, { numeric: true });
+          return c !== 0 ? c : (a.kanaName || a.name).localeCompare(b.kanaName || b.name, 'ja');
+        });
+      }
       case 'maker': return arr.sort((a, b) => (a.maker || '').localeCompare(b.maker || '', 'ja'));
       case 'kana':  return arr.sort((a, b) => (a.kanaName || a.name).localeCompare(b.kanaName || b.name, 'ja'));
       default:      return arr;
