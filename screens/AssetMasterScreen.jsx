@@ -418,7 +418,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
           </Button>
           <Button variant="history" onClick={() => setView('history')}><ArrowLeftRight size={18} /> 入出庫</Button>
           <Button variant="stock" onClick={() => setView('stock')}><Table2 size={18} /> 在庫表</Button>
-          <Button variant="assets" onClick={() => setShowPrintDialog(true)}><Printer size={18} /> 一覧印刷</Button>
+          <Button variant="assets" onClick={() => setShowPrintDialog(true)}><Printer size={18} /> 印刷</Button>
           <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 flex items-center gap-2">
             <p className="text-xs font-bold text-slate-400">表示件数</p>
             <p className="text-lg font-black text-slate-800">{filteredAssets.length.toLocaleString()}</p>
