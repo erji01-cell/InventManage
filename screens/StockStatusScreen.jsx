@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Printer, RefreshCcw, X } from 'lucide-react';
+import { ArrowLeftRight, Printer, RefreshCcw, Table2, X } from 'lucide-react';
 
 import { Button, Card } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
@@ -114,7 +114,11 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
           <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-900">在庫表</h2>
           <p className="mt-2 text-sm text-slate-500">月度を選択し、品名・メーカー・IDで絞り込めます。</p>
         </div>
-        <Button variant="primary" className="mr-10"><Printer size={18} /> 一覧印刷</Button>
+        <div className="flex items-center gap-3 mr-10">
+          <Button variant="primary" onClick={() => setView('history')}><ArrowLeftRight size={18} /> 入出庫データ</Button>
+          <Button variant="primary" onClick={() => setView('assets')}><Table2 size={18} /> 資産マスタ</Button>
+          <Button variant="primary"><Printer size={18} /> 一覧印刷</Button>
+        </div>
       </div>
 
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
