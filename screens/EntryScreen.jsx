@@ -60,9 +60,22 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.assetId || form.quantity <= 0 || isSaving) return;
+    if (isSaving) return;
+
     const actualDeliveryPrice = Number(form.actualDeliveryPrice || 0);
     const masterDeliveryPrice = Number(selectedAsset?.deliveryPrice || 0);
+
+    // 必須項目のまとめてチェック
+    const missing = [];
+    if (!form.assetId) missing.push('資産コード');
+    if (!form.date) missing.push(isIn ? '入庫日' : '出庫日');
+    if (!form.quantity || Number(form.quantity) <= 0) missing.push(isIn ? '入庫数' : '出庫数');
+    if (isIn && (!form.actualDeliveryPrice || actualDeliveryPrice <= 0)) missing.push('実購入価格');
+    if (missing.length > 0) {
+      setSaveError(`次の項目を入力してください：${missing.join('、')}`);
+      return;
+    }
+
     if (actualDeliveryPrice < 0) {
       setSaveError(`${isIn ? '実購入価格' : '評価単価'}は0以上で入力してください。`);
       return;
