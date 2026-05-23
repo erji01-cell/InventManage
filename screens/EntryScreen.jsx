@@ -29,13 +29,14 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
   const [assetListSignal, setAssetListSignal] = useState(0);
   const [assetCodeInput, setAssetCodeInput] = useState(initialAssetId || '');
   const assetInputRef = useRef(null);
+  const dateInputRef = useRef(null);
 
   // form.assetId が外部から変わった場合、コード入力枠にも反映
   useEffect(() => {
     setAssetCodeInput(form.assetId || '');
   }, [form.assetId]);
 
-  const selectAssetByCode = () => {
+  const selectAssetByCode = ({ focusDate = false } = {}) => {
     const normalized = String(assetCodeInput).trim();
     if (!normalized) {
       setSaveError('資産コードを入力してください。');
@@ -48,6 +49,9 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
     }
     setSaveError('');
     setForm((current) => ({ ...current, assetId: matched.id }));
+    if (focusDate) {
+      setTimeout(() => dateInputRef.current?.focus(), 0);
+    }
   };
 
   useEffect(() => {
@@ -175,7 +179,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    selectAssetByCode();
+                    selectAssetByCode({ focusDate: true });
                   }
                 }}
                 placeholder="コード"
@@ -220,8 +224,9 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
           <div className="grid grid-cols-3 items-center gap-4">
             <label className="font-bold text-slate-700">{isIn ? '入庫日' : '出庫日'}</label>
             <div className="col-span-2 flex gap-2 items-center">
-              <input 
-                type="date" 
+              <input
+                ref={dateInputRef}
+                type="date"
                 className="flex-1 p-2 border rounded-md"
                 value={form.date}
                 onChange={(e) => setForm({...form, date: e.target.value})}
