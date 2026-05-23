@@ -155,7 +155,7 @@ ${summaryHTML}
 </body></html>`;
 
   const buildTableHTML = (rows) => {
-    const headers = ['日付','分類','ID','メーカー','品名','入庫','出庫','残在庫','単位','実購入価格','使用期限'];
+    const headers = ['日付','分類','ID','メーカー','品名','入庫','出庫','残在庫','使用単位','実購入価格','使用期限'];
     const widths =  ['11%', '8%', '6%', '10%', '22%', '6%', '6%', '7%', '6%', '10%', '8%'];
     const ths = headers.map((h, i) => `<th style="width:${widths[i]}">${h}</th>`).join('');
     const tds = rows.map(({ m, asset, rs }) => {
@@ -392,7 +392,7 @@ ${summaryHTML}
               <th className="px-2 py-2 border-b border-slate-200 text-right w-16">入庫</th>
               <th className="px-2 py-2 border-b border-slate-200 text-right w-16">出庫</th>
               <th className="px-2 py-2 border-b border-slate-200 text-right w-20 bg-blue-50/70">残在庫</th>
-              <th className="px-2 py-2 border-b border-slate-200 text-center w-14">単位</th>
+              <th className="px-2 py-2 border-b border-slate-200 text-center w-14">使用単位</th>
               <th className="px-3 py-2 border-b border-slate-200 text-right w-28">実購入価格</th>
               <th className="px-3 py-2 border-b border-slate-200 w-24">使用期限</th>
             </tr>
@@ -514,7 +514,7 @@ ${summaryHTML}
                   className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-right text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 />
               </EditableDetail>
-              <DetailItem label="単位" value={selectedMovement.asset?.usageUnit || '-'} />
+              <DetailItem label="使用単位" value={selectedMovement.asset?.usageUnit || '-'} />
               <EditableDetail label="実購入単価">
                 <input
                   type="number"
