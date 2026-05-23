@@ -164,41 +164,45 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <label className="font-bold text-slate-700 whitespace-nowrap">資産コード</label>
-            <input
-              type="text"
-              value={assetCodeInput}
-              onChange={(e) => setAssetCodeInput(e.target.value)}
-              onBlur={() => { if (assetCodeInput && assetCodeInput !== form.assetId) selectAssetByCode(); }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  selectAssetByCode();
-                }
-              }}
-              placeholder="コード"
-              className={`w-16 p-2 text-center rounded border outline-none focus:ring-2 ${
-                isIn ? 'bg-emerald-50 focus:ring-emerald-200' : 'bg-rose-50 focus:ring-rose-200'
-              }`}
-            />
-            <div className="flex-1 min-w-0">
-              <AssetSearchInput
-                assets={assets}
-                value={form.assetId}
-                onChange={(id) => setForm({...form, assetId: id})}
-                isIn={isIn}
-                showListSignal={assetListSignal}
-                inputRef={assetInputRef}
+          <div className="grid grid-cols-3 items-center gap-4">
+            <div className="flex items-center gap-2">
+              <label className="font-bold text-slate-700 whitespace-nowrap">資産コード</label>
+              <input
+                type="text"
+                value={assetCodeInput}
+                onChange={(e) => setAssetCodeInput(e.target.value)}
+                onBlur={() => { if (assetCodeInput && assetCodeInput !== form.assetId) selectAssetByCode(); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    selectAssetByCode();
+                  }
+                }}
+                placeholder="コード"
+                className={`flex-1 min-w-0 p-2 text-center rounded border outline-none focus:ring-2 ${
+                  isIn ? 'bg-emerald-50 focus:ring-emerald-200' : 'bg-rose-50 focus:ring-rose-200'
+                }`}
               />
             </div>
-            <Button
-              variant="action"
-              className="whitespace-nowrap"
-              onClick={() => { onSaveForm?.(form); setView('assets'); }}
-            >
-              資産マスタ
-            </Button>
+            <div className="col-span-2 flex gap-2">
+              <div className="flex-1 min-w-0">
+                <AssetSearchInput
+                  assets={assets}
+                  value={form.assetId}
+                  onChange={(id) => setForm({...form, assetId: id})}
+                  isIn={isIn}
+                  showListSignal={assetListSignal}
+                  inputRef={assetInputRef}
+                />
+              </div>
+              <Button
+                variant="action"
+                className="whitespace-nowrap"
+                onClick={() => { onSaveForm?.(form); setView('assets'); }}
+              >
+                資産マスタ
+              </Button>
+            </div>
           </div>
 
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
