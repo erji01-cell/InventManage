@@ -179,18 +179,20 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
                   }
                 }}
                 placeholder="コード"
-                className={`w-24 p-2 text-center rounded border outline-none focus:ring-2 ${
+                className={`w-16 p-2 text-center rounded border outline-none focus:ring-2 ${
                   isIn ? 'bg-emerald-50 focus:ring-emerald-200' : 'bg-rose-50 focus:ring-rose-200'
                 }`}
               />
-              <AssetSearchInput
-                assets={assets}
-                value={form.assetId}
-                onChange={(id) => setForm({...form, assetId: id})}
-                isIn={isIn}
-                showListSignal={assetListSignal}
-                inputRef={assetInputRef}
-              />
+              <div className="flex-1 min-w-0">
+                <AssetSearchInput
+                  assets={assets}
+                  value={form.assetId}
+                  onChange={(id) => setForm({...form, assetId: id})}
+                  isIn={isIn}
+                  showListSignal={assetListSignal}
+                  inputRef={assetInputRef}
+                />
+              </div>
               <Button
                 variant="action"
                 className="whitespace-nowrap"
