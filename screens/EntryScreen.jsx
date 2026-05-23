@@ -27,7 +27,28 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [assetListSignal, setAssetListSignal] = useState(0);
+  const [assetCodeInput, setAssetCodeInput] = useState(initialAssetId || '');
   const assetInputRef = useRef(null);
+
+  // form.assetId が外部から変わった場合、コード入力枠にも反映
+  useEffect(() => {
+    setAssetCodeInput(form.assetId || '');
+  }, [form.assetId]);
+
+  const selectAssetByCode = () => {
+    const normalized = String(assetCodeInput).trim();
+    if (!normalized) {
+      setSaveError('資産コードを入力してください。');
+      return;
+    }
+    const matched = assets.find((a) => String(a.id) === normalized);
+    if (!matched) {
+      setSaveError(`資産コード ${normalized} は見つかりません。`);
+      return;
+    }
+    setSaveError('');
+    setForm((current) => ({ ...current, assetId: matched.id }));
+  };
 
   useEffect(() => {
     if (!form.staffId && staff.length > 0) {
@@ -146,9 +167,25 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
           <div className="grid grid-cols-3 items-center gap-4">
             <label className="font-bold text-slate-700">資産コード</label>
             <div className="col-span-2 flex gap-2">
-              <AssetSearchInput 
-                assets={assets} 
-                value={form.assetId} 
+              <input
+                type="text"
+                value={assetCodeInput}
+                onChange={(e) => setAssetCodeInput(e.target.value)}
+                onBlur={() => { if (assetCodeInput && assetCodeInput !== form.assetId) selectAssetByCode(); }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    selectAssetByCode();
+                  }
+                }}
+                placeholder="コード"
+                className={`w-24 p-2 text-center rounded border outline-none focus:ring-2 ${
+                  isIn ? 'bg-emerald-50 focus:ring-emerald-200' : 'bg-rose-50 focus:ring-rose-200'
+                }`}
+              />
+              <AssetSearchInput
+                assets={assets}
+                value={form.assetId}
                 onChange={(id) => setForm({...form, assetId: id})}
                 isIn={isIn}
                 showListSignal={assetListSignal}

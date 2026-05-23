@@ -463,8 +463,8 @@ ${summaryHTML}
 
       {selectedMovement && movementEditForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-lg bg-white p-6 shadow-xl">
-            <div className="mb-5 flex items-start justify-between gap-4">
+          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-lg bg-white shadow-xl">
+            <div className="flex items-start justify-between gap-4 px-6 pt-5 pb-3 border-b border-slate-100">
               <div>
                 <p className="text-xs font-bold text-slate-400">入出庫データ詳細</p>
                 <h3 className="mt-1 text-xl font-bold text-slate-800">{selectedMovement.asset?.name || '-'}</h3>
@@ -472,6 +472,7 @@ ${summaryHTML}
               </div>
             </div>
 
+            <div className="flex-1 overflow-auto px-6 py-4">
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="col-span-2">
                 <EditableDetail label="資産コード">
@@ -558,8 +559,9 @@ ${summaryHTML}
                 {movementSaveError}
               </div>
             )}
+            </div>
 
-            <div className="mt-6 flex justify-end gap-3">
+            <div className="flex justify-end gap-3 border-t border-slate-100 px-6 py-4 bg-slate-50/50 rounded-b-lg">
               <Button variant="success" onClick={saveMovementDetail} disabled={isMovementSaving}>
                 <Save size={18} /> {isMovementSaving ? '保存中...' : '保存'}
               </Button>
