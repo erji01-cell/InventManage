@@ -105,6 +105,16 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
         type,
         staffName: staff.find(s => s.id === form.staffId)?.name || '不明'
       });
+      // 担当者と入出庫日以外をリセット
+      setForm((current) => ({
+        ...current,
+        assetId: '',
+        quantity: 0,
+        actualDeliveryPrice: 0,
+        expirationDate: '',
+        lotNumber: '',
+        memo: '',
+      }));
     } catch (err) {
       setSaveError(err.message);
     } finally {

@@ -131,9 +131,7 @@ export default function App() {
     if (data.updateMasterDeliveryPrice && asset && actualDeliveryPrice !== asset.deliveryPrice) {
       await updateAsset(asset.id, { delivery_price: actualDeliveryPrice });
     }
-
-    clearEntryState();
-    setView('history');
+    // 登録後は画面遷移せず、その場に留まる（フォームのリセットはEntryScreen側で実施）
   };
 
   const performYearEndUpdate = async () => {
