@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ArrowLeft, Download, Upload, RefreshCcw, Trash2, Save } from 'lucide-react';
+import { Database, Download, Upload, RefreshCcw, Save, X } from 'lucide-react';
 
 import { Button, Card } from '../components/ui.jsx';
 import {
@@ -134,29 +134,23 @@ export default function BackupScreen({ session, setView, onRestored }) {
   };
 
   return (
-    <div>
-      <div className="mb-6 flex items-center gap-3">
-        <Button variant="secondary" onClick={() => setView('menu')}>
-          <ArrowLeft size={16} />
-          メニュー
-        </Button>
-        <h1 className="text-2xl font-bold">バックアップ管理</h1>
-      </div>
+    <Card className="max-h-[90vh] flex flex-col relative">
+      <button
+        onClick={() => setView('menu')}
+        className="absolute top-3 right-3 rounded-full p-1 text-slate-300 hover:bg-slate-100 hover:text-slate-600 transition-colors z-10"
+        title="閉じる"
+      >
+        <X size={20} />
+      </button>
 
-      {message && (
-        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 text-green-800 text-sm">
-          {message}
+      {/* ヘッダー */}
+      <div className="mb-5 flex items-end justify-between border-b border-slate-200 pb-4">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-purple-500">Backup & Restore</p>
+          <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-900">バックアップ管理</h2>
+          <p className="mt-2 text-sm text-slate-500">データを JSON 形式で保存・復元します</p>
         </div>
-      )}
-      {error && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-red-700 text-sm whitespace-pre-wrap">
-          {error}
-        </div>
-      )}
-
-      <Card className="mb-4">
-        <h2 className="text-lg font-bold mb-3">手動バックアップ / 復元</h2>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex items-center gap-3 mr-8">
           <Button variant="success" onClick={handleBackup} disabled={busy}>
             <Save size={16} />
             今すぐバックアップ
@@ -171,62 +165,75 @@ export default function BackupScreen({ session, setView, onRestored }) {
             一覧を更新
           </Button>
         </div>
-        <p className="mt-3 text-xs text-slate-500">
-          バックアップ実行時：① Supabase Storage に JSON 保存 ② ローカルに JSON ダウンロード ③ 古いバックアップを直近30件まで自動削除。
-        </p>
-      </Card>
+      </div>
 
-      <Card className="mb-4">
-        <h2 className="text-lg font-bold mb-3">自動バックアップ設定</h2>
+      {/* メッセージ */}
+      {message && (
+        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-3 text-green-800 text-sm">
+          {message}
+        </div>
+      )}
+      {error && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-red-700 text-sm whitespace-pre-wrap">
+          {error}
+        </div>
+      )}
+
+      {/* 自動バックアップ設定 */}
+      <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 flex items-center gap-6 flex-wrap">
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={autoEnabled} onChange={toggleAuto} className="w-4 h-4" />
-          <span className="text-sm">アプリ起動時に前回から 24 時間以上経過していれば自動実行（実質 1 日 1 回）</span>
+          <span className="text-sm font-medium">自動バックアップ（1日1回）</span>
         </label>
-        <p className="mt-2 text-sm text-slate-600">
-          前回バックアップ: <span className="font-bold">{formatDateTime(lastBackup)}</span>
-        </p>
-      </Card>
+        <span className="text-sm text-slate-500">
+          前回: <span className="font-bold text-slate-700">{formatDateTime(lastBackup)}</span>
+        </span>
+        <span className="text-xs text-slate-400 ml-auto">
+          ① Storage 保存 ② ローカル DL ③ 古い分を自動削除（最大30件）
+        </span>
+      </div>
 
-      <Card>
-        <h2 className="text-lg font-bold mb-3">Storage 内のバックアップ（最新 {items.length} 件 / 最大30件保持）</h2>
+      {/* Storage 一覧 */}
+      <div className="overflow-auto flex-1">
+        <div className="mb-2 text-sm font-bold text-slate-600">
+          Storage 内のバックアップ（{items.length} 件 / 最大30件保持）
+        </div>
         {loading ? (
           <p className="text-slate-500 text-sm">読み込み中...</p>
         ) : items.length === 0 ? (
           <p className="text-slate-500 text-sm">バックアップはありません。</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50">
-                <tr>
-                  <th className="text-left p-2">日時</th>
-                  <th className="text-left p-2">ファイル名</th>
-                  <th className="text-right p-2">操作</th>
+          <table className="w-full text-sm border-collapse">
+            <thead className="bg-slate-100 sticky top-0">
+              <tr>
+                <th className="text-left px-3 py-2 border-b border-slate-200">日時</th>
+                <th className="text-left px-3 py-2 border-b border-slate-200">ファイル名</th>
+                <th className="text-right px-3 py-2 border-b border-slate-200">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((it) => (
+                <tr key={it.name} className="border-b border-slate-100 hover:bg-slate-50">
+                  <td className="px-3 py-2 font-mono">{parseFileNameToDate(it.name)}</td>
+                  <td className="px-3 py-2 font-mono text-xs text-slate-400">{it.name}</td>
+                  <td className="px-3 py-2">
+                    <div className="flex gap-2 justify-end">
+                      <Button variant="secondary" onClick={() => handleDownloadFromStorage(it.name)} disabled={busy}>
+                        <Download size={14} />
+                        DL
+                      </Button>
+                      <Button variant="danger" onClick={() => handleRestoreFromStorage(it.name)} disabled={busy}>
+                        <Upload size={14} />
+                        復元
+                      </Button>
+                    </div>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {items.map((it) => (
-                  <tr key={it.name} className="border-t border-slate-100">
-                    <td className="p-2 font-mono">{parseFileNameToDate(it.name)}</td>
-                    <td className="p-2 font-mono text-xs text-slate-500">{it.name}</td>
-                    <td className="p-2">
-                      <div className="flex gap-2 justify-end">
-                        <Button variant="secondary" onClick={() => handleDownloadFromStorage(it.name)} disabled={busy}>
-                          <Download size={14} />
-                          DL
-                        </Button>
-                        <Button variant="danger" onClick={() => handleRestoreFromStorage(it.name)} disabled={busy}>
-                          <Upload size={14} />
-                          復元
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              ))}
+            </tbody>
+          </table>
         )}
-      </Card>
-    </div>
+      </div>
+    </Card>
   );
 }
