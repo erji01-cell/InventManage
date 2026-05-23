@@ -474,7 +474,7 @@ ${summaryHTML}
 
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="col-span-2">
-                <EditableDetail label="品名">
+                <EditableDetail label="資産コード">
                   <AssetSearchInput
                     assets={assets}
                     value={movementEditForm.assetId}
@@ -560,11 +560,11 @@ ${summaryHTML}
             )}
 
             <div className="mt-6 flex justify-end gap-3">
-              <Button variant="secondary" onClick={closeMovementDetail} disabled={isMovementSaving}>
-                閉じる
-              </Button>
               <Button variant="success" onClick={saveMovementDetail} disabled={isMovementSaving}>
                 <Save size={18} /> {isMovementSaving ? '保存中...' : '保存'}
+              </Button>
+              <Button variant="secondary" onClick={closeMovementDetail} disabled={isMovementSaving}>
+                閉じる
               </Button>
             </div>
           </div>
