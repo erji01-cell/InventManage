@@ -140,6 +140,8 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
       type: normalizeMovementType(movement.type) || 'in',
       quantity: movement.quantity || 0,
       actualDeliveryPrice: movement.actualDeliveryPrice ?? 0,
+      expirationDate: movement.expirationDate || '',
+      lotNumber: movement.lotNumber || '',
       staffId: movement.staffId || '',
       staffName: movement.staffName || '',
       memo: movement.memo || '',
@@ -294,6 +296,8 @@ ${summaryHTML}
         movement_type: movementEditForm.type,
         quantity,
         actual_delivery_price: movementEditForm.type === 'in' ? actualDeliveryPrice : 0,
+        expiration_date: movementEditForm.expirationDate || null,
+        lot_number: movementEditForm.lotNumber || null,
         staff_code: staffMember ? Number(staffMember.id) : null,
         staff_name: staffMember?.name || movementEditForm.staffName || null,
         memo: movementEditForm.memo || null,
@@ -301,10 +305,13 @@ ${summaryHTML}
       const updatedAsset = assets.find((asset) => asset.id === updated.assetId) || selectedMovement.asset;
       setSelectedMovement({ movement: updated, asset: updatedAsset });
       setMovementEditForm({
+        assetId: updated.assetId || '',
         date: updated.date || '',
         type: updated.type || 'in',
         quantity: updated.quantity || 0,
         actualDeliveryPrice: updated.actualDeliveryPrice ?? 0,
+        expirationDate: updated.expirationDate || '',
+        lotNumber: updated.lotNumber || '',
         staffId: updated.staffId || '',
         staffName: updated.staffName || '',
         memo: updated.memo || '',
@@ -627,8 +634,23 @@ ${summaryHTML}
                   className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-right text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50 disabled:text-slate-400"
                 />
               </EditableDetail>
-              <DetailItem label="使用期限" value={selectedMovement.movement.expirationDate || '-'} />
-              <DetailItem label="ロット番号" value={selectedMovement.movement.lotNumber || '-'} />
+              <EditableDetail label="使用期限">
+                <input
+                  type="date"
+                  value={movementEditForm.expirationDate}
+                  onChange={(event) => updateMovementEditForm('expirationDate', event.target.value)}
+                  className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+              </EditableDetail>
+              <EditableDetail label="ロット番号">
+                <input
+                  type="text"
+                  value={movementEditForm.lotNumber}
+                  onChange={(event) => updateMovementEditForm('lotNumber', event.target.value)}
+                  placeholder="ロット番号を入力"
+                  className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+              </EditableDetail>
               <EditableDetail label="担当者名">
                 <select
                   value={movementEditForm.staffId}
