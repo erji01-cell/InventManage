@@ -28,8 +28,20 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
   const [saveError, setSaveError] = useState('');
   const [assetListSignal, setAssetListSignal] = useState(0);
   const [assetCodeInput, setAssetCodeInput] = useState(initialAssetId || '');
+  const staffSelectRef = useRef(null);
+  const assetCodeInputRef = useRef(null);
   const assetInputRef = useRef(null);
   const dateInputRef = useRef(null);
+  const priceInputRef = useRef(null);
+  const quantityInputRef = useRef(null);
+  const expirationInputRef = useRef(null);
+  const memoInputRef = useRef(null);
+  const submitBtnRef = useRef(null);
+
+  // 入出庫画面を開いたとき担当者に自動フォーカス
+  useEffect(() => {
+    setTimeout(() => staffSelectRef.current?.focus(), 0);
+  }, []);
 
   // form.assetId が外部から変わった場合、コード入力枠にも反映
   useEffect(() => {
@@ -130,7 +142,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
         type,
         staffName: staff.find(s => s.id === form.staffId)?.name || '不明'
       });
-      // 担当者と入出庫日以外をリセット
+      // 担当者と入出庫日以外をリセットし、担当者にフォーカスを戻す
       setForm((current) => ({
         ...current,
         assetId: '',
@@ -140,6 +152,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
         lotNumber: '',
         memo: '',
       }));
+      setTimeout(() => staffSelectRef.current?.focus(), 0);
     } catch (err) {
       setSaveError(err.message);
     } finally {
@@ -159,9 +172,16 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
             <label className="font-bold text-slate-700">担当者</label>
             <div className="col-span-2">
               <select
+                ref={staffSelectRef}
                 className={`w-full p-2 border rounded-md outline-none focus:ring-2 ${isIn ? 'focus:ring-emerald-500' : 'focus:ring-rose-500'}`}
                 value={form.staffId}
                 onChange={(e) => setForm({...form, staffId: e.target.value})}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !isIn) {
+                    e.preventDefault();
+                    assetCodeInputRef.current?.focus();
+                  }
+                }}
               >
                 {staff.map(s => <option key={s.id} value={s.id}>{s.id} {s.name}</option>)}
               </select>
@@ -172,6 +192,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
             <div className="flex items-center gap-2">
               <label className="font-bold text-slate-700 whitespace-nowrap">資産コード</label>
               <input
+                ref={assetCodeInputRef}
                 type="text"
                 value={assetCodeInput}
                 onChange={(e) => setAssetCodeInput(e.target.value)}
@@ -230,6 +251,13 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
                 className="flex-1 p-2 border rounded-md"
                 value={form.date}
                 onChange={(e) => setForm({...form, date: e.target.value})}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (isIn) priceInputRef.current?.focus();
+                    else quantityInputRef.current?.focus();
+                  }
+                }}
               />
               <Button onClick={() => setForm({...form, date: new Date().toISOString().split('T')[0]})}>本日</Button>
             </div>
@@ -240,11 +268,18 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
               <label className="font-bold text-slate-700">実購入価格</label>
               <div className="col-span-2 flex gap-2 items-center">
                 <input
+                  ref={priceInputRef}
                   type="number"
                   min="0"
                   className="flex-1 p-2 border rounded-md bg-emerald-50 text-right"
                   value={form.actualDeliveryPrice}
                   onChange={(e) => setForm({...form, actualDeliveryPrice: Number(e.target.value) || 0})}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      quantityInputRef.current?.focus();
+                    }
+                  }}
                 />
                 <span className="font-bold text-slate-600">円</span>
               </div>
@@ -256,10 +291,18 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
             <div className="col-span-2 space-y-1">
               <div className="flex gap-2 items-center">
                 <input
+                  ref={quantityInputRef}
                   type="number"
                   className={`flex-1 p-2 border rounded-md ${isIn ? 'bg-emerald-50' : 'bg-rose-50'}`}
                   value={form.quantity}
                   onChange={(e) => setForm({...form, quantity: parseInt(e.target.value) || 0})}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (isIn) expirationInputRef.current?.focus();
+                      else memoInputRef.current?.focus();
+                    }
+                  }}
                 />
                 <span className="font-bold text-slate-600">{selectedAsset?.usageUnit || '個'}</span>
               </div>
@@ -277,20 +320,34 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
             <div className="grid grid-cols-3 items-center gap-4">
               <label className="font-bold text-slate-700">使用期限</label>
               <input
+                ref={expirationInputRef}
                 type="date"
                 className="col-span-2 p-2 border rounded-md"
                 value={form.expirationDate}
                 onChange={(e) => setForm({...form, expirationDate: e.target.value})}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    memoInputRef.current?.focus();
+                  }
+                }}
               />
             </div>
           )}
 
           <div className="grid grid-cols-3 items-start gap-4">
             <label className="font-bold text-slate-700">摘要</label>
-            <textarea 
+            <textarea
+              ref={memoInputRef}
               className={`col-span-2 p-2 border rounded-md h-20 ${isIn ? 'bg-emerald-50' : 'bg-rose-50'}`}
               value={form.memo}
               onChange={(e) => setForm({...form, memo: e.target.value})}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  submitBtnRef.current?.focus();
+                }
+              }}
             />
           </div>
 
@@ -302,7 +359,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
 
           <div className="flex justify-end items-center pt-6 border-t border-slate-100">
             <div className="flex gap-2">
-              <Button variant={btnVariant} className="px-10" onClick={handleSubmit} disabled={isSaving}>
+              <Button ref={submitBtnRef} variant={btnVariant} className="px-10" onClick={handleSubmit} disabled={isSaving}>
                 {isSaving ? '登録中...' : '登録'}
               </Button>
               <Button variant="secondary" onClick={onCancel}>閉じる</Button>

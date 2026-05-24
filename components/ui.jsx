@@ -1,6 +1,6 @@
 import React from 'react';
 
-export const Button = ({ children, onClick, variant = 'primary', className = '', disabled = false, type = "button" }) => {
+export const Button = React.forwardRef(({ children, onClick, variant = 'primary', className = '', disabled = false, type = "button" }, ref) => {
   const baseStyle = "px-4 py-2 rounded-md font-medium transition-all flex items-center justify-center gap-2 shadow-sm border";
   const variants = {
     primary: "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 active:bg-blue-200",
@@ -15,16 +15,17 @@ export const Button = ({ children, onClick, variant = 'primary', className = '',
   };
 
   return (
-    <button 
+    <button
+      ref={ref}
       type={type}
-      onClick={onClick} 
+      onClick={onClick}
       className={`${baseStyle} ${variants[variant]} ${className} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       disabled={disabled}
     >
       {children}
     </button>
   );
-};
+});
 
 export const Card = ({ children, className = "" }) => (
   <div className={`bg-white rounded-lg shadow-lg border border-gray-100 p-6 ${className}`}>

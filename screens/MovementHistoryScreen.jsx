@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeftRight, Printer, Save, Table2, X } from 'lucide-react';
 
 import { Button, Card, DetailItem, EditableDetail } from '../components/ui.jsx';
@@ -23,6 +23,29 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
   const [movementSaveError, setMovementSaveError] = useState('');
   const [isMovementSaving, setIsMovementSaving] = useState(false);
   const [showPrintMenu, setShowPrintMenu] = useState(false);
+  const [editAssetCodeInput, setEditAssetCodeInput] = useState('');
+
+  // AssetSearchInput 等で assetId が変わった場合、コード入力枠にも反映
+  useEffect(() => {
+    if (movementEditForm) {
+      setEditAssetCodeInput(movementEditForm.assetId || '');
+    }
+  }, [movementEditForm?.assetId]);
+
+  const selectEditAssetByCode = () => {
+    const normalized = String(editAssetCodeInput).trim();
+    if (!normalized) {
+      setMovementSaveError('資産コードを入力してください。');
+      return;
+    }
+    const matched = assets.find((a) => String(a.id) === normalized);
+    if (!matched) {
+      setMovementSaveError(`資産コード ${normalized} は見つかりません。`);
+      return;
+    }
+    setMovementSaveError('');
+    setMovementEditForm(prev => ({ ...prev, assetId: matched.id }));
+  };
 
   // 品目ごとに日付・ID順で累積計算し、各取引後の残在庫を求める
   const runningStockMap = useMemo(() => {
@@ -103,6 +126,7 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
       staffName: movement.staffName || '',
       memo: movement.memo || '',
     });
+    setEditAssetCodeInput(movement.assetId || '');
     setMovementSaveError('');
   };
 
@@ -476,13 +500,33 @@ ${summaryHTML}
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div className="col-span-2">
                 <EditableDetail label="資産コード">
-                  <AssetSearchInput
-                    assets={assets}
-                    value={movementEditForm.assetId}
-                    onChange={(value) => updateMovementEditForm('assetId', value)}
-                    isIn={movementEditForm.type === 'in'}
-                    showListSignal={0}
-                  />
+                  <div className="mt-1 flex gap-2 items-center">
+                    <input
+                      type="text"
+                      value={editAssetCodeInput}
+                      onChange={(e) => setEditAssetCodeInput(e.target.value)}
+                      onBlur={() => { if (editAssetCodeInput && editAssetCodeInput !== movementEditForm.assetId) selectEditAssetByCode(); }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          selectEditAssetByCode();
+                        }
+                      }}
+                      placeholder="コード"
+                      className={`w-20 p-2 text-center rounded border outline-none focus:ring-2 ${
+                        movementEditForm.type === 'in' ? 'bg-emerald-50 focus:ring-emerald-200' : 'bg-rose-50 focus:ring-rose-200'
+                      }`}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <AssetSearchInput
+                        assets={assets}
+                        value={movementEditForm.assetId}
+                        onChange={(value) => updateMovementEditForm('assetId', value)}
+                        isIn={movementEditForm.type === 'in'}
+                        showListSignal={0}
+                      />
+                    </div>
+                  </div>
                 </EditableDetail>
               </div>
               <EditableDetail label="入出庫日">
