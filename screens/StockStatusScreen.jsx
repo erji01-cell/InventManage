@@ -3,7 +3,7 @@ import { ArrowLeftRight, Printer, RefreshCcw, Table2, X } from 'lucide-react';
 
 import { Button, Card } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
-import { normalizeMovementType, parseLocalDate } from '../utils/inventory.js';
+import { isMovementAfterClose, normalizeMovementType, parseLocalDate } from '../utils/inventory.js';
 
 export default function StockStatusScreen({ assets, movements, setView, pinnedAssetId = '', onNavigateHistory }) {
   const fiscalMonths = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
@@ -58,12 +58,10 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
   const stockData = useMemo(() => {
     return assets.map(asset => {
       // 年度クローズ日以前の入出庫は opening_stock に既に反映済みなので除外
-      const closedAt = asset.fiscalYearClosedAt ? parseLocalDate(asset.fiscalYearClosedAt) : null;
+      const closedAt = asset.fiscalYearClosedAt || null;
       const assetMovements = movements.filter(m => {
         if (m.assetId !== asset.id) return false;
-        if (!closedAt) return true;
-        const md = parseLocalDate(m.date);
-        return md && md > closedAt;
+        return isMovementAfterClose(m.date, closedAt);
       });
       const initialStock = asset.openingStock || 0;
       const beforeMonthTotal = assetMovements.reduce((sum, movement) => {

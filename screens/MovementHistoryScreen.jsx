@@ -3,10 +3,13 @@ import { ArrowLeftRight, Printer, Save, Table2, Trash2, X } from 'lucide-react';
 
 import { Button, Card, DetailItem, EditableDetail } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
-import { normalizeMovementType, parseLocalDate } from '../utils/inventory.js';
+import { isMovementAfterClose, normalizeMovementType, parseLocalDate } from '../utils/inventory.js';
 
-// 棚卸し調整かどうか判定（memo先頭が [棚卸し調整]）
-const isAdjustmentMovement = (m) => /^\s*\[棚卸し調整\]/.test(m?.memo || '');
+// 棚卸し調整かどうか判定
+// 新データは stocktakingCountId、旧データは memo プレフィックスで後方互換
+const isAdjustmentMovement = (m) =>
+  m?.stocktakingCountId != null
+  || /^\s*\[棚卸し調整\]/.test(m?.memo || '');
 
 export default function MovementHistoryScreen({ movements, setView, assets, staff = [], updateMovement, deleteMovement, pinnedAssetId = '' }) {
   const [filterType, setFilterType] = useState('all');
@@ -72,8 +75,7 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
       let stock = openingStock;
       sorted.forEach(m => {
         // 年度クローズ済み期間の入出庫は opening_stock に反映済みなので残在庫計算から除外
-        const md = String(m.date || '').replaceAll('/', '-');
-        if (closedAt && md && md <= closedAt) {
+        if (!isMovementAfterClose(m.date, closedAt)) {
           map.set(String(m.id), null); // 過去年度の行は残在庫表示なし
           return;
         }

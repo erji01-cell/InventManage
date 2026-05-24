@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 
 import { Button, Card, InfoLine } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
+import { isMovementAfterClose } from '../utils/inventory.js';
 
 export default function EntryScreen({ type, onSave, onCancel, assets, movements = [], staff, setView, initialAssetId = null, savedEntryForm = null, onSaveForm }) {
   const isIn = type === 'in';
@@ -78,13 +79,8 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
   const selectedAsset = assets.find(a => a.id === form.assetId);
   // 年度更新でクローズ済みの期間は除外（opening_stock に既に反映済みのため二重計上を防ぐ）
   const closedAt = selectedAsset?.fiscalYearClosedAt || null;
-  const isAfterClose = (m) => {
-    if (!closedAt) return true;
-    if (!m.date) return false;
-    return String(m.date).replaceAll('/', '-') > closedAt;
-  };
   const selectedAssetMovements = selectedAsset
-    ? movements.filter(movement => movement.assetId === selectedAsset.id && isAfterClose(movement))
+    ? movements.filter(movement => movement.assetId === selectedAsset.id && isMovementAfterClose(movement.date, closedAt))
     : [];
   const inboundTotal = selectedAssetMovements
     .filter(movement => movement.type === 'in')

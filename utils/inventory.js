@@ -88,5 +88,6 @@ export function normalizeMovement(row, staffMap) {
     staffId,
     staffName: row.staff_name || staff?.name || '',
     memo: row.memo || '',
+    stocktakingCountId: row.stocktaking_count_id ?? null,
   };
 }
