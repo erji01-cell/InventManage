@@ -8,6 +8,8 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
   const title = isIn ? '入庫データ入力・修正' : '出庫データ入力・修正';
   const accentColor = isIn ? 'text-emerald-700' : 'text-rose-700';
   const btnVariant = isIn ? 'success' : 'danger';
+  // フォーカス時の視認性強化用クラス
+  const focusClass = `focus:outline-none focus:ring-4 focus:bg-yellow-50 ${isIn ? 'focus:ring-emerald-300 focus:border-emerald-400' : 'focus:ring-rose-300 focus:border-rose-400'}`;
 
   const [form, setForm] = useState(() => {
     if (initialAssetId && savedEntryForm) {
@@ -173,7 +175,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
             <div className="col-span-2">
               <select
                 ref={staffSelectRef}
-                className={`w-full p-2 border rounded-md outline-none focus:ring-2 ${isIn ? 'focus:ring-emerald-500' : 'focus:ring-rose-500'}`}
+                className={`w-full p-2 border rounded-md ${focusClass}`}
                 value={form.staffId}
                 onChange={(e) => setForm({...form, staffId: e.target.value})}
                 onKeyDown={(e) => {
@@ -204,9 +206,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
                   }
                 }}
                 placeholder="コード"
-                className={`flex-1 min-w-0 p-2 text-center rounded border outline-none focus:ring-2 ${
-                  isIn ? 'bg-emerald-50 focus:ring-emerald-200' : 'bg-rose-50 focus:ring-rose-200'
-                }`}
+                className={`flex-1 min-w-0 p-2 text-center rounded border ${isIn ? 'bg-emerald-50' : 'bg-rose-50'} ${focusClass}`}
               />
             </div>
             <div className="col-span-2 flex gap-2">
@@ -248,7 +248,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
               <input
                 ref={dateInputRef}
                 type="date"
-                className="flex-1 p-2 border rounded-md"
+                className={`flex-1 p-2 border rounded-md ${focusClass}`}
                 value={form.date}
                 onChange={(e) => setForm({...form, date: e.target.value})}
                 onKeyDown={(e) => {
@@ -281,7 +281,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
                   ref={priceInputRef}
                   type="number"
                   min="0"
-                  className="flex-1 p-2 border rounded-md bg-emerald-50 text-right"
+                  className={`flex-1 p-2 border rounded-md bg-emerald-50 text-right ${focusClass}`}
                   value={form.actualDeliveryPrice}
                   onChange={(e) => setForm({...form, actualDeliveryPrice: Number(e.target.value) || 0})}
                   onKeyDown={(e) => {
@@ -303,7 +303,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
                 <input
                   ref={quantityInputRef}
                   type="number"
-                  className={`flex-1 p-2 border rounded-md ${isIn ? 'bg-emerald-50' : 'bg-rose-50'}`}
+                  className={`flex-1 p-2 border rounded-md ${isIn ? 'bg-emerald-50' : 'bg-rose-50'} ${focusClass}`}
                   value={form.quantity}
                   onChange={(e) => setForm({...form, quantity: parseInt(e.target.value) || 0})}
                   onKeyDown={(e) => {
@@ -332,7 +332,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
               <input
                 ref={expirationInputRef}
                 type="date"
-                className="col-span-2 p-2 border rounded-md"
+                className={`col-span-2 p-2 border rounded-md ${focusClass}`}
                 value={form.expirationDate}
                 onChange={(e) => setForm({...form, expirationDate: e.target.value})}
                 onKeyDown={(e) => {
@@ -349,7 +349,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
             <label className="font-bold text-slate-700">摘要</label>
             <textarea
               ref={memoInputRef}
-              className={`col-span-2 p-2 border rounded-md h-20 ${isIn ? 'bg-emerald-50' : 'bg-rose-50'}`}
+              className={`col-span-2 p-2 border rounded-md h-20 ${isIn ? 'bg-emerald-50' : 'bg-rose-50'} ${focusClass}`}
               value={form.memo}
               onChange={(e) => setForm({...form, memo: e.target.value})}
               onKeyDown={(e) => {
