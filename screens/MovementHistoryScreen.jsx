@@ -477,7 +477,6 @@ ${summaryHTML}
             {displayedMovements.map((m, index) => {
               const asset = assets.find(a => a.id === m.assetId);
               const movementType = m.normalizedType;
-              if (filterType !== 'all' && movementType !== filterType) return null;
               const isAdjust = isAdjustmentMovement(m);
               return (
                 <tr key={`${filterType}-${m.id || 'movement'}-${movementType}-${m.assetId}-${m.date}-${index}`} className={`cursor-pointer transition-colors border-b border-slate-100 group align-top ${isAdjust ? 'bg-teal-50 hover:bg-teal-100 border-l-4 border-l-teal-400' : 'hover:bg-blue-50'}`} onClick={() => openMovementDetail(m, asset)}>
