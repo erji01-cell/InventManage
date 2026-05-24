@@ -119,10 +119,10 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
           <MenuButton icon={<Table size={24} />} title="在庫表" color="bg-amber-50 text-amber-700" onClick={() => setView('stock')} />
           <MenuButton icon={<MinusCircle size={24} />} title="出庫画面" color="bg-rose-50 text-rose-700" onClick={() => setView('outbound')} />
           <MenuButton icon={<Package size={24} />} title="資産マスタ" color="bg-indigo-50 text-indigo-700" onClick={() => setView('assets')} />
-          <div className="flex flex-col gap-2">
-            <SmallMenuButton icon={<ClipboardCheck size={20} />} title="棚卸し" color="bg-teal-50 text-teal-700" onClick={() => openPasswordModal('stocktaking')} />
-            <SmallMenuButton icon={<RefreshCcw size={20} />} title="年度更新" color="bg-slate-50 text-slate-700" onClick={() => openPasswordModal('yearEnd')} />
-            <SmallMenuButton icon={<Database size={20} />} title="バックアップ" color="bg-purple-50 text-purple-700" onClick={() => openPasswordModal('backup')} />
+          <div className="flex flex-col gap-1.5">
+            <SmallMenuButton icon={<ClipboardCheck size={18} />} title="棚卸し" color="bg-teal-50 text-teal-700" onClick={() => openPasswordModal('stocktaking')} />
+            <SmallMenuButton icon={<RefreshCcw size={18} />} title="年度更新" color="bg-slate-50 text-slate-700" onClick={() => openPasswordModal('yearEnd')} />
+            <SmallMenuButton icon={<Database size={18} />} title="バックアップ" color="bg-purple-50 text-purple-700" onClick={() => openPasswordModal('backup')} />
           </div>
         </div>
 
@@ -301,12 +301,12 @@ function SmallMenuButton({ icon, title, color, onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`${color} py-3 px-4 rounded-xl shadow-sm border border-current border-opacity-10 hover:shadow-md transition-all flex flex-1 items-center justify-center gap-3 group active:scale-95`}
+      className={`${color} py-1.5 px-3 rounded-xl shadow-sm border border-current border-opacity-10 hover:shadow-md transition-all flex flex-1 items-center justify-center gap-2 group active:scale-95`}
     >
-      <div className="p-2 bg-white bg-opacity-50 rounded-full group-hover:scale-110 transition-transform">
+      <div className="p-1.5 bg-white bg-opacity-50 rounded-full group-hover:scale-110 transition-transform">
         {icon}
       </div>
-      <span className="text-base font-bold">{title}</span>
+      <span className="text-sm font-bold">{title}</span>
     </button>
   );
 }

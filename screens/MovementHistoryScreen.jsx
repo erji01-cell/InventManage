@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeftRight, Printer, Save, Table2, X } from 'lucide-react';
+import { ArrowLeftRight, Printer, Save, Table2, Trash2, X } from 'lucide-react';
 
 import { Button, Card, DetailItem, EditableDetail } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
@@ -309,6 +309,25 @@ ${summaryHTML}
       });
     } catch (err) {
       setMovementSaveError(err.message || '入出庫データを保存できませんでした。');
+    } finally {
+      setIsMovementSaving(false);
+    }
+  };
+
+  const handleDeleteMovement = async () => {
+    if (!selectedMovement?.movement?.id) return;
+    if (isAdjustmentMovement(selectedMovement.movement)) {
+      setMovementSaveError('棚卸し調整の行は削除できません。棚卸し画面から該当セッションを削除してください。');
+      return;
+    }
+    if (!window.confirm('この入出庫データを削除しますか？\nこの操作は取り消せません。')) return;
+    setIsMovementSaving(true);
+    setMovementSaveError('');
+    try {
+      await deleteMovement(selectedMovement.movement.id);
+      closeMovementDetail();
+    } catch (err) {
+      setMovementSaveError(err.message || '削除に失敗しました。');
     } finally {
       setIsMovementSaving(false);
     }
@@ -646,6 +665,19 @@ ${summaryHTML}
               <Button variant="success" onClick={saveMovementDetail} disabled={isMovementSaving}>
                 <Save size={18} /> {isMovementSaving ? '保存中...' : '保存'}
               </Button>
+              {(() => {
+                const isAdjust = isAdjustmentMovement(selectedMovement?.movement);
+                return (
+                  <Button
+                    variant="danger"
+                    onClick={handleDeleteMovement}
+                    disabled={isMovementSaving || isAdjust}
+                    title={isAdjust ? '棚卸し調整の行は棚卸し画面から削除してください' : '削除'}
+                  >
+                    <Trash2 size={18} /> 削除
+                  </Button>
+                );
+              })()}
               <Button variant="secondary" onClick={closeMovementDetail} disabled={isMovementSaving}>
                 閉じる
               </Button>
