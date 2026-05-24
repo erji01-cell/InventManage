@@ -177,7 +177,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
                 value={form.staffId}
                 onChange={(e) => setForm({...form, staffId: e.target.value})}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !isIn) {
+                  if (e.key === 'Enter') {
                     e.preventDefault();
                     assetCodeInputRef.current?.focus();
                   }
