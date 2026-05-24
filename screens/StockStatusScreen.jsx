@@ -57,7 +57,14 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
 
   const stockData = useMemo(() => {
     return assets.map(asset => {
-      const assetMovements = movements.filter(m => m.assetId === asset.id);
+      // 年度クローズ日以前の入出庫は opening_stock に既に反映済みなので除外
+      const closedAt = asset.fiscalYearClosedAt ? parseLocalDate(asset.fiscalYearClosedAt) : null;
+      const assetMovements = movements.filter(m => {
+        if (m.assetId !== asset.id) return false;
+        if (!closedAt) return true;
+        const md = parseLocalDate(m.date);
+        return md && md > closedAt;
+      });
       const initialStock = asset.openingStock || 0;
       const beforeMonthTotal = assetMovements.reduce((sum, movement) => {
         const movementDate = parseLocalDate(movement.date);

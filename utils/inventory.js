@@ -44,8 +44,18 @@ export function normalizeAsset(row, parentMap, supplierMap, categoryMap = new Ma
     isActive: row.is_active !== false,
     childCreatedAt: row.created_at || '',
     openingStock: toNumber(row.opening_stock),
+    fiscalYearClosedAt: row.fiscal_year_closed_at || null,
     memo: row.child_memo || '',
   };
+}
+
+// 入出庫が「年度クローズ日より後」かどうか
+// closedAt が null（未クローズ）なら全期間カウント
+export function isMovementAfterClose(movementDate, closedAt) {
+  if (!closedAt) return true;
+  if (!movementDate) return false;
+  const md = String(movementDate).replaceAll('/', '-');
+  return md > closedAt;
 }
 
 export function normalizeMovementType(value) {

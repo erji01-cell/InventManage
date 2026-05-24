@@ -149,14 +149,22 @@ export default function App() {
     }
   };
 
-  const performYearEndUpdate = async () => {
+  const performYearEndUpdate = async (endDate) => {
+    if (!endDate) {
+      throw new Error('期末日を指定してください。');
+    }
     // 年度更新前に自動バックアップ（Supabase Storage + ローカルDL）
     await performBackup(authSession);
 
-    // 各資産の期末在庫を算出
+    // 期末日までの入出庫だけを集計（過去のクローズ日も考慮）
     const inboundByAsset = new Map();
     const outboundByAsset = new Map();
     movements.forEach((m) => {
+      const md = String(m.date || '').replaceAll('/', '-');
+      if (!md || md > endDate) return; // 期末日より後はスキップ
+      const asset = assets.find((a) => a.id === m.assetId);
+      // 既にクローズされている期間の入出庫は二重カウントしない
+      if (asset?.fiscalYearClosedAt && md <= asset.fiscalYearClosedAt) return;
       const key = String(m.assetId);
       const qty = Number(m.quantity) || 0;
       if (m.type === 'in') {
@@ -166,7 +174,7 @@ export default function App() {
       }
     });
 
-    // 各資産の opening_stock を期末在庫で更新
+    // 各資産の opening_stock を「期末日時点の在庫」で更新 + fiscal_year_closed_at をセット
     const updates = assets.map((asset) => {
       const key = String(asset.id);
       const ending = Number(asset.openingStock || 0)
@@ -181,28 +189,22 @@ export default function App() {
         {
           method: 'PATCH',
           headers: { Prefer: 'return=minimal' },
-          body: JSON.stringify({ opening_stock: newOpeningStock }),
+          body: JSON.stringify({
+            opening_stock: newOpeningStock,
+            fiscal_year_closed_at: endDate,
+          }),
         },
         authSession
       );
     }
 
-    // 全 movements を削除
-    await supabaseRequest(
-      `invent_stock_movements?id=gte.0`,
-      {
-        method: 'DELETE',
-        headers: { Prefer: 'return=minimal' },
-      },
-      authSession
-    );
+    // ⚠ movements は削除しない（過去の履歴を全期間保持）
 
     // フロント側 state を更新
     setAssets((prev) => prev.map((a) => {
       const u = updates.find((x) => String(x.id) === String(a.id));
-      return u ? { ...a, openingStock: u.newOpeningStock } : a;
+      return u ? { ...a, openingStock: u.newOpeningStock, fiscalYearClosedAt: endDate } : a;
     }));
-    setMovements([]);
   };
 
   const deleteMovement = async (id) => {
@@ -404,6 +406,7 @@ export default function App() {
         supplierId: updated.supplier_id ? String(updated.supplier_id) : '',
         supplier: supplier?.name || '',
         janCode: updated.jan_code || '',
+        fiscalYearClosedAt: updated.fiscal_year_closed_at || null,
         memo: updated.child_memo || '',
       };
     }));

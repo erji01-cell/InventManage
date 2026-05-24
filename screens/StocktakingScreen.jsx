@@ -22,6 +22,9 @@ export default function StocktakingScreen({ session, setView, assets, movements,
   const [showOnlyDiff, setShowOnlyDiff] = useState(false);
   const [staffId, setStaffId] = useState(staff[0]?.id || '');
   const [memo, setMemo] = useState('');
+  const [basisDate, setBasisDate] = useState(new Date().toISOString().split('T')[0]);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmDate, setConfirmDate] = useState('');
 
   const loadList = async () => {
     setLoading(true);
@@ -58,7 +61,7 @@ export default function StocktakingScreen({ session, setView, assets, movements,
     setLoading(true);
     setError('');
     try {
-      const created = await createStocktaking({ staffId, memo, assets, movements }, session);
+      const created = await createStocktaking({ staffId, memo, basisDate, assets, movements }, session);
       setCurrentCountId(created.id);
       await loadItems(created.id);
       setMemo('');
@@ -118,6 +121,11 @@ export default function StocktakingScreen({ session, setView, assets, movements,
     return list;
   }, [enriched, search, showOnlyDiff]);
 
+  const currentSession = useMemo(
+    () => sessions.find((s) => s.id === currentCountId),
+    [sessions, currentCountId]
+  );
+
   const diffSummary = useMemo(() => {
     const diffs = enriched.filter((x) => x.diff !== null && x.diff !== 0);
     const totalDiffValue = diffs.reduce(
@@ -127,13 +135,21 @@ export default function StocktakingScreen({ session, setView, assets, movements,
     return { diffCount: diffs.length, totalDiffValue, totalItems: enriched.length };
   }, [enriched]);
 
-  const confirmComplete = async () => {
-    if (!window.confirm(
-      `棚卸し調整を確定します。\n\n` +
-      `差異 ${diffSummary.diffCount} 件を入出庫データに記録します。\n` +
-      `（評価額差異合計: ${diffSummary.totalDiffValue >= 0 ? '+' : ''}¥${diffSummary.totalDiffValue.toLocaleString()}）\n\n` +
-      `この操作は取り消せません。よろしいですか？`
-    )) return;
+  const openConfirmModal = () => {
+    // デフォルト日付：基準日（無ければ開始日、それも無ければ今日）
+    const defaultDate = currentSession?.basis_date
+      || (currentSession?.started_at ? new Date(currentSession.started_at).toISOString().split('T')[0] : null)
+      || new Date().toISOString().split('T')[0];
+    setConfirmDate(defaultDate);
+    setShowConfirmModal(true);
+  };
+
+  const executeComplete = async () => {
+    if (!confirmDate) {
+      setError('調整日を選択してください。');
+      return;
+    }
+    setShowConfirmModal(false);
     setLoading(true);
     setError('');
     try {
@@ -143,9 +159,9 @@ export default function StocktakingScreen({ session, setView, assets, movements,
         items: enriched,
         staffId,
         staffName: staffMember?.name || '棚卸し',
-        date: new Date().toISOString().split('T')[0],
+        date: confirmDate,
       }, session);
-      alert(`棚卸し完了：${result.diffCount} 件を入出庫データに記録しました。`);
+      alert(`棚卸し完了：${result.diffCount} 件を入出庫データに記録しました。\n調整日: ${confirmDate}`);
       await onCompleted?.();
       setMode('list');
     } catch (err) {
@@ -177,7 +193,16 @@ export default function StocktakingScreen({ session, setView, assets, movements,
                 {staff.map((s) => <option key={s.id} value={s.id}>{s.id} {s.name}</option>)}
               </select>
             </label>
-            <label className="flex flex-col gap-1 md:col-span-2">
+            <label className="flex flex-col gap-1">
+              <span className="text-sm font-bold text-slate-600">基準日</span>
+              <input
+                type="date"
+                value={basisDate}
+                onChange={(e) => setBasisDate(e.target.value)}
+                className="p-2 border rounded bg-white"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
               <span className="text-sm font-bold text-slate-600">メモ（任意）</span>
               <input
                 type="text"
@@ -187,6 +212,11 @@ export default function StocktakingScreen({ session, setView, assets, movements,
                 placeholder="例: 2026年度上期棚卸し"
               />
             </label>
+          </div>
+          <div className="mt-2 text-xs text-slate-600 bg-white p-2 rounded border border-teal-200">
+            💡 <span className="font-bold">基準日</span>：この日付までの入出庫でシステム在庫を計算してスナップショット保存します。
+            期末確定の場合は<span className="font-bold">期末日（例: 3/31）</span>を指定してください。
+            （デフォルトは本日）
           </div>
           <div className="mt-3 flex justify-end">
             <Button variant="success" className="px-8" onClick={startNew} disabled={loading}>
@@ -206,6 +236,7 @@ export default function StocktakingScreen({ session, setView, assets, movements,
               <thead className="bg-slate-100">
                 <tr>
                   <th className="p-2 text-left">開始日時</th>
+                  <th className="p-2 text-left">基準日</th>
                   <th className="p-2 text-left">完了日時</th>
                   <th className="p-2 text-left">担当者</th>
                   <th className="p-2 text-left">ステータス</th>
@@ -217,6 +248,7 @@ export default function StocktakingScreen({ session, setView, assets, movements,
                 {sessions.map((s) => (
                   <tr key={s.id} className="border-b hover:bg-slate-50">
                     <td className="p-2 whitespace-nowrap">{new Date(s.started_at).toLocaleString('ja-JP')}</td>
+                    <td className="p-2 whitespace-nowrap font-bold text-teal-700">{s.basis_date ? new Date(s.basis_date).toLocaleDateString('ja-JP') : '-'}</td>
                     <td className="p-2 whitespace-nowrap">{s.completed_at ? new Date(s.completed_at).toLocaleString('ja-JP') : '-'}</td>
                     <td className="p-2">{staff.find((m) => String(m.id) === String(s.staff_id))?.name || s.staff_id || '-'}</td>
                     <td className="p-2">
@@ -251,9 +283,17 @@ export default function StocktakingScreen({ session, setView, assets, movements,
     return (
       <Card className="border-t-8 border-t-teal-500">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-black text-teal-700 flex items-center gap-2">
-            <ClipboardCheck size={28} /> 棚卸し 実数入力
-          </h2>
+          <div>
+            <h2 className="text-2xl font-black text-teal-700 flex items-center gap-2">
+              <ClipboardCheck size={28} /> 棚卸し 実数入力
+            </h2>
+            {currentSession?.basis_date && (
+              <p className="text-sm text-slate-600 mt-1">
+                基準日: <span className="font-bold text-teal-700">{new Date(currentSession.basis_date).toLocaleDateString('ja-JP')}</span>
+                <span className="ml-2 text-xs text-slate-400">（この日時点のシステム在庫で比較）</span>
+              </p>
+            )}
+          </div>
           <Button variant="secondary" onClick={() => setMode('list')}>
             <ArrowLeft size={16} /> 一覧へ
           </Button>
@@ -349,15 +389,21 @@ export default function StocktakingScreen({ session, setView, assets, movements,
   // Render: review mode (差異確認・確定)
   // ===========================================
   const diffOnly = enriched.filter((x) => x.diff !== null && x.diff !== 0);
-  const currentSession = sessions.find((s) => s.id === currentCountId);
   const isCompleted = currentSession?.status === 'completed';
 
   return (
     <Card className="border-t-8 border-t-teal-500">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-black text-teal-700 flex items-center gap-2">
-          <ClipboardCheck size={28} /> 棚卸し 差異確認
-        </h2>
+        <div>
+          <h2 className="text-2xl font-black text-teal-700 flex items-center gap-2">
+            <ClipboardCheck size={28} /> 棚卸し 差異確認
+          </h2>
+          {currentSession?.basis_date && (
+            <p className="text-sm text-slate-600 mt-1">
+              基準日: <span className="font-bold text-teal-700">{new Date(currentSession.basis_date).toLocaleDateString('ja-JP')}</span>
+            </p>
+          )}
+        </div>
         <Button variant="secondary" onClick={() => setMode(isCompleted ? 'list' : 'entry')}>
           <ArrowLeft size={16} /> {isCompleted ? '一覧へ' : '入力に戻る'}
         </Button>
@@ -417,7 +463,7 @@ export default function StocktakingScreen({ session, setView, assets, movements,
 
       {!isCompleted ? (
         <div className="mt-4 flex justify-end gap-2">
-          <Button variant="success" className="px-8" onClick={confirmComplete} disabled={loading || diffOnly.length === 0}>
+          <Button variant="success" className="px-8" onClick={openConfirmModal} disabled={loading || diffOnly.length === 0}>
             {loading ? '処理中...' : `棚卸し調整を確定（${diffOnly.length}件を入出庫データに記録）`}
           </Button>
         </div>
@@ -425,6 +471,44 @@ export default function StocktakingScreen({ session, setView, assets, movements,
         <p className="mt-4 text-center text-sm text-slate-500">
           この棚卸しは確定済みです（{currentSession?.completed_at && new Date(currentSession.completed_at).toLocaleString('ja-JP')}）
         </p>
+      )}
+
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-[28rem] flex flex-col gap-5">
+            <div className="flex items-center gap-2">
+              <ClipboardCheck size={24} className="text-teal-700" />
+              <h2 className="text-lg font-black text-slate-800">棚卸し調整の確定</h2>
+            </div>
+            <div className="text-sm text-slate-700 leading-relaxed">
+              差異 <span className="font-bold">{diffSummary.diffCount} 件</span> を入出庫データに記録します。<br />
+              評価額差異合計:{' '}
+              <span className={`font-bold ${diffSummary.totalDiffValue === 0 ? 'text-slate-700' : diffSummary.totalDiffValue > 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                {diffSummary.totalDiffValue >= 0 ? '+' : ''}¥{diffSummary.totalDiffValue.toLocaleString()}
+              </span>
+            </div>
+            <label className="flex flex-col gap-2">
+              <span className="text-sm font-bold text-slate-700">調整日（入出庫データの日付）</span>
+              <input
+                type="date"
+                value={confirmDate}
+                onChange={(e) => setConfirmDate(e.target.value)}
+                className="p-2 border-2 rounded-lg outline-none focus:border-teal-400 bg-teal-50 text-lg font-bold text-center"
+              />
+              <span className="text-xs text-slate-500">
+                既定: 基準日（{currentSession?.basis_date ? new Date(currentSession.basis_date).toLocaleDateString('ja-JP') : (currentSession?.started_at ? new Date(currentSession.started_at).toLocaleDateString('ja-JP') : '-')}）<br />
+                期末確定の場合は <span className="font-bold">基準日と同じ日</span> を指定するのがお勧めです。
+              </span>
+            </label>
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+              ⚠ この操作は取り消せません。確定すると入出庫データに「[棚卸し調整]」として記録されます。
+            </div>
+            <div className="flex gap-2 w-full">
+              <Button variant="secondary" className="flex-1" onClick={() => setShowConfirmModal(false)}>キャンセル</Button>
+              <Button variant="success" className="flex-1" onClick={executeComplete} disabled={!confirmDate}>確定する</Button>
+            </div>
+          </div>
+        </div>
       )}
     </Card>
   );

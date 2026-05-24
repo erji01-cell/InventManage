@@ -62,6 +62,7 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
     byAsset.forEach((assetMovements, assetId) => {
       const asset = assets.find(a => a.id === assetId);
       const openingStock = asset?.openingStock || 0;
+      const closedAt = asset?.fiscalYearClosedAt || null;
       const sorted = [...assetMovements].sort((a, b) => {
         const dateA = Date.parse(String(a.date || '').replaceAll('/', '-')) || 0;
         const dateB = Date.parse(String(b.date || '').replaceAll('/', '-')) || 0;
@@ -70,6 +71,12 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
       });
       let stock = openingStock;
       sorted.forEach(m => {
+        // 年度クローズ済み期間の入出庫は opening_stock に反映済みなので残在庫計算から除外
+        const md = String(m.date || '').replaceAll('/', '-');
+        if (closedAt && md && md <= closedAt) {
+          map.set(String(m.id), null); // 過去年度の行は残在庫表示なし
+          return;
+        }
         const type = normalizeMovementType(m.type);
         if (type === 'in') stock += m.quantity;
         else if (type === 'out') stock -= m.quantity;
@@ -471,7 +478,7 @@ ${summaryHTML}
                   <td className={`px-2 py-3 text-right font-bold ${movementType === 'out' ? (isAdjust ? 'text-teal-700' : 'text-rose-600') : 'text-slate-300'}`}>
                     {movementType === 'out' ? (isAdjust ? `調整-${m.quantity}` : m.quantity) : 0}
                   </td>
-                  {(() => { const rs = runningStockMap.get(String(m.id)); return <td className={`px-2 py-3 text-right font-bold ${rs !== undefined && rs < 0 ? 'bg-red-50 text-red-600' : 'text-slate-700'}`}>{rs !== undefined ? rs.toLocaleString() : '-'}</td>; })()}
+                  {(() => { const rs = runningStockMap.get(String(m.id)); return <td className={`px-2 py-3 text-right font-bold ${rs != null && rs < 0 ? 'bg-red-50 text-red-600' : 'text-slate-700'}`}>{rs == null ? '－' : rs.toLocaleString()}</td>; })()}
                   <td className="px-2 py-3 text-center">{asset?.usageUnit}</td>
                   <td className="px-3 py-3 text-right whitespace-nowrap">
                     {movementType === 'in' ? `¥${m.actualDeliveryPrice.toLocaleString()}` : '-'}

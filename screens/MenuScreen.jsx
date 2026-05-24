@@ -14,6 +14,7 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
   const [yearEndRunning, setYearEndRunning] = useState(false);
   const [yearEndError, setYearEndError] = useState('');
   const [yearEndDone, setYearEndDone] = useState(false);
+  const [yearEndDate, setYearEndDate] = useState(''); // 期末日
   const [showStocktakingWarning, setShowStocktakingWarning] = useState(false);
   const [lastStocktaking, setLastStocktaking] = useState(null);
 
@@ -22,15 +23,20 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
     setYearEndRunning(false);
     setYearEndError('');
     setYearEndDone(false);
+    setYearEndDate('');
     setShowStocktakingWarning(false);
     setLastStocktaking(null);
   };
 
   const runYearEnd = async () => {
+    if (!yearEndDate) {
+      setYearEndError('期末日を入力してください。');
+      return;
+    }
     setYearEndRunning(true);
     setYearEndError('');
     try {
-      await onYearEndUpdate?.();
+      await onYearEndUpdate?.(yearEndDate);
       setYearEndDone(true);
     } catch (err) {
       setYearEndError(err?.message || '年度更新に失敗しました。');
@@ -170,7 +176,7 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
 
       {yearEndStep > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-2xl shadow-2xl p-8 w-96 flex flex-col items-center gap-5">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-[28rem] flex flex-col items-center gap-5">
             <div className="flex flex-col items-center gap-2">
               <div className="p-3 bg-slate-100 rounded-full">
                 <RefreshCcw size={28} className="text-slate-700" />
@@ -182,7 +188,8 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
               <>
                 <p className="text-sm text-emerald-700 font-bold text-center">年度更新が完了しました。</p>
                 <p className="text-xs text-slate-500 text-center">
-                  バックアップ（JSON）を保存後、期末在庫が新年度の期首在庫として登録され、入出庫履歴は削除されました。
+                  期末日（{yearEndDate}）時点の在庫を新年度の期首在庫として登録しました。<br />
+                  入出庫履歴は<span className="font-bold">削除されず保持されます</span>（過去データ参照可）。
                 </p>
                 <Button variant="primary" className="w-full" onClick={closeYearEnd}>閉じる</Button>
               </>
@@ -191,26 +198,39 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
                 {yearEndStep === 1 && (
                   <>
                     <p className="text-sm text-slate-700 text-center leading-relaxed">
-                      期末在庫を新年度の<span className="font-bold">期首在庫</span>として登録し、<br />
-                      これまでの入出庫履歴を<span className="font-bold text-red-600">全て削除</span>します。<br /><br />
-                      <span className="font-black text-red-600">年度更新しますか？</span>
+                      <span className="font-bold">期末日</span>を入力してください。<br />
+                      この日付までの入出庫を集計し、<br />
+                      期末在庫を新年度の<span className="font-bold">期首在庫</span>として登録します。
                     </p>
+                    <label className="w-full flex flex-col gap-1">
+                      <span className="text-xs font-bold text-slate-600">期末日</span>
+                      <input
+                        type="date"
+                        value={yearEndDate}
+                        onChange={(e) => setYearEndDate(e.target.value)}
+                        className="p-2 border-2 rounded-lg outline-none focus:border-slate-400 bg-slate-50 text-lg font-bold text-center"
+                      />
+                    </label>
+                    <div className="text-xs text-emerald-700 bg-emerald-50 p-2 rounded border border-emerald-200 w-full">
+                      ✅ 入出庫履歴は<span className="font-bold">削除されません</span>（過去年度の参照・分析が可能）。<br />
+                      期末日より後の入出庫は新年度のデータとしてそのまま残ります。
+                    </div>
                     {yearEndError && (
                       <p className="text-sm text-red-600 font-bold text-center">{yearEndError}</p>
                     )}
                     <div className="flex gap-2 w-full">
                       <Button variant="secondary" className="flex-1" onClick={closeYearEnd}>キャンセル</Button>
-                      <Button variant="danger" className="flex-1" onClick={() => setYearEndStep(2)}>はい</Button>
+                      <Button variant="danger" className="flex-1" onClick={() => setYearEndStep(2)} disabled={!yearEndDate}>次へ</Button>
                     </div>
                   </>
                 )}
                 {yearEndStep === 2 && (
                   <>
-                    <p className="text-sm text-red-700 text-center leading-relaxed font-bold">
-                      ⚠ この操作は取り消せません。<br /><br />
+                    <p className="text-sm text-slate-700 text-center leading-relaxed">
+                      期末日：<span className="font-black text-slate-900 text-base">{yearEndDate}</span><br /><br />
+                      ⚠ この操作は取り消せません。<br />
                       実行前に<span className="text-blue-700">自動でJSONバックアップ</span>を取ります<br />
-                      （Supabase Storage と ローカルDL）。<br />
-                      入出庫履歴は全て削除されます。<br />
+                      （Supabase Storage と ローカルDL）。<br /><br />
                       <span className="font-black text-red-600 text-base">本当に年度更新しますか？</span>
                     </p>
                     {yearEndError && (
