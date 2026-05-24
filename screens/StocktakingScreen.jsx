@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ClipboardCheck, ArrowLeft } from 'lucide-react';
+import { ClipboardCheck, ArrowLeft, AlertTriangle } from 'lucide-react';
 
 import { Button, Card } from '../components/ui.jsx';
 import {
@@ -9,7 +9,9 @@ import {
   updateStocktakingItem,
   completeStocktaking,
   deleteStocktaking,
+  countLinkedMovements,
 } from '../lib/stocktaking.js';
+import { performBackup } from '../lib/backup.js';
 
 export default function StocktakingScreen({ session, setView, assets, movements, staff, onCompleted }) {
   const [mode, setMode] = useState('list'); // 'list' | 'entry' | 'review'
@@ -25,6 +27,8 @@ export default function StocktakingScreen({ session, setView, assets, movements,
   const [basisDate, setBasisDate] = useState(new Date().toISOString().split('T')[0]);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmDate, setConfirmDate] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null); // {session, linkedCount}
+  const [deleteRunning, setDeleteRunning] = useState(false);
 
   const loadList = async () => {
     setLoading(true);
@@ -79,13 +83,34 @@ export default function StocktakingScreen({ session, setView, assets, movements,
     setMode(s.status === 'completed' ? 'review' : 'entry');
   };
 
-  const removeSession = async (id) => {
-    if (!window.confirm('この棚卸しセッションを削除しますか？\n（明細データも削除されます）')) return;
+  const openDeleteModal = async (s) => {
+    let linkedCount = 0;
+    if (s.status === 'completed') {
+      try {
+        linkedCount = await countLinkedMovements(s.id, session);
+      } catch {
+        // 取得失敗時は0扱い
+      }
+    }
+    setDeleteTarget({ session: s, linkedCount });
+  };
+
+  const executeDelete = async (withBackup) => {
+    if (!deleteTarget) return;
+    setDeleteRunning(true);
+    setError('');
     try {
-      await deleteStocktaking(id, session);
+      if (withBackup) {
+        await performBackup(session, { downloadLocal: true });
+      }
+      await deleteStocktaking(deleteTarget.session.id, session);
+      setDeleteTarget(null);
       await loadList();
+      await onCompleted?.(); // 親側で assets/movements を再読み込み
     } catch (err) {
       setError(err.message);
+    } finally {
+      setDeleteRunning(false);
     }
   };
 
@@ -262,13 +287,70 @@ export default function StocktakingScreen({ session, setView, assets, movements,
                         <Button variant="primary" onClick={() => resumeSession(s)}>
                           {s.status === 'completed' ? '詳細' : '続きを入力'}
                         </Button>
-                        <Button variant="danger" onClick={() => removeSession(s.id)}>削除</Button>
+                        <Button variant="danger" onClick={() => openDeleteModal(s)}>削除</Button>
                       </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {deleteTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div className="bg-white rounded-2xl shadow-2xl p-8 w-[30rem] flex flex-col gap-5">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-red-100 rounded-full">
+                  <AlertTriangle size={22} className="text-red-700" />
+                </div>
+                <h2 className="text-lg font-black text-slate-800">棚卸しの削除</h2>
+              </div>
+
+              <div className="text-sm text-slate-700 leading-relaxed">
+                {deleteTarget.session.status === 'completed' ? (
+                  <>
+                    ⚠ <span className="font-bold">完了済み棚卸し</span>を削除します。<br /><br />
+                    この棚卸しから生じた「[棚卸し調整]」の入出庫データ{' '}
+                    <span className="font-black text-red-600 text-base">{deleteTarget.linkedCount} 件</span>{' '}
+                    も同時に削除され、<br />
+                    <span className="font-bold">在庫数は棚卸し前の状態に戻ります</span>。
+                  </>
+                ) : (
+                  <>
+                    入力中の棚卸しセッションを削除します。<br />
+                    明細データも削除されますが、入出庫データや在庫には影響しません。
+                  </>
+                )}
+              </div>
+
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                ⚠ この操作は取り消せません。
+              </div>
+
+              {deleteTarget.session.status === 'completed' && (
+                <div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+                  <p className="font-bold mb-1">💾 削除前にバックアップを取りますか？</p>
+                  <p className="text-xs">
+                    JSON形式でSupabase Storage + ローカルに保存します（推奨）
+                  </p>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-2 w-full">
+                {deleteTarget.session.status === 'completed' && (
+                  <Button variant="primary" className="w-full" onClick={() => executeDelete(true)} disabled={deleteRunning}>
+                    {deleteRunning ? 'バックアップ＆削除中...' : 'バックアップして削除（推奨）'}
+                  </Button>
+                )}
+                <Button variant="danger" className="w-full" onClick={() => executeDelete(false)} disabled={deleteRunning}>
+                  {deleteRunning ? '削除中...' : 'バックアップなしで削除'}
+                </Button>
+                <Button variant="secondary" className="w-full" onClick={() => setDeleteTarget(null)} disabled={deleteRunning}>
+                  キャンセル
+                </Button>
+              </div>
+            </div>
           </div>
         )}
       </Card>
