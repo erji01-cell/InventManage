@@ -135,6 +135,20 @@ export default function App() {
     // 登録後は画面遷移せず、その場に留まる（フォームのリセットはEntryScreen側で実施）
   };
 
+  const fetchLastStocktaking = async () => {
+    if (!authSession) return null;
+    try {
+      const rows = await supabaseRequest(
+        'invent_inventory_counts?select=*&status=eq.completed&order=completed_at.desc&limit=1',
+        {},
+        authSession
+      );
+      return rows[0] || null;
+    } catch {
+      return null;
+    }
+  };
+
   const performYearEndUpdate = async () => {
     // 年度更新前に自動バックアップ（Supabase Storage + ローカルDL）
     await performBackup(authSession);
@@ -455,7 +469,7 @@ export default function App() {
 
   const renderView = () => {
     switch (view) {
-      case 'menu': return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} />;
+      case 'menu': return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} />;
       case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} categories={categories} onCreateCategory={createCategory} onCreateAsset={createAsset} onUpdateAsset={updateAsset} onUpdateParentAsset={updateParentAsset} onDeleteAsset={deleteAsset} setView={setView} onNavigateEntry={navigateToEntry} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} />;
       case 'history': return <MovementHistoryScreen movements={movements} setMovements={setMovements} setView={setView} assets={assets} staff={staff} updateMovement={updateMovement} deleteMovement={deleteMovement} pinnedAssetId={filterAssetId} />;
       case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} />;
@@ -463,7 +477,7 @@ export default function App() {
       case 'stock': return <StockStatusScreen assets={assets} movements={movements} setView={setView} pinnedAssetId={filterAssetId} onNavigateHistory={navigateToHistory} />;
       case 'backup': return <BackupScreen session={authSession} setView={setView} onRestored={refreshData} />;
       case 'stocktaking': return <StocktakingScreen session={authSession} setView={setView} assets={assets} movements={movements} staff={staff} onCompleted={refreshData} />;
-      default: return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} />;
+      default: return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} />;
     }
   };
 

@@ -1,12 +1,12 @@
 import React, { useRef, useState } from 'react';
-import { ClipboardCheck, ClipboardList, Database, LogOut, MinusCircle, Package, PlusCircle, RefreshCcw, Table } from 'lucide-react';
+import { AlertTriangle, ClipboardCheck, ClipboardList, Database, LogOut, MinusCircle, Package, PlusCircle, RefreshCcw, Table } from 'lucide-react';
 
 import { Button, Card } from '../components/ui.jsx';
 
 const ADMIN_PASSWORD = '0125';
 
-export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpdate }) {
-  const [passwordTarget, setPasswordTarget] = useState(null); // 'backup' | 'yearEnd' | null
+export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpdate, onFetchLastStocktaking }) {
+  const [passwordTarget, setPasswordTarget] = useState(null); // 'backup' | 'yearEnd' | 'stocktaking' | null
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const inputRef = useRef(null);
@@ -14,12 +14,16 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
   const [yearEndRunning, setYearEndRunning] = useState(false);
   const [yearEndError, setYearEndError] = useState('');
   const [yearEndDone, setYearEndDone] = useState(false);
+  const [showStocktakingWarning, setShowStocktakingWarning] = useState(false);
+  const [lastStocktaking, setLastStocktaking] = useState(null);
 
   const closeYearEnd = () => {
     setYearEndStep(0);
     setYearEndRunning(false);
     setYearEndError('');
     setYearEndDone(false);
+    setShowStocktakingWarning(false);
+    setLastStocktaking(null);
   };
 
   const runYearEnd = async () => {
@@ -48,15 +52,27 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
     setPasswordError('');
   };
 
-  const handlePasswordSubmit = (e) => {
+  const handlePasswordSubmit = async (e) => {
     e.preventDefault();
     if (passwordInput === ADMIN_PASSWORD) {
       const target = passwordTarget;
       closePasswordModal();
       if (target === 'backup') {
         setView('backup');
+      } else if (target === 'stocktaking') {
+        setView('stocktaking');
       } else if (target === 'yearEnd') {
-        setYearEndStep(1);
+        // 棚卸し実施状況をチェック
+        const last = await onFetchLastStocktaking?.();
+        setLastStocktaking(last);
+        const days = last?.completed_at
+          ? Math.floor((Date.now() - new Date(last.completed_at).getTime()) / 86400000)
+          : null;
+        if (last == null || days > 90) {
+          setShowStocktakingWarning(true);
+        } else {
+          setYearEndStep(1);
+        }
       }
     } else {
       setPasswordError('パスワードが違います。');
@@ -66,6 +82,19 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
   };
 
   const isYearEndPassword = passwordTarget === 'yearEnd';
+  const isStocktakingPassword = passwordTarget === 'stocktaking';
+  const passwordTitle = isYearEndPassword ? '年度更新' : isStocktakingPassword ? '棚卸し' : 'バックアップ';
+  const passwordIconBg = isYearEndPassword ? 'bg-slate-100' : isStocktakingPassword ? 'bg-teal-100' : 'bg-purple-100';
+  const passwordIcon = isYearEndPassword
+    ? <RefreshCcw size={28} className="text-slate-700" />
+    : isStocktakingPassword
+    ? <ClipboardCheck size={28} className="text-teal-700" />
+    : <Database size={28} className="text-purple-700" />;
+  const passwordInputClass = isYearEndPassword
+    ? 'focus:border-slate-400 bg-slate-50'
+    : isStocktakingPassword
+    ? 'focus:border-teal-400 bg-teal-50'
+    : 'focus:border-purple-400 bg-purple-50';
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh]">
@@ -85,7 +114,7 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
           <MenuButton icon={<MinusCircle size={24} />} title="出庫画面" color="bg-rose-50 text-rose-700" onClick={() => setView('outbound')} />
           <MenuButton icon={<Package size={24} />} title="資産マスタ" color="bg-indigo-50 text-indigo-700" onClick={() => setView('assets')} />
           <div className="flex flex-col gap-2">
-            <SmallMenuButton icon={<ClipboardCheck size={20} />} title="棚卸し" color="bg-teal-50 text-teal-700" onClick={() => setView('stocktaking')} />
+            <SmallMenuButton icon={<ClipboardCheck size={20} />} title="棚卸し" color="bg-teal-50 text-teal-700" onClick={() => openPasswordModal('stocktaking')} />
             <SmallMenuButton icon={<RefreshCcw size={20} />} title="年度更新" color="bg-slate-50 text-slate-700" onClick={() => openPasswordModal('yearEnd')} />
             <SmallMenuButton icon={<Database size={20} />} title="バックアップ" color="bg-purple-50 text-purple-700" onClick={() => openPasswordModal('backup')} />
           </div>
@@ -96,6 +125,48 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
           ログアウト
         </Button>
       </Card>
+
+      {showStocktakingWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-[28rem] flex flex-col items-center gap-5">
+            <div className="flex flex-col items-center gap-2">
+              <div className="p-3 bg-amber-100 rounded-full">
+                <AlertTriangle size={28} className="text-amber-700" />
+              </div>
+              <h2 className="text-lg font-black text-slate-800">棚卸し未実施 / 期間経過</h2>
+            </div>
+            <div className="text-sm text-slate-700 text-center leading-relaxed">
+              {lastStocktaking ? (
+                <>
+                  最後の棚卸しから<br />
+                  <span className="font-black text-red-600 text-lg">
+                    {Math.floor((Date.now() - new Date(lastStocktaking.completed_at).getTime()) / 86400000)} 日
+                  </span> 経過しています。<br />
+                  <span className="text-xs text-slate-500">
+                    （{new Date(lastStocktaking.completed_at).toLocaleDateString('ja-JP')} 実施）
+                  </span>
+                </>
+              ) : (
+                <>
+                  これまで<span className="font-black text-red-600">棚卸しが実施されていません</span>。
+                </>
+              )}
+              <br /><br />
+              年度更新前に棚卸しを実施することで、<br />
+              <span className="font-bold">期末在庫を実地在庫に合わせる</span>ことができます。
+            </div>
+            <div className="flex flex-col gap-2 w-full">
+              <Button variant="primary" className="w-full" onClick={() => { closeYearEnd(); setView('stocktaking'); }}>
+                棚卸しを先に行う（推奨）
+              </Button>
+              <Button variant="danger" className="w-full" onClick={() => { setShowStocktakingWarning(false); setYearEndStep(1); }}>
+                このまま年度更新へ進む
+              </Button>
+              <Button variant="secondary" className="w-full" onClick={closeYearEnd}>キャンセル</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {yearEndStep > 0 && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
@@ -163,12 +234,10 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
           <div className="bg-white rounded-2xl shadow-2xl p-8 w-80 flex flex-col items-center gap-5">
             <div className="flex flex-col items-center gap-2">
-              <div className={`p-3 rounded-full ${isYearEndPassword ? 'bg-slate-100' : 'bg-purple-100'}`}>
-                {isYearEndPassword
-                  ? <RefreshCcw size={28} className="text-slate-700" />
-                  : <Database size={28} className="text-purple-700" />}
+              <div className={`p-3 rounded-full ${passwordIconBg}`}>
+                {passwordIcon}
               </div>
-              <h2 className="text-lg font-black text-slate-800">{isYearEndPassword ? '年度更新' : 'バックアップ'}</h2>
+              <h2 className="text-lg font-black text-slate-800">{passwordTitle}</h2>
               <p className="text-sm text-slate-500">パスワードを入力してください</p>
             </div>
             <form onSubmit={handlePasswordSubmit} className="w-full flex flex-col gap-3">
@@ -177,7 +246,7 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
                 type="password"
                 value={passwordInput}
                 onChange={(e) => { setPasswordInput(e.target.value); setPasswordError(''); }}
-                className={`w-full p-3 text-center text-xl tracking-widest border-2 rounded-lg outline-none ${isYearEndPassword ? 'focus:border-slate-400 bg-slate-50' : 'focus:border-purple-400 bg-purple-50'}`}
+                className={`w-full p-3 text-center text-xl tracking-widest border-2 rounded-lg outline-none ${passwordInputClass}`}
                 placeholder="●●●●"
                 maxLength={10}
               />
