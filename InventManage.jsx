@@ -10,6 +10,7 @@ import LoginScreen from './screens/LoginScreen.jsx';
 import MenuScreen from './screens/MenuScreen.jsx';
 import MovementHistoryScreen from './screens/MovementHistoryScreen.jsx';
 import StockStatusScreen from './screens/StockStatusScreen.jsx';
+import StocktakingScreen from './screens/StocktakingScreen.jsx';
 import { performBackup, shouldRunAutoBackup } from './lib/backup.js';
 
 export default function App() {
@@ -461,6 +462,7 @@ export default function App() {
       case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} />;
       case 'stock': return <StockStatusScreen assets={assets} movements={movements} setView={setView} pinnedAssetId={filterAssetId} onNavigateHistory={navigateToHistory} />;
       case 'backup': return <BackupScreen session={authSession} setView={setView} onRestored={refreshData} />;
+      case 'stocktaking': return <StocktakingScreen session={authSession} setView={setView} assets={assets} movements={movements} staff={staff} onCompleted={refreshData} />;
       default: return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} />;
     }
   };
