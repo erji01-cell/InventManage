@@ -5,8 +5,12 @@ import { Button, Card, DetailItem, EditableDetail } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
 import { normalizeMovementType, parseLocalDate } from '../utils/inventory.js';
 
+// 棚卸し調整かどうか判定（memo先頭が [棚卸し調整]）
+const isAdjustmentMovement = (m) => /^\s*\[棚卸し調整\]/.test(m?.memo || '');
+
 export default function MovementHistoryScreen({ movements, setView, assets, staff = [], updateMovement, deleteMovement, pinnedAssetId = '' }) {
   const [filterType, setFilterType] = useState('all');
+  const [adjustmentFilter, setAdjustmentFilter] = useState('all'); // 'all' | 'normal' | 'adjustment'
   const [movementSearchTerm, setMovementSearchTerm] = useState('');
   const [pinnedId, setPinnedId] = useState(pinnedAssetId);
 
@@ -84,6 +88,11 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
     .filter(m => {
       if (filterType === 'in') return m.normalizedType === 'in';
       if (filterType === 'out') return m.normalizedType === 'out';
+      return true;
+    })
+    .filter(m => {
+      if (adjustmentFilter === 'normal') return !isAdjustmentMovement(m);
+      if (adjustmentFilter === 'adjustment') return isAdjustmentMovement(m);
       return true;
     })
     .filter(m => {
@@ -325,18 +334,35 @@ ${summaryHTML}
           <div className="space-y-2">
             <span className="block text-sm font-bold text-slate-500">入出庫</span>
             <div className="flex bg-white border border-slate-200 rounded-md p-1">
-              <button 
+              <button
                 onClick={() => setFilterType('all')}
                 className={`px-4 py-1 rounded-md text-sm ${filterType === 'all' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-600'}`}
               >入出庫</button>
-              <button 
+              <button
                 onClick={() => setFilterType('in')}
                 className={`px-4 py-1 rounded-md text-sm ${filterType === 'in' ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-600'}`}
               >入庫</button>
-              <button 
+              <button
                 onClick={() => setFilterType('out')}
                 className={`px-4 py-1 rounded-md text-sm ${filterType === 'out' ? 'bg-rose-500 text-white shadow-sm' : 'text-slate-600'}`}
               >出庫</button>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <span className="block text-sm font-bold text-slate-500">棚卸し調整</span>
+            <div className="flex bg-white border border-slate-200 rounded-md p-1">
+              <button
+                onClick={() => setAdjustmentFilter('all')}
+                className={`px-3 py-1 rounded-md text-sm ${adjustmentFilter === 'all' ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-600'}`}
+              >全て</button>
+              <button
+                onClick={() => setAdjustmentFilter('normal')}
+                className={`px-3 py-1 rounded-md text-sm ${adjustmentFilter === 'normal' ? 'bg-slate-500 text-white shadow-sm' : 'text-slate-600'}`}
+              >通常のみ</button>
+              <button
+                onClick={() => setAdjustmentFilter('adjustment')}
+                className={`px-3 py-1 rounded-md text-sm ${adjustmentFilter === 'adjustment' ? 'bg-teal-500 text-white shadow-sm' : 'text-slate-600'}`}
+              >調整のみ</button>
             </div>
           </div>
           <div className="space-y-2">
@@ -426,20 +452,24 @@ ${summaryHTML}
               const asset = assets.find(a => a.id === m.assetId);
               const movementType = m.normalizedType;
               if (filterType !== 'all' && movementType !== filterType) return null;
+              const isAdjust = isAdjustmentMovement(m);
               return (
-                <tr key={`${filterType}-${m.id || 'movement'}-${movementType}-${m.assetId}-${m.date}-${index}`} className="cursor-pointer hover:bg-blue-50 transition-colors border-b border-slate-100 group align-top" onClick={() => openMovementDetail(m, asset)}>
+                <tr key={`${filterType}-${m.id || 'movement'}-${movementType}-${m.assetId}-${m.date}-${index}`} className={`cursor-pointer transition-colors border-b border-slate-100 group align-top ${isAdjust ? 'bg-teal-50 hover:bg-teal-100 border-l-4 border-l-teal-400' : 'hover:bg-blue-50'}`} onClick={() => openMovementDetail(m, asset)}>
                   <td className="px-3 py-3 text-slate-500 whitespace-nowrap">{m.date}</td>
                   <td className="px-3 py-3 w-20 max-w-20 whitespace-normal break-words">{asset?.category || '-'}</td>
                   <td className="px-3 py-3 font-mono">{m.assetId}</td>
                   <td className="px-3 py-3 w-28 max-w-28 whitespace-normal break-words">{asset?.maker}</td>
                   <td className="px-3 py-3 min-w-[300px] font-medium whitespace-normal break-words text-blue-700">
+                    {isAdjust && (
+                      <span className="inline-block mr-2 px-2 py-0.5 rounded text-xs font-bold bg-teal-200 text-teal-800">🔧 棚卸調整</span>
+                    )}
                     {asset?.name || '-'}
                   </td>
-                  <td className={`px-2 py-3 text-right font-bold ${movementType === 'in' ? 'text-emerald-600' : 'text-slate-300'}`}>
-                    {movementType === 'in' ? m.quantity : 0}
+                  <td className={`px-2 py-3 text-right font-bold ${movementType === 'in' ? (isAdjust ? 'text-teal-700' : 'text-emerald-600') : 'text-slate-300'}`}>
+                    {movementType === 'in' ? (isAdjust ? `調整+${m.quantity}` : m.quantity) : 0}
                   </td>
-                  <td className={`px-2 py-3 text-right font-bold ${movementType === 'out' ? 'text-rose-600' : 'text-slate-300'}`}>
-                    {movementType === 'out' ? m.quantity : 0}
+                  <td className={`px-2 py-3 text-right font-bold ${movementType === 'out' ? (isAdjust ? 'text-teal-700' : 'text-rose-600') : 'text-slate-300'}`}>
+                    {movementType === 'out' ? (isAdjust ? `調整-${m.quantity}` : m.quantity) : 0}
                   </td>
                   {(() => { const rs = runningStockMap.get(String(m.id)); return <td className={`px-2 py-3 text-right font-bold ${rs !== undefined && rs < 0 ? 'bg-red-50 text-red-600' : 'text-slate-700'}`}>{rs !== undefined ? rs.toLocaleString() : '-'}</td>; })()}
                   <td className="px-2 py-3 text-center">{asset?.usageUnit}</td>
