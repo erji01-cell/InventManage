@@ -11,6 +11,7 @@ import {
   isAutoBackupEnabled,
   setAutoBackupEnabled,
   getLastBackupTime,
+  getLatestStorageBackupTime,
 } from '../lib/backup.js';
 
 function formatDateTime(ts) {
@@ -42,6 +43,7 @@ export default function BackupScreen({ session, setView, onRestored }) {
     try {
       const list = await listStorageBackups(session);
       setItems(list);
+      setLastBackup(await getLatestStorageBackupTime(session));
     } catch (e) {
       setError(e.message);
     } finally {

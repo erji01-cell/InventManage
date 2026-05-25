@@ -78,11 +78,20 @@ export default function App() {
   // Auto-backup on startup: only if >=24h since last backup.
   useEffect(() => {
     if (!authSession) return;
-    if (shouldRunAutoBackup()) {
-      performBackup(authSession, { downloadLocal: false }).catch((err) => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const shouldRun = await shouldRunAutoBackup(authSession);
+        if (!cancelled && shouldRun) {
+          await performBackup(authSession, { downloadLocal: false });
+        }
+      } catch (err) {
         console.warn('[auto-backup] failed:', err.message);
-      });
-    }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [authSession]);
 
   const handleLogin = async (email, password) => {
