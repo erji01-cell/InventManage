@@ -17,6 +17,7 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
   const [yearEndDate, setYearEndDate] = useState(''); // 期末日
   const [showStocktakingWarning, setShowStocktakingWarning] = useState(false);
   const [lastStocktaking, setLastStocktaking] = useState(null);
+  const [isAdminUnlocked, setIsAdminUnlocked] = useState(false); // 1回パスワード入れたらセッション中は全機能解放
 
   const closeYearEnd = () => {
     setYearEndStep(0);
@@ -45,7 +46,32 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
     }
   };
 
+  // 認証済みターゲットを実行する共通処理
+  const executeAdminAction = async (target) => {
+    if (target === 'backup') {
+      setView('backup');
+    } else if (target === 'stocktaking') {
+      setView('stocktaking');
+    } else if (target === 'yearEnd') {
+      const last = await onFetchLastStocktaking?.();
+      setLastStocktaking(last);
+      const days = last?.completed_at
+        ? Math.floor((Date.now() - new Date(last.completed_at).getTime()) / 86400000)
+        : null;
+      if (last == null || days > 90) {
+        setShowStocktakingWarning(true);
+      } else {
+        setYearEndStep(1);
+      }
+    }
+  };
+
   const openPasswordModal = (target) => {
+    // 既にセッション中で認証済みならパスワード入力をスキップ
+    if (isAdminUnlocked) {
+      executeAdminAction(target);
+      return;
+    }
     setPasswordTarget(target);
     setPasswordInput('');
     setPasswordError('');
@@ -63,23 +89,8 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
     if (passwordInput === ADMIN_PASSWORD) {
       const target = passwordTarget;
       closePasswordModal();
-      if (target === 'backup') {
-        setView('backup');
-      } else if (target === 'stocktaking') {
-        setView('stocktaking');
-      } else if (target === 'yearEnd') {
-        // 棚卸し実施状況をチェック
-        const last = await onFetchLastStocktaking?.();
-        setLastStocktaking(last);
-        const days = last?.completed_at
-          ? Math.floor((Date.now() - new Date(last.completed_at).getTime()) / 86400000)
-          : null;
-        if (last == null || days > 90) {
-          setShowStocktakingWarning(true);
-        } else {
-          setYearEndStep(1);
-        }
-      }
+      setIsAdminUnlocked(true); // セッション中は他のロック付きボタンも解放
+      await executeAdminAction(target);
     } else {
       setPasswordError('パスワードが違います。');
       setPasswordInput('');
