@@ -5,7 +5,7 @@ import { Button, Card } from '../components/ui.jsx';
 
 const ADMIN_PASSWORD = '0125';
 
-export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpdate, onFetchLastStocktaking }) {
+export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpdate, onFetchLastStocktaking, isAdminUnlocked, setIsAdminUnlocked }) {
   const [passwordTarget, setPasswordTarget] = useState(null); // 'backup' | 'yearEnd' | 'stocktaking' | null
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -17,7 +17,6 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
   const [yearEndDate, setYearEndDate] = useState(''); // 期末日
   const [showStocktakingWarning, setShowStocktakingWarning] = useState(false);
   const [lastStocktaking, setLastStocktaking] = useState(null);
-  const [isAdminUnlocked, setIsAdminUnlocked] = useState(false); // 1回パスワード入れたらセッション中は全機能解放
 
   const closeYearEnd = () => {
     setYearEndStep(0);
