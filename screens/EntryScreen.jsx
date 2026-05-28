@@ -29,6 +29,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
   });
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [priceConfirm, setPriceConfirm] = useState(null); // {masterPrice, actualPrice, payload}
   const [assetListSignal, setAssetListSignal] = useState(0);
   const [assetCodeInput, setAssetCodeInput] = useState(initialAssetId || '');
   const staffSelectRef = useRef(null);
@@ -146,27 +147,31 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
       setSaveError(`出庫数が現在庫（${currentStock.toLocaleString()}）を超えています。在庫がマイナスになるため登録できません。`);
       return;
     }
-    const updateMasterDeliveryPrice = isIn && actualDeliveryPrice !== masterDeliveryPrice
-      ? window.confirm(
-          `実購入価格がマスタ購入価格と異なります。\n\n` +
-          `マスタ購入価格: ¥${masterDeliveryPrice.toLocaleString()}\n` +
-          `実購入価格: ¥${actualDeliveryPrice.toLocaleString()}\n\n` +
-          `マスタ購入価格を更新しますか？\n\n` +
-          `OK: 更新する / キャンセル: 今回だけ保存`
-        )
-      : false;
+    const payload = {
+      ...form,
+      actualDeliveryPrice,
+      type,
+      staffName: staff.find(s => s.id === form.staffId)?.name || '不明'
+    };
 
+    // 入庫かつマスタ価格と実購入価格が異なる場合、確認モーダルを表示
+    if (isIn && actualDeliveryPrice !== masterDeliveryPrice) {
+      setPriceConfirm({
+        masterPrice: masterDeliveryPrice,
+        actualPrice: actualDeliveryPrice,
+        payload,
+      });
+      return; // モーダルの選択結果で proceedSave が呼ばれる
+    }
+
+    await proceedSave({ ...payload, updateMasterDeliveryPrice: false });
+  };
+
+  const proceedSave = async (payload) => {
     setIsSaving(true);
     setSaveError('');
-
     try {
-      await onSave({
-        ...form,
-        actualDeliveryPrice,
-        updateMasterDeliveryPrice,
-        type,
-        staffName: staff.find(s => s.id === form.staffId)?.name || '不明'
-      });
+      await onSave(payload);
       // 担当者と入出庫日以外をリセットし、担当者にフォーカスを戻す
       setForm((current) => ({
         ...current,
@@ -415,6 +420,43 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
           </div>
         </form>
       </Card>
+
+      {priceConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-[28rem] flex flex-col gap-5">
+            <h2 className="text-lg font-black text-slate-800">マスタ購入価格の更新確認</h2>
+            <div className="text-sm text-slate-700 leading-relaxed">
+              実購入価格がマスタ購入価格と異なります。
+              <div className="mt-3 grid grid-cols-2 gap-2 p-3 bg-slate-50 rounded border border-slate-200">
+                <div className="text-slate-500">マスタ購入価格</div>
+                <div className="text-right font-bold">¥{priceConfirm.masterPrice.toLocaleString()}</div>
+                <div className="text-slate-500">実購入価格</div>
+                <div className="text-right font-bold text-emerald-700">¥{priceConfirm.actualPrice.toLocaleString()}</div>
+              </div>
+              <p className="mt-3 font-bold">マスタ購入価格を更新しますか？</p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Button variant="success" className="w-full" onClick={() => {
+                const p = priceConfirm.payload;
+                setPriceConfirm(null);
+                proceedSave({ ...p, updateMasterDeliveryPrice: true });
+              }}>
+                更新する
+              </Button>
+              <Button variant="primary" className="w-full" onClick={() => {
+                const p = priceConfirm.payload;
+                setPriceConfirm(null);
+                proceedSave({ ...p, updateMasterDeliveryPrice: false });
+              }}>
+                今回だけ保存（マスタ価格を更新しない）
+              </Button>
+              <Button variant="secondary" className="w-full" onClick={() => setPriceConfirm(null)}>
+                キャンセル
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
