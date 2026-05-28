@@ -92,6 +92,26 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
     ? selectedAsset.openingStock + inboundTotal - outboundTotal
     : 0;
 
+  // 過去の実購入価格の「変化」を直近3回分まで取得（同じ価格が続いた分はスキップ）
+  const priceHistory = (() => {
+    if (!selectedAsset) return [];
+    const inbounds = selectedAssetMovements
+      .filter((m) => m.type === 'in' && Number(m.actualDeliveryPrice) > 0)
+      .slice() // movements は date desc で渡されるが念のためコピー
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    const history = [];
+    let lastPrice = null;
+    for (const m of inbounds) {
+      const p = Number(m.actualDeliveryPrice);
+      if (p !== lastPrice) {
+        history.push({ price: p, date: m.date });
+        lastPrice = p;
+        if (history.length >= 3) break;
+      }
+    }
+    return history;
+  })();
+
   useEffect(() => {
     if (!selectedAsset) return;
     setForm((current) => ({
@@ -243,6 +263,21 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
               <InfoLine label="購入" value={`¥${(selectedAsset?.deliveryPrice || 0).toLocaleString()} / ${selectedAsset?.purchaseUnit || '-'}`} />
               <InfoLine label="使用" value={`¥${(selectedAsset?.usageUnitPrice || 0).toLocaleString()} / ${selectedAsset?.usageUnit || '-'}`} />
             </div>
+            {isIn && priceHistory.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-slate-200">
+                <div className="text-xs font-bold text-slate-500 mb-1">過去の実購入価格（直近3回分の変化）</div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                  {priceHistory.map((h, i) => (
+                    <span key={i} className="inline-flex items-baseline gap-1">
+                      <span className={`font-bold ${i === 0 ? 'text-emerald-700' : 'text-slate-700'}`}>
+                        ¥{h.price.toLocaleString()}
+                      </span>
+                      <span className="text-slate-400">（{h.date}）</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-3 items-center gap-4">
