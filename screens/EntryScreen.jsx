@@ -365,7 +365,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
                 />
                 <span className="font-bold text-slate-600">{selectedAsset?.usageUnit || '個'}</span>
               </div>
-              <p className="text-xs text-rose-500 font-bold">{isIn ? '入庫数' : '出庫数'}は 使用単位 で入力して下さい</p>
+              <p className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-300 rounded px-2 py-1">{isIn ? '入庫数' : '出庫数'}は <span className="underline">使用単位</span> で入力して下さい</p>
               {!isIn && selectedAsset && form.quantity > 0 && (
                 <div className={`flex items-center gap-2 rounded-md px-3 py-2 text-xs font-bold ${(currentStock - form.quantity) < 0 ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}>
                   <span>登録後在庫: {(currentStock - form.quantity).toLocaleString()} {selectedAsset.usageUnit}</span>
