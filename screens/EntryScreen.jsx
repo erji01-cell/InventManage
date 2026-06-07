@@ -348,24 +348,26 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
           <div className="grid grid-cols-3 items-center gap-4">
             <label className="font-bold text-slate-700">{isIn ? '入庫数' : '出庫数'}</label>
             <div className="col-span-2 space-y-1">
-              <div className="flex gap-2 items-center">
-                <input
-                  ref={quantityInputRef}
-                  type="number"
-                  className={`flex-1 p-2 border rounded-md ${isIn ? 'bg-emerald-50' : 'bg-rose-50'} ${focusClass}`}
-                  value={form.quantity}
-                  onChange={(e) => setForm({...form, quantity: parseInt(e.target.value) || 0})}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      if (isIn) expirationInputRef.current?.focus();
-                      else memoInputRef.current?.focus();
-                    }
-                  }}
-                />
-                <span className="font-bold text-slate-600">{selectedAsset?.usageUnit || '個'}</span>
+              <div className="flex gap-2 items-start">
+                <div className="flex-1 space-y-1">
+                  <input
+                    ref={quantityInputRef}
+                    type="number"
+                    className={`w-full p-2 border rounded-md ${isIn ? 'bg-emerald-50' : 'bg-rose-50'} ${focusClass}`}
+                    value={form.quantity}
+                    onChange={(e) => setForm({...form, quantity: parseInt(e.target.value) || 0})}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (isIn) expirationInputRef.current?.focus();
+                        else memoInputRef.current?.focus();
+                      }
+                    }}
+                  />
+                  <p className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-300 rounded px-2 py-1">{isIn ? '入庫数' : '出庫数'}は <span className="underline">使用単位</span> で入力して下さい</p>
+                </div>
+                <span className="font-bold text-slate-600 mt-2">{selectedAsset?.usageUnit || '個'}</span>
               </div>
-              <p className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-300 rounded px-2 py-1">{isIn ? '入庫数' : '出庫数'}は <span className="underline">使用単位</span> で入力して下さい</p>
               {!isIn && selectedAsset && form.quantity > 0 && (
                 <div className={`flex items-center gap-2 rounded-md px-3 py-2 text-xs font-bold ${(currentStock - form.quantity) < 0 ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-slate-50 text-slate-500 border border-slate-200'}`}>
                   <span>登録後在庫: {(currentStock - form.quantity).toLocaleString()} {selectedAsset.usageUnit}</span>
