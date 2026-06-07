@@ -358,6 +358,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
       await onUpdateAsset(selectedAsset.id, {
         maker: editForm.maker.trim(),
         brand_name: editForm.name.trim(),
+        kana_name: editForm.kanaName?.trim() || null,
         delivery_price: deliveryPrice,
         purchase_unit: editForm.purchaseUnit.trim() || null,
         pack_size: Math.trunc(packSize),
@@ -536,6 +537,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
 
                   <EditField label="メーカー" value={editForm.maker} onChange={(value) => updateEditForm('maker', value)} />
                   <EditField label="品名" value={editForm.name} onChange={(value) => updateEditForm('name', value)} />
+                  <EditField label="読み仮名" value={editForm.kanaName} onChange={(value) => updateEditForm('kanaName', value)} />
 
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
                     <p className="mb-3 text-xs font-bold text-amber-700">大分類</p>
