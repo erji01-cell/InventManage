@@ -103,7 +103,7 @@ body{font-family:'MS Gothic','Hiragino Kaku Gothic Pro',sans-serif;font-size:9pt
 h1{font-size:12pt;font-weight:bold;margin-bottom:3mm}
 .meta{font-size:8pt;color:#555;margin-bottom:4mm}
 table{width:100%;border-collapse:collapse;table-layout:fixed}
-th,td{border:1px solid #bbb;padding:2px 4px;vertical-align:top;word-break:break-all;overflow:hidden}
+th,td{border:1px solid #bbb;padding:5px 4px;line-height:1.5;vertical-align:top;word-break:break-all;overflow:hidden}
 th{background:#e8e8e8;font-weight:bold;text-align:center;white-space:nowrap}
 td.r{text-align:right}
 tr.grp td{background:#d4e8ff;font-weight:bold;font-size:9pt;padding:3px 6px;border-top:2px solid #5588bb}
