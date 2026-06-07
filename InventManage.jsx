@@ -503,8 +503,11 @@ export default function App() {
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         {isLoading && (
-          <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 font-bold text-blue-700">
-            Supabaseからデータを読み込んでいます...
+          <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-50">
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin" />
+              <p className="text-lg font-bold text-blue-700">データベース読み込み中...</p>
+            </div>
           </div>
         )}
         {error && (
