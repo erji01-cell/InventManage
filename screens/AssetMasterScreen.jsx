@@ -440,7 +440,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
         <Button variant="secondary" onClick={() => setFilter('')}>リセット</Button>
       </div>
 
-      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
         <div className="overflow-auto rounded-lg border border-slate-200 shadow-sm">
           <table className="w-full text-left border-collapse min-w-[800px] text-sm">
             <thead className="bg-slate-100 sticky top-0">
