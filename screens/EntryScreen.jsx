@@ -266,7 +266,12 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
               <InfoLine label="取引先" value={selectedAsset?.supplier || '-'} />
               <InfoLine label="現在庫" value={`${selectedAsset ? currentStock.toLocaleString() : '-'} ${selectedAsset?.usageUnit || ''}`} valueClassName={`font-bold ${currentStock <= 0 ? 'text-rose-600' : 'text-slate-700'}`} />
               <InfoLine label="購入" value={`¥${(selectedAsset?.deliveryPrice || 0).toLocaleString()} / ${selectedAsset?.purchaseUnit || '-'}`} />
-              <InfoLine label="使用単価" value={`¥${(selectedAsset?.usageUnitPrice || 0).toLocaleString()} / ${selectedAsset?.usageUnit || '-'}`} valueClassName="font-black text-base text-amber-700" />
+              <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-300 px-2 py-1">
+                <span className="text-xs font-bold text-amber-700 whitespace-nowrap">使用単価</span>
+                <span className="text-base font-black text-amber-800 whitespace-nowrap">
+                  ¥{(selectedAsset?.usageUnitPrice || 0).toLocaleString()} <span className="text-sm font-bold">/ {selectedAsset?.usageUnit || '-'}</span>
+                </span>
+              </div>
             </div>
             {isIn && priceHistory.length > 0 && (
               <div className="mt-2 pt-2 border-t border-slate-200">
