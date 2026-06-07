@@ -365,7 +365,7 @@ ${summaryHTML}
         </div>
       </div>
 
-      <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-6 flex flex-wrap items-end justify-between gap-4">
+      <div className="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-6 flex flex-wrap items-end gap-4">
         <div className="flex flex-wrap items-end gap-5">
           <div className="space-y-2">
             <span className="block text-sm font-bold text-slate-500">入出庫</span>
@@ -385,7 +385,7 @@ ${summaryHTML}
             </div>
           </div>
           <div className="space-y-2">
-            <span className="block text-sm font-bold text-slate-500">棚卸し調整</span>
+            <span className="block text-sm font-bold text-slate-500">通常・棚卸調整</span>
             <div className="flex bg-white border border-slate-200 rounded-md p-1">
               <button
                 onClick={() => setAdjustmentFilter('all')}
@@ -422,39 +422,40 @@ ${summaryHTML}
               </Button>
             </div>
           </div>
-        </div>
 
-        <div className="space-y-2">
-          <span className="block text-sm font-bold text-slate-500">資産を選択して絞り込み</span>
-          <div className="flex items-center gap-2">
-            <div className="w-80">
-              <AssetSearchInput
-                assets={assets}
-                value={pinnedId}
-                onChange={(id) => {
-                  setPinnedId(id);
+          <div className="space-y-2">
+            <span className="block text-sm font-bold text-slate-500">資産を選択して絞り込み</span>
+            <div className="flex items-center gap-2">
+              <div className="w-56">
+                <AssetSearchInput
+                  assets={assets}
+                  value={pinnedId}
+                  onChange={(id) => {
+                    setPinnedId(id);
+                    setMovementSearchTerm('');
+                  }}
+                  isIn={true}
+                  showListSignal={0}
+                  resetSignal={assetResetSignal}
+                  onSearchTermChange={handleSearchTermChange}
+                />
+              </div>
+              <Button
+                variant="secondary"
+                className="px-3"
+                onClick={() => {
+                  setPinnedId('');
                   setMovementSearchTerm('');
+                  setMovementDateFrom('');
+                  setMovementDateTo('');
+                  setAppliedDateFrom('');
+                  setAppliedDateTo('');
+                  setAssetResetSignal(s => s + 1);
                 }}
-                isIn={true}
-                showListSignal={0}
-                resetSignal={assetResetSignal}
-                onSearchTermChange={handleSearchTermChange}
-              />
+              >
+                リセット
+              </Button>
             </div>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setPinnedId('');
-                setMovementSearchTerm('');
-                setMovementDateFrom('');
-                setMovementDateTo('');
-                setAppliedDateFrom('');
-                setAppliedDateTo('');
-                setAssetResetSignal(s => s + 1);
-              }}
-            >
-              リセット
-            </Button>
           </div>
         </div>
       </div>
