@@ -181,6 +181,7 @@ tr.pb{page-break-after:always}
 const createAssetEditForm = (asset) => ({
   maker: asset?.maker || '',
   name: asset?.name || '',
+  kanaName: asset?.kanaName || '',
   deliveryPrice: asset?.deliveryPrice ?? 0,
   purchaseUnit: asset?.purchaseUnit || '',
   packSize: asset?.packSize || 1,
