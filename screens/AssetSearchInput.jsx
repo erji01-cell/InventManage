@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X } from 'lucide-react';
 
-export default function AssetSearchInput({ assets, value, onChange, isIn, showListSignal, inputRef = null, onSearchTermChange }) {
+export default function AssetSearchInput({ assets, value, onChange, isIn, showListSignal, resetSignal = 0, inputRef = null, onSearchTermChange }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
@@ -44,6 +44,13 @@ export default function AssetSearchInput({ assets, value, onChange, isIn, showLi
       setIsOpen(true);
     }
   }, [showListSignal]);
+
+  useEffect(() => {
+    if (resetSignal > 0) {
+      setSearchTerm('');
+      setIsOpen(false);
+    }
+  }, [resetSignal]);
 
   return (
     <div className="relative w-full" ref={containerRef}>

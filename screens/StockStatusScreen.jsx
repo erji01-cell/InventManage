@@ -18,6 +18,7 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
   const [dragAnchor, setDragAnchor] = useState(null);
   const [stockSearchTerm, setStockSearchTerm] = useState('');
   const [pinnedId, setPinnedId] = useState(pinnedAssetId);
+  const [assetResetSignal, setAssetResetSignal] = useState(0);
   const [showMinusOnly, setShowMinusOnly] = useState(false);
   const [showPrintMenu, setShowPrintMenu] = useState(false);
 
@@ -279,6 +280,7 @@ ${summaryHTML}
               onChange={(id) => { setPinnedId(id); setStockSearchTerm(''); }}
               isIn={true}
               showListSignal={0}
+              resetSignal={assetResetSignal}
               onSearchTermChange={handleSearchTermChange}
             />
           </div>
@@ -289,6 +291,7 @@ ${summaryHTML}
             setPinnedId('');
             setStockSearchTerm('');
             setShowMinusOnly(false);
+            setAssetResetSignal(s => s + 1);
           }}>
             <RefreshCcw size={16} /> リセット
           </Button>

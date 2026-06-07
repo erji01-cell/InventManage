@@ -16,6 +16,7 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
   const [adjustmentFilter, setAdjustmentFilter] = useState('all'); // 'all' | 'normal' | 'adjustment'
   const [movementSearchTerm, setMovementSearchTerm] = useState('');
   const [pinnedId, setPinnedId] = useState(pinnedAssetId);
+  const [assetResetSignal, setAssetResetSignal] = useState(0);
 
   const handleSearchTermChange = (term) => {
     if (pinnedId) setPinnedId('');
@@ -436,6 +437,7 @@ ${summaryHTML}
                 }}
                 isIn={true}
                 showListSignal={0}
+                resetSignal={assetResetSignal}
                 onSearchTermChange={handleSearchTermChange}
               />
             </div>
@@ -448,6 +450,7 @@ ${summaryHTML}
                 setMovementDateTo('');
                 setAppliedDateFrom('');
                 setAppliedDateTo('');
+                setAssetResetSignal(s => s + 1);
               }}
             >
               リセット
