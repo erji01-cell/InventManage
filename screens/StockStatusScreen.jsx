@@ -271,7 +271,7 @@ ${summaryHTML}
                 onClick={() => setShowMinusOnly(v => !v)}
                 className={`text-xs font-bold px-2 py-0.5 rounded-full border transition-colors ${showMinusOnly ? 'bg-red-500 text-white border-red-500' : 'bg-white text-red-500 border-red-300 hover:bg-red-50'}`}
               >
-                在庫マイナス
+                在庫マイナス抽出
               </button>
             </div>
             <AssetSearchInput
