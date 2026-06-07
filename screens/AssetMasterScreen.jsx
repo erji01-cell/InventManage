@@ -502,6 +502,13 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                 )}
               </div>
 
+              {selectedAsset && !isEditing && (
+                <div className="rounded-lg bg-slate-100 px-4 py-3">
+                  <p className="text-base font-black text-slate-800 leading-snug">{selectedAsset.name || '-'}</p>
+                  <p className="mt-0.5 text-xs text-slate-500 font-medium">{selectedAsset.kanaName || ''}</p>
+                </div>
+              )}
+
               {saveError && (
                 <div className="rounded-md border border-red-200 bg-red-50 p-3 text-red-700">
                   {saveError}
