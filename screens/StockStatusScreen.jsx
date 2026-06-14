@@ -5,7 +5,7 @@ import { Button, Card } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
 import { isMovementAfterClose, normalizeMovementType, parseLocalDate } from '../utils/inventory.js';
 
-export default function StockStatusScreen({ assets, movements, setView, pinnedAssetId = '', onNavigateHistory }) {
+export default function StockStatusScreen({ assets, movements, setView, pinnedAssetId = '', onNavigateHistory, onNavigateAssets }) {
   const fiscalMonths = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
   const today = new Date();
   const fiscalEndYear = today.getMonth() + 1 >= 7 ? today.getFullYear() + 1 : today.getFullYear();
@@ -213,7 +213,7 @@ ${summaryHTML}
         </div>
         <div className="flex items-center gap-3 mr-10">
           <Button variant="history" onClick={() => setView('history')}><ArrowLeftRight size={18} /> 入出庫データ</Button>
-          <Button variant="assets" onClick={() => setView('assets')}><Table2 size={18} /> 資産マスタ</Button>
+          <Button variant="assets" onClick={() => { if (onNavigateAssets) { onNavigateAssets(pinnedId); } else { setView('assets'); } }}><Table2 size={18} /> 資産マスタ</Button>
           <Button variant="primary" onClick={() => setShowPrintMenu(true)}><Printer size={18} /> 印刷</Button>
         </div>
       </div>

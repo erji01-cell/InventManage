@@ -11,7 +11,7 @@ const isAdjustmentMovement = (m) =>
   m?.stocktakingCountId != null
   || /^\s*\[棚卸し調整\]/.test(m?.memo || '');
 
-export default function MovementHistoryScreen({ movements, setView, assets, staff = [], updateMovement, deleteMovement, pinnedAssetId = '' }) {
+export default function MovementHistoryScreen({ movements, setView, assets, staff = [], updateMovement, deleteMovement, pinnedAssetId = '', onNavigateAssets }) {
   const [filterType, setFilterType] = useState('all');
   const [adjustmentFilter, setAdjustmentFilter] = useState('all'); // 'all' | 'normal' | 'adjustment'
   const [movementSearchTerm, setMovementSearchTerm] = useState('');
@@ -359,7 +359,7 @@ ${summaryHTML}
           <p className="mt-2 text-sm text-slate-500">残在庫は現在の在庫ではありません</p>
         </div>
         <div className="flex items-center gap-3 mr-8">
-          <Button variant="assets" onClick={() => setView('assets')}><ArrowLeftRight size={18} /> 資産マスタ</Button>
+          <Button variant="assets" onClick={() => { if (onNavigateAssets) { onNavigateAssets(pinnedId); } else { setView('assets'); } }}><ArrowLeftRight size={18} /> 資産マスタ</Button>
           <Button variant="stock" onClick={() => setView('stock')}><Table2 size={18} /> 在庫表</Button>
           <Button variant="history" onClick={() => setShowPrintMenu(true)}><Printer size={18} /> 印刷</Button>
         </div>

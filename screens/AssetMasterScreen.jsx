@@ -194,9 +194,9 @@ const createAssetEditForm = (asset) => ({
   parentGenericName: asset?.parentGenericName || '',
 });
 
-export default function AssetMasterScreen({ assets, suppliers, categories = [], onCreateCategory, onCreateAsset, onUpdateAsset, onUpdateParentAsset, onDeleteAsset, setView, onNavigateEntry, onNavigateHistory, onNavigateStock }) {
+export default function AssetMasterScreen({ assets, suppliers, categories = [], onCreateCategory, onCreateAsset, onUpdateAsset, onUpdateParentAsset, onDeleteAsset, setView, onNavigateEntry, onNavigateHistory, onNavigateStock, initialAssetId = '' }) {
   const [filter, setFilter] = useState('');
-  const [selectedAssetId, setSelectedAssetId] = useState('');
+  const [selectedAssetId, setSelectedAssetId] = useState(initialAssetId);
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState(() => createAssetEditForm(null));
@@ -236,6 +236,10 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
     setSaveError('');
     setEditForm(createAssetEditForm(selectedAsset));
   }, [selectedAsset?.id, isCreating]);
+
+  useEffect(() => {
+    setSelectedAssetId(initialAssetId);
+  }, [initialAssetId]);
 
   const updateEditForm = (key, value) => {
     setEditForm(prev => ({ ...prev, [key]: value }));
