@@ -136,10 +136,12 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
           </div>
         </div>
 
-        <Button variant="danger" className="px-12 py-3 text-lg" onClick={onLogout}>
-          <LogOut size={20} />
-          ログアウト
-        </Button>
+        <div className="w-full flex justify-end">
+          <Button variant="danger" className="px-12 py-3 text-lg" onClick={onLogout}>
+            <LogOut size={20} />
+            ログアウト
+          </Button>
+        </div>
       </Card>
 
       {showStocktakingWarning && (
