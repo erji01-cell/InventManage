@@ -200,7 +200,7 @@ ${summaryHTML}
 </body></html>`;
 
   const buildTableHTML = (rows) => {
-    const headers = ['日付','分類','ID','メーカー','品名','入庫','出庫','残在庫','使用単位','実購入価格','使用期限'];
+    const headers = ['日付','分類','ID','メーカー','品名','入庫','出庫','差引残','使用単位','実購入価格','使用期限'];
     const widths =  ['11%', '8%', '6%', '10%', '22%', '6%', '6%', '7%', '6%', '10%', '8%'];
     const ths = headers.map((h, i) => `<th style="width:${widths[i]}">${h}</th>`).join('');
     const tds = rows.map(({ m, asset, rs }) => {
@@ -356,7 +356,7 @@ ${summaryHTML}
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-500">Stock Movement</p>
           <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-900">入出庫データ</h2>
-          <p className="mt-2 text-sm text-slate-500">残在庫は現在の在庫ではありません</p>
+          <p className="mt-2 text-sm text-slate-500">差引残は現在の在庫ではありません</p>
         </div>
         <div className="flex items-center gap-3 mr-8">
           <Button variant="assets" onClick={() => { if (onNavigateAssets) { onNavigateAssets(pinnedId); } else { setView('assets'); } }}><ArrowLeftRight size={18} /> 資産マスタ</Button>
@@ -480,7 +480,7 @@ ${summaryHTML}
               <th className="px-3 py-2 border-b border-slate-200 min-w-[300px]">品名</th>
               <th className="px-2 py-2 border-b border-slate-200 text-right w-16">入庫</th>
               <th className="px-2 py-2 border-b border-slate-200 text-right w-16">出庫</th>
-              <th className="px-2 py-2 border-b border-slate-200 text-right w-20 bg-blue-50/70">残在庫</th>
+              <th className="px-2 py-2 border-b border-slate-200 text-right w-20 bg-blue-50/70">差引残</th>
               <th className="px-2 py-2 border-b border-slate-200 text-center w-14">使用単位</th>
               <th className="px-3 py-2 border-b border-slate-200 text-right w-28">実購入価格</th>
               <th className="px-3 py-2 border-b border-slate-200 w-24">使用期限</th>
