@@ -493,9 +493,17 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                   <p className="mt-1 text-base font-black text-slate-800">詳細情報</p>
                 </div>
                 {!isEditing ? (
-                  <Button variant="action" className="px-3 py-1 text-sm" onClick={startEdit}>
-                    編集
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="success" className="px-3 py-1 text-sm" onClick={() => onNavigateEntry('in', selectedAsset?.id)} disabled={!selectedAsset}>
+                      <LogIn size={16} /> 入庫
+                    </Button>
+                    <Button variant="danger" className="px-3 py-1 text-sm bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100" onClick={() => onNavigateEntry('out', selectedAsset?.id)} disabled={!selectedAsset}>
+                      <LogOut size={16} /> 出庫
+                    </Button>
+                    <Button variant="action" className="px-3 py-1 text-sm" onClick={startEdit}>
+                      編集
+                    </Button>
+                  </div>
                 ) : (
                   <div className="flex gap-2">
                     <Button variant="secondary" className="px-3 py-1 text-sm" onClick={cancelEdit} disabled={isSaving}>
@@ -642,14 +650,6 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                   </div>
 
                   <div className="flex flex-col gap-2 border-t border-slate-200 pt-4">
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button variant="success" className="w-full px-3 py-2 text-sm" onClick={() => onNavigateEntry('in', selectedAsset?.id)} disabled={!selectedAsset}>
-                        <LogIn size={16} /> 入庫
-                      </Button>
-                      <Button variant="danger" className="w-full px-3 py-2 text-sm bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100" onClick={() => onNavigateEntry('out', selectedAsset?.id)} disabled={!selectedAsset}>
-                        <LogOut size={16} /> 出庫
-                      </Button>
-                    </div>
                     <div className="grid grid-cols-3 gap-2">
                       <Button className="w-full px-3 py-2 text-sm bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100" onClick={() => onNavigateHistory?.(selectedAsset?.id)} disabled={!selectedAsset}>
                         <ArrowLeftRight size={16} /> 入出庫
