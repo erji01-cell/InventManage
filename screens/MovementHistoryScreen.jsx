@@ -11,7 +11,7 @@ const isAdjustmentMovement = (m) =>
   m?.stocktakingCountId != null
   || /^\s*\[棚卸し調整\]/.test(m?.memo || '');
 
-export default function MovementHistoryScreen({ movements, setView, assets, staff = [], updateMovement, deleteMovement, pinnedAssetId = '', onNavigateAssets }) {
+export default function MovementHistoryScreen({ movements, setView, assets, staff = [], updateMovement, updateAsset, deleteMovement, pinnedAssetId = '', onNavigateAssets }) {
   const [filterType, setFilterType] = useState('all');
   const [adjustmentFilter, setAdjustmentFilter] = useState('all'); // 'all' | 'normal' | 'adjustment'
   const [movementSearchTerm, setMovementSearchTerm] = useState('');
@@ -30,6 +30,7 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
   const [movementEditForm, setMovementEditForm] = useState(null);
   const [movementSaveError, setMovementSaveError] = useState('');
   const [isMovementSaving, setIsMovementSaving] = useState(false);
+  const [priceConfirm, setPriceConfirm] = useState(null); // {masterPrice, actualPrice}
   const [showPrintMenu, setShowPrintMenu] = useState(false);
   const [editAssetCodeInput, setEditAssetCodeInput] = useState('');
 
@@ -287,6 +288,24 @@ ${summaryHTML}
       return;
     }
 
+    // 入庫かつ「今回 実購入単価を編集した」かつ マスタ購入価格と異なる場合のみ確認モーダルを表示
+    const editingAsset = assets.find((a) => String(a.id) === String(movementEditForm.assetId));
+    const masterPrice = Number(editingAsset?.deliveryPrice || 0);
+    const originalPrice = Number(selectedMovement.movement.actualDeliveryPrice || 0);
+    const priceChanged = actualDeliveryPrice !== originalPrice;
+    if (movementEditForm.type === 'in' && priceChanged && actualDeliveryPrice !== masterPrice) {
+      setMovementSaveError('');
+      setPriceConfirm({ masterPrice, actualPrice: actualDeliveryPrice });
+      return; // モーダルの選択結果で proceedSaveMovementDetail が呼ばれる
+    }
+
+    await proceedSaveMovementDetail({ updateMasterDeliveryPrice: false });
+  };
+
+  const proceedSaveMovementDetail = async ({ updateMasterDeliveryPrice }) => {
+    if (!selectedMovement || !movementEditForm) return;
+    const quantity = Number(movementEditForm.quantity);
+    const actualDeliveryPrice = Number(movementEditForm.actualDeliveryPrice || 0);
     const staffMember = staff.find((member) => String(member.id) === String(movementEditForm.staffId));
     setIsMovementSaving(true);
     setMovementSaveError('');
@@ -303,6 +322,9 @@ ${summaryHTML}
         staff_name: staffMember?.name || movementEditForm.staffName || null,
         memo: movementEditForm.memo || null,
       });
+      if (updateMasterDeliveryPrice && updateAsset) {
+        await updateAsset(Number(movementEditForm.assetId), { delivery_price: actualDeliveryPrice });
+      }
       const updatedAsset = assets.find((asset) => asset.id === updated.assetId) || selectedMovement.asset;
       setSelectedMovement({ movement: updated, asset: updatedAsset });
       setMovementEditForm({
@@ -716,6 +738,41 @@ ${summaryHTML}
       <div className="flex justify-end mt-6">
         <Button variant="secondary" onClick={() => setView('menu')}><X size={18} /> 閉じる</Button>
       </div>
+
+      {priceConfirm && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black bg-opacity-40 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-[28rem] flex flex-col gap-5">
+            <h2 className="text-lg font-black text-slate-800">マスタ購入価格の更新確認</h2>
+            <div className="text-sm text-slate-700 leading-relaxed">
+              実購入価格がマスタ購入価格と異なります。
+              <div className="mt-3 grid grid-cols-2 gap-2 p-3 bg-slate-50 rounded border border-slate-200">
+                <div className="text-slate-500">マスタ購入価格</div>
+                <div className="text-right font-bold">¥{priceConfirm.masterPrice.toLocaleString()}</div>
+                <div className="text-slate-500">実購入価格</div>
+                <div className="text-right font-bold text-emerald-700">¥{priceConfirm.actualPrice.toLocaleString()}</div>
+              </div>
+              <p className="mt-3 font-bold">マスタ購入価格を更新しますか？</p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Button variant="success" className="w-full" onClick={() => {
+                setPriceConfirm(null);
+                proceedSaveMovementDetail({ updateMasterDeliveryPrice: true });
+              }}>
+                更新する
+              </Button>
+              <Button variant="primary" className="w-full" onClick={() => {
+                setPriceConfirm(null);
+                proceedSaveMovementDetail({ updateMasterDeliveryPrice: false });
+              }}>
+                今回だけ保存（マスタ価格を更新しない）
+              </Button>
+              <Button variant="secondary" className="w-full" onClick={() => setPriceConfirm(null)}>
+                キャンセル
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </Card>
   );
