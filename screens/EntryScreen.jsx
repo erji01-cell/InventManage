@@ -224,8 +224,15 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
               <input
                 ref={assetCodeInputRef}
                 type="text"
+                inputMode="numeric"
                 value={assetCodeInput}
-                onChange={(e) => setAssetCodeInput(e.target.value)}
+                onChange={(e) => {
+                  // 全角数字→半角に変換し、数字以外は除去
+                  const digitsOnly = e.target.value
+                    .replace(/[０-９]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+                    .replace(/[^0-9]/g, '');
+                  setAssetCodeInput(digitsOnly);
+                }}
                 onBlur={() => { if (assetCodeInput && assetCodeInput !== form.assetId) selectAssetByCode(); }}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
