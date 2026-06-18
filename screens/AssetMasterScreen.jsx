@@ -92,6 +92,10 @@ function PrintDialog({ assets, onClose }) {
     }
 
     const headerCells = selectedCols.map(col => `<th>${col.label}</th>`).join('');
+    // ID列は幅1cm固定、それ以外は残り幅を自動配分
+    const colGroup = `<colgroup>${selectedCols.map(col =>
+      col.key === 'id' ? '<col style="width:1cm">' : '<col>'
+    ).join('')}</colgroup>`;
     const dateStr = new Date().toLocaleDateString('ja-JP');
 
     const html = `<!DOCTYPE html>
@@ -114,7 +118,7 @@ tr.pb{page-break-after:always}
 </head><body>
 <h1>資産マスタ一覧</h1>
 <div class="meta">並び順: ${sortLabel}　／　印刷日: ${dateStr}　／　件数: ${sortedAssets.length}件</div>
-<table><thead><tr>${headerCells}</tr></thead><tbody>${tableRows}</tbody></table>
+<table>${colGroup}<thead><tr>${headerCells}</tr></thead><tbody>${tableRows}</tbody></table>
 </body></html>`;
 
     const win = window.open('', '_blank', 'width=900,height=700');
