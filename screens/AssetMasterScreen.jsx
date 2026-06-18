@@ -92,9 +92,10 @@ function PrintDialog({ assets, onClose }) {
     }
 
     const headerCells = selectedCols.map(col => `<th>${col.label}</th>`).join('');
-    // ID列は幅1cm固定、それ以外は残り幅を自動配分
+    // ID・購入単位・使用単位は幅1.5cm固定、それ以外は残り幅を自動配分
+    const fixedWidthKeys = new Set(['id', 'purchaseUnit', 'usageUnit']);
     const colGroup = `<colgroup>${selectedCols.map(col =>
-      col.key === 'id' ? '<col style="width:1.5cm">' : '<col>'
+      fixedWidthKeys.has(col.key) ? '<col style="width:1.5cm">' : '<col>'
     ).join('')}</colgroup>`;
     const dateStr = new Date().toLocaleDateString('ja-JP');
 
