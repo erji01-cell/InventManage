@@ -448,13 +448,13 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
 
       <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
         <div className="overflow-auto rounded-lg border border-slate-200 shadow-sm">
-          <table className="w-full text-left border-collapse min-w-[800px] text-sm">
+          <table className="w-full text-left border-collapse table-fixed text-sm">
             <thead className="bg-slate-100 sticky top-0">
               <tr>
-                <th className="p-3 w-20">ID</th>
-                <th className="p-3 w-40">メーカー</th>
-                <th className="p-3 w-28">分類</th>
-                <th className="p-3 min-w-[420px]">品名</th>
+                <th className="p-3 w-16">ID</th>
+                <th className="p-3 w-32">メーカー</th>
+                <th className="p-3 w-24">分類</th>
+                <th className="p-3">品名</th>
               </tr>
             </thead>
             <tbody>
@@ -471,12 +471,12 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                       isSelected ? 'bg-blue-50 shadow-[inset_4px_0_0_#2563eb]' : 'hover:bg-slate-50'
                     }`}
                   >
-                    <td className="p-3 font-mono text-slate-500">{asset.id}</td>
-                    <td className="p-3 w-40 max-w-40 whitespace-normal break-words">{asset.maker}</td>
-                    <td className="p-3 w-28 max-w-28 whitespace-normal break-words">
+                    <td className="p-3 font-mono text-slate-500 break-words">{asset.id}</td>
+                    <td className="p-3 whitespace-normal break-words">{asset.maker}</td>
+                    <td className="p-3 whitespace-normal break-words">
                       <span className="rounded bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">{asset.parentCategory}</span>
                     </td>
-                    <td className="p-3 min-w-[420px] font-medium text-blue-700 whitespace-normal break-words">{asset.name}</td>
+                    <td className="p-3 font-medium text-blue-700 whitespace-normal break-words">{asset.name}</td>
                   </tr>
                 );
               })}
