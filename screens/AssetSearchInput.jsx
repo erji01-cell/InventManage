@@ -23,7 +23,8 @@ export default function AssetSearchInput({ assets, value, onChange, isIn, showLi
     const lowerSearch = searchTerm.toLowerCase();
     return assets.filter(a =>
       a.name.toLowerCase().includes(lowerSearch) ||
-      a.kanaName.toLowerCase().includes(lowerSearch)
+      a.kanaName.toLowerCase().includes(lowerSearch) ||
+      (a.maker || '').toLowerCase().includes(lowerSearch)
     ).slice(0, 10);
   }, [searchTerm, assets, isOpen, selectedAsset]);
 
@@ -58,7 +59,7 @@ export default function AssetSearchInput({ assets, value, onChange, isIn, showLi
           ref={inputRef}
           type="text"
           lang="ja"
-          placeholder="品名で検索..."
+          placeholder="品名・メーカーで検索..."
           className={`w-full p-2 pr-16 border rounded-md outline-none focus:ring-2 transition-all ${
             isIn ? 'focus:ring-emerald-500' : 'focus:ring-rose-500'
           }`}
