@@ -94,7 +94,7 @@ function PrintDialog({ assets, onClose }) {
     const headerCells = selectedCols.map(col => `<th>${col.label}</th>`).join('');
     // ID列は幅1cm固定、それ以外は残り幅を自動配分
     const colGroup = `<colgroup>${selectedCols.map(col =>
-      col.key === 'id' ? '<col style="width:1cm">' : '<col>'
+      col.key === 'id' ? '<col style="width:1.5cm">' : '<col>'
     ).join('')}</colgroup>`;
     const dateStr = new Date().toLocaleDateString('ja-JP');
 
