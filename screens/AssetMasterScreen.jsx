@@ -212,6 +212,8 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
     a.name.includes(filter) ||
     a.maker.includes(filter) ||
     a.parentCategory.includes(filter) ||
+    (a.parentGenericName || '').includes(filter) ||
+    (a.kanaName || '').includes(filter) ||
     a.supplier.includes(filter) ||
     String(a.id).includes(filter)
   );
