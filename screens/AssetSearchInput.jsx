@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X } from 'lucide-react';
+import { kanaSearchKey, romajiCanonical, isRomajiQuery } from '../utils/romaji.js';
 
 export default function AssetSearchInput({ assets, value, onChange, isIn, showListSignal, resetSignal = 0, inputRef = null, onSearchTermChange }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,10 +22,13 @@ export default function AssetSearchInput({ assets, value, onChange, isIn, showLi
       return [];
     }
     const lowerSearch = searchTerm.toLowerCase();
+    // ローマ字入力ならかな名のローマ字化と照合（IME不要でかな名を検索可能に）
+    const romajiSearch = isRomajiQuery(lowerSearch) ? romajiCanonical(lowerSearch) : '';
     return assets.filter(a =>
       a.name.toLowerCase().includes(lowerSearch) ||
       a.kanaName.toLowerCase().includes(lowerSearch) ||
-      (a.maker || '').toLowerCase().includes(lowerSearch)
+      (a.maker || '').toLowerCase().includes(lowerSearch) ||
+      (romajiSearch && kanaSearchKey(a.kanaName).includes(romajiSearch))
     ).slice(0, 10);
   }, [searchTerm, assets, isOpen, selectedAsset]);
 
