@@ -208,15 +208,18 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
   const [saveError, setSaveError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
-  const filteredAssets = assets.filter(a =>
-    a.name.includes(filter) ||
-    a.maker.includes(filter) ||
-    a.parentCategory.includes(filter) ||
-    (a.parentGenericName || '').includes(filter) ||
-    (a.kanaName || '').includes(filter) ||
-    a.supplier.includes(filter) ||
-    String(a.id).includes(filter)
-  );
+  const filteredAssets = (() => {
+    const q = filter.toLowerCase();
+    return assets.filter(a =>
+      (a.name || '').toLowerCase().includes(q) ||
+      (a.maker || '').toLowerCase().includes(q) ||
+      (a.parentCategory || '').toLowerCase().includes(q) ||
+      (a.parentGenericName || '').toLowerCase().includes(q) ||
+      (a.kanaName || '').toLowerCase().includes(q) ||
+      (a.supplier || '').toLowerCase().includes(q) ||
+      String(a.id).toLowerCase().includes(q)
+    );
+  })();
   const parentOptions = useMemo(() => {
     const parents = new Map();
     assets.forEach(asset => {
@@ -444,7 +447,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400" size={18} />
           <input 
             type="text" 
-            placeholder="ID・品名 (ヒンメイ) で検索..."
+            placeholder="ID・品名・メーカー・分類で検索..."
             className="w-full rounded-md border border-blue-200 bg-blue-50 py-2.5 pl-10 pr-4 text-sm font-medium shadow-inner outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
