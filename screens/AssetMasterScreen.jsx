@@ -3,6 +3,7 @@ import { ArrowLeftRight, LogIn, LogOut, PlusCircle, Printer, Search, Table2, Tra
 
 import { Button, Card, DetailItem, DetailRow, EditField } from '../components/ui.jsx';
 import { toNullableNumber } from '../utils/inventory.js';
+import { kanaSearchKey, romajiCanonical, isRomajiQuery } from '../utils/romaji.js';
 
 const COLUMN_DEFS = [
   { key: 'id',             label: 'ID',       defaultOn: true  },
@@ -210,6 +211,8 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const filteredAssets = (() => {
     const q = filter.toLowerCase();
+    // ローマ字入力ならかな名・大分類名のローマ字化と照合（IME不要で検索可能に）
+    const romajiSearch = isRomajiQuery(q) ? romajiCanonical(q) : '';
     return assets.filter(a =>
       (a.name || '').toLowerCase().includes(q) ||
       (a.maker || '').toLowerCase().includes(q) ||
@@ -217,7 +220,11 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
       (a.parentGenericName || '').toLowerCase().includes(q) ||
       (a.kanaName || '').toLowerCase().includes(q) ||
       (a.supplier || '').toLowerCase().includes(q) ||
-      String(a.id).toLowerCase().includes(q)
+      String(a.id).toLowerCase().includes(q) ||
+      (romajiSearch && (
+        kanaSearchKey(a.kanaName).includes(romajiSearch) ||
+        kanaSearchKey(a.parentGenericName).includes(romajiSearch)
+      ))
     );
   })();
   const parentOptions = useMemo(() => {
