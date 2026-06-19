@@ -486,9 +486,14 @@ export default function App() {
     setSavedEntryForm(null);
   };
 
+  const latestFiscalYearClosedAt = assets.reduce((latest, asset) => {
+    const closedAt = asset.fiscalYearClosedAt || '';
+    return closedAt > latest ? closedAt : latest;
+  }, '');
+
   const renderView = () => {
     switch (view) {
-      case 'menu': return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} />;
+      case 'menu': return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} />;
       case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} categories={categories} onCreateCategory={createCategory} onCreateAsset={createAsset} onUpdateAsset={updateAsset} onUpdateParentAsset={updateParentAsset} onDeleteAsset={deleteAsset} setView={setView} onNavigateEntry={navigateToEntry} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} initialAssetId={filterAssetId} />;
       case 'history': return <MovementHistoryScreen movements={movements} setView={setView} assets={assets} staff={staff} updateMovement={updateMovement} updateAsset={updateAsset} deleteMovement={deleteMovement} pinnedAssetId={filterAssetId} onNavigateAssets={navigateToAssets} />;
       case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} />;
@@ -496,7 +501,7 @@ export default function App() {
       case 'stock': return <StockStatusScreen assets={assets} movements={movements} setView={setView} pinnedAssetId={filterAssetId} onNavigateHistory={navigateToHistory} onNavigateAssets={navigateToAssets} />;
       case 'backup': return <BackupScreen session={authSession} setView={setView} onRestored={refreshData} />;
       case 'stocktaking': return <StocktakingScreen session={authSession} setView={setView} assets={assets} movements={movements} staff={staff} onCompleted={refreshData} />;
-      default: return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} />;
+      default: return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} />;
     }
   };
 

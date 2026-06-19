@@ -5,7 +5,25 @@ import { Button, Card } from '../components/ui.jsx';
 
 const ADMIN_PASSWORD = '0125';
 
-export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpdate, onFetchLastStocktaking, isAdminUnlocked, setIsAdminUnlocked, onNavigateHistory, onNavigateStock }) {
+function getFiscalDisplay(latestFiscalYearClosedAt) {
+  let startYear;
+
+  if (latestFiscalYearClosedAt) {
+    const [year, month] = String(latestFiscalYearClosedAt).split('-').map(Number);
+    startYear = month >= 7 ? year + 1 : year;
+  } else {
+    const now = new Date();
+    startYear = now.getMonth() + 1 >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+  }
+
+  const endYear = startYear + 1;
+  return {
+    versionLabel: `ver${endYear}.07.01`,
+    periodLabel: `${startYear}年7月～${endYear}年6月`,
+  };
+}
+
+export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpdate, onFetchLastStocktaking, isAdminUnlocked, setIsAdminUnlocked, onNavigateHistory, onNavigateStock, latestFiscalYearClosedAt }) {
   const [passwordTarget, setPasswordTarget] = useState(null); // 'backup' | 'yearEnd' | 'stocktaking' | null
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -111,15 +129,16 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
     : isStocktakingPassword
     ? 'focus:border-teal-400 bg-teal-50'
     : 'focus:border-purple-400 bg-purple-50';
+  const fiscalDisplay = getFiscalDisplay(latestFiscalYearClosedAt);
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh]">
       <Card className="w-full max-w-5xl flex flex-col items-center gap-10 py-12 px-8">
         <div className="text-center">
           <h1 className="text-5xl font-extrabold tracking-tight text-slate-800 mb-2">
-            在庫管理システム <span className="text-orange-500 font-normal">2026年度版</span>
+            在庫管理システム <span className="text-orange-500 font-normal">{fiscalDisplay.versionLabel}</span>
           </h1>
-          <p className="text-xl text-slate-500">2026.07.01 更新</p>
+          <p className="text-xl text-slate-500">{fiscalDisplay.periodLabel}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl">
