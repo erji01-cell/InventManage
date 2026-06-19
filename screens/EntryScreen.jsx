@@ -220,7 +220,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
 
   return (
     <div className="flex items-center justify-center min-h-[80vh]">
-      <Card className={`max-w-[calc(64rem_+_3cm)] w-full border-t-8 ${isIn ? 'border-t-emerald-500' : 'border-t-rose-500'}`}>
+      <Card className={`max-w-[calc(64rem_+_1cm)] w-full border-t-8 ${isIn ? 'border-t-emerald-500' : 'border-t-rose-500'}`}>
         <div className="text-center mb-5">
           <h2 className={`text-2xl font-black ${accentColor}`}>{title}</h2>
         </div>
