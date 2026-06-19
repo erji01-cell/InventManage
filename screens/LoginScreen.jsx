@@ -33,14 +33,9 @@ export default function LoginScreen({ onLogin }) {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-4 md:p-8 flex items-center justify-center">
-      <Card className="w-full max-w-md relative overflow-hidden">
-        {/* Top Accent Line */}
-        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-amber-500" />
-
+      <Card className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <h1 className="text-3xl font-black bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-800 bg-clip-text text-transparent pb-1">
-            在庫管理システム
-          </h1>
+          <h1 className="text-3xl font-black text-slate-800">在庫管理システム</h1>
           <p className="mt-2 text-sm text-slate-500">Supabaseアカウントでログインしてください</p>
         </div>
 
