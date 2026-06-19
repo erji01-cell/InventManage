@@ -339,8 +339,11 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
               <InfoLine label="現在庫" value={`${selectedAsset ? currentStock.toLocaleString() : '-'} ${selectedAsset?.usageUnit || ''}`} valueClassName={`font-bold ${currentStock <= 0 ? 'text-rose-600' : 'text-slate-700'}`} />
               <InfoLine label="購入" value={`¥${(selectedAsset?.deliveryPrice || 0).toLocaleString()} / ${selectedAsset?.purchaseUnit || '-'}`} />
               <InfoLine label="入数" value={`${(selectedAsset?.packSize || 0).toLocaleString()} ${selectedAsset?.usageUnit || ''}`} />
-              <InfoLine label="受払単位" value={selectedAsset?.usageUnit || '-'} />
-              <div className="col-start-2 flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-300 px-2 py-1">
+              <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-300 px-2 py-1">
+                <span className="text-xs font-bold text-blue-700 whitespace-nowrap">受払単位</span>
+                <span className="text-base font-black text-blue-800 whitespace-nowrap">{selectedAsset?.usageUnit || '-'}</span>
+              </div>
+              <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-300 px-2 py-1">
                 <span className="text-xs font-bold text-blue-700 whitespace-nowrap">受払単価</span>
                 <span className="text-base font-black text-blue-800 whitespace-nowrap">
                   ¥{(selectedAsset?.usageUnitPrice || 0).toLocaleString()} <span className="text-sm font-bold">/ {selectedAsset?.usageUnit || '-'}</span>
