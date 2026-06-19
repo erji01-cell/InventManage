@@ -226,7 +226,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="grid lg:grid-cols-2 gap-6 lg:gap-8 items-start">
+          <div className="grid lg:grid-cols-2 gap-6 lg:gap-8 items-stretch">
           {/* 左カラム: 資産の特定 */}
           <div className="space-y-4">
           <div className="grid grid-cols-3 items-center gap-4">
@@ -347,7 +347,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
           </div>
           </div>
           {/* 右カラム: 入力内容 */}
-          <div className="space-y-4">
+          <div className="flex flex-col space-y-4">
           <div className="grid grid-cols-3 items-center gap-4">
             <label className="font-bold text-slate-700">{isIn ? '入庫日' : '出庫日'}</label>
             <div className="col-span-2 flex gap-2 items-center">
@@ -475,7 +475,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
             </div>
           )}
 
-          <div className="flex justify-end items-center pt-6 border-t border-slate-100">
+          <div className="mt-auto flex justify-end items-center pt-6 border-t border-slate-100">
             <div className="flex gap-2">
               <Button ref={submitBtnRef} variant={btnVariant} className="px-10" onClick={handleSubmit} disabled={isSaving}>
                 {isSaving ? '登録中...' : '登録'}
