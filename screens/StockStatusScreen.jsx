@@ -223,8 +223,10 @@ ${summaryHTML}
           <div className="space-y-2">
             <div className="flex items-baseline gap-2">
               <p className="text-sm font-bold text-slate-500">月度選択</p>
-              {rangeFrom !== rangeTo && (
-                <p className="text-xs text-blue-600 font-bold">{fromMonth}月〜{toMonth}月</p>
+              {rangeFrom === rangeTo ? (
+                <p className="text-xs text-blue-600 font-bold">{getYearForMonth(fromMonth)}年 {fromMonth}月</p>
+              ) : (
+                <p className="text-xs text-blue-600 font-bold">{getYearForMonth(fromMonth)}年{fromMonth}月〜{getYearForMonth(toMonth)}年{toMonth}月</p>
               )}
             </div>
             <div className="flex flex-col w-max">
