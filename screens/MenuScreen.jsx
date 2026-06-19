@@ -118,17 +118,17 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
   const isYearEndPassword = passwordTarget === 'yearEnd';
   const isStocktakingPassword = passwordTarget === 'stocktaking';
   const passwordTitle = isYearEndPassword ? '年度更新' : isStocktakingPassword ? '棚卸し' : 'バックアップ';
-  const passwordIconBg = isYearEndPassword ? 'bg-slate-100' : isStocktakingPassword ? 'bg-teal-100' : 'bg-purple-100';
+  const passwordIconBg = isYearEndPassword ? 'bg-slate-100' : isStocktakingPassword ? 'bg-teal-100' : 'bg-slate-100';
   const passwordIcon = isYearEndPassword
     ? <RefreshCcw size={28} className="text-slate-700" />
     : isStocktakingPassword
     ? <ClipboardCheck size={28} className="text-teal-700" />
-    : <Database size={28} className="text-purple-700" />;
+    : <Database size={28} className="text-slate-700" />;
   const passwordInputClass = isYearEndPassword
     ? 'focus:border-slate-400 bg-slate-50'
     : isStocktakingPassword
     ? 'focus:border-teal-400 bg-teal-50'
-    : 'focus:border-purple-400 bg-purple-50';
+    : 'focus:border-slate-400 bg-slate-50';
   const fiscalDisplay = getFiscalDisplay(latestFiscalYearClosedAt);
 
   return (
@@ -167,7 +167,7 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
           <div className="flex flex-col gap-1.5">
             <SmallMenuButton icon={<ClipboardCheck size={18} />} title="棚卸し" tone="teal" onClick={() => openPasswordModal('stocktaking')} />
             <SmallMenuButton icon={<RefreshCcw size={18} />} title="年度更新" tone="slate" onClick={() => openPasswordModal('yearEnd')} />
-            <SmallMenuButton icon={<Database size={18} />} title="バックアップ" tone="purple" onClick={() => openPasswordModal('backup')} />
+            <SmallMenuButton icon={<Database size={18} />} title="バックアップ" tone="backup" onClick={() => openPasswordModal('backup')} />
           </div>
         </div>
 
@@ -370,6 +370,11 @@ const menuTones = {
     button: 'border-purple-200 bg-purple-50/80 text-purple-700 hover:border-purple-300 hover:bg-purple-50',
     icon: 'bg-white text-purple-600 ring-purple-100',
     accent: 'bg-purple-500',
+  },
+  backup: {
+    button: 'border-slate-400 bg-slate-100 text-slate-800 hover:border-slate-500 hover:bg-slate-200',
+    icon: 'bg-white text-slate-700 ring-slate-200',
+    accent: 'bg-slate-700',
   },
 };
 
