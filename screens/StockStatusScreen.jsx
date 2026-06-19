@@ -227,6 +227,11 @@ ${summaryHTML}
                 <p className="text-xs text-blue-600 font-bold">{fromMonth}月〜{toMonth}月</p>
               )}
             </div>
+            <div className="flex flex-col w-max">
+            <div className="flex px-1 mb-0.5">
+              <div className="w-48 text-center text-[11px] font-bold text-slate-400">{fiscalEndYear - 1}年</div>
+              <div className="w-48 text-center text-[11px] font-bold text-slate-400">{fiscalEndYear}年</div>
+            </div>
             <div
               className="flex w-max rounded-md border border-slate-200 bg-white p-1 shadow-sm select-none"
               onMouseLeave={() => { if (isDragging) setIsDragging(false); }}
@@ -261,6 +266,7 @@ ${summaryHTML}
                   </button>
                 );
               })}
+            </div>
             </div>
           </div>
 
