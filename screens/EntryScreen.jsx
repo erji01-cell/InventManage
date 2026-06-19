@@ -34,6 +34,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
   const [saveError, setSaveError] = useState('');
   const [priceConfirm, setPriceConfirm] = useState(null); // {masterPrice, actualPrice, payload}
   const [assetListSignal, setAssetListSignal] = useState(0);
+  const [assetResetSignal, setAssetResetSignal] = useState(0);
   const [assetCodeInput, setAssetCodeInput] = useState(initialAssetId || '');
   const staffSelectRef = useRef(null);
   const assetCodeInputRef = useRef(null);
@@ -54,6 +55,14 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
   useEffect(() => {
     setAssetCodeInput(form.assetId || '');
   }, [form.assetId]);
+
+  const handleAssetReset = () => {
+    setForm((current) => ({ ...current, assetId: '' }));
+    setAssetCodeInput('');
+    setAssetResetSignal((s) => s + 1);
+    setSaveError('');
+    setTimeout(() => assetCodeInputRef.current?.focus(), 0);
+  };
 
   const selectAssetByCode = ({ focusDate = false } = {}) => {
     const normalized = String(assetCodeInput).trim();
@@ -282,6 +291,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
                 onChange={(id) => setForm({...form, assetId: id})}
                 isIn={isIn}
                 showListSignal={assetListSignal}
+                resetSignal={assetResetSignal}
                 inputRef={assetInputRef}
               />
             </div>
@@ -289,13 +299,20 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
 
           <div className="grid grid-cols-3 items-center gap-4">
             <div></div>
-            <div className="col-span-2 flex justify-end">
+            <div className="col-span-2 flex justify-between">
               <Button
                 variant="action"
                 className="whitespace-nowrap"
                 onClick={() => { onSaveForm?.(form); setView('assets'); }}
               >
                 資産マスタ
+              </Button>
+              <Button
+                variant="secondary"
+                className="whitespace-nowrap"
+                onClick={handleAssetReset}
+              >
+                リセット
               </Button>
             </div>
           </div>
