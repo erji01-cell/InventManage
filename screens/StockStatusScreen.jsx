@@ -215,7 +215,7 @@ ${summaryHTML}
         <div className="flex items-center gap-3 mr-10">
           <Button variant="history" onClick={() => setView('history')}><ArrowLeftRight size={18} /> 入出庫データ</Button>
           <Button variant="assets" onClick={() => { if (onNavigateAssets) { onNavigateAssets(pinnedId); } else { setView('assets'); } }}><Table2 size={18} /> 資産マスタ</Button>
-          <Button variant="primary" onClick={() => setShowPrintMenu(true)}><Printer size={18} /> 印刷</Button>
+          <Button variant="print" onClick={() => setShowPrintMenu(true)}><Printer size={18} /> 印刷</Button>
         </div>
       </div>
 

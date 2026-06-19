@@ -11,7 +11,8 @@ export const Button = React.forwardRef(({ children, onClick, variant = 'primary'
     action: "bg-white text-blue-600 border-blue-200 hover:bg-blue-50",
     assets: "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 active:bg-purple-200",
     stock: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 active:bg-amber-200",
-    history: "bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 active:bg-sky-200"
+    history: "bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 active:bg-sky-200",
+    print: "bg-slate-50 text-slate-700 border-slate-300 hover:bg-slate-100 active:bg-slate-200"
   };
 
   return (

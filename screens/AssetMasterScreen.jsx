@@ -177,7 +177,7 @@ tr.pb{page-break-after:always}
 
         <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
           <Button variant="secondary" onClick={onClose}><X size={16} /> キャンセル</Button>
-          <Button variant="assets" onClick={handlePrint}><Printer size={16} /> 印刷プレビュー</Button>
+          <Button variant="print" onClick={handlePrint}><Printer size={16} /> 印刷プレビュー</Button>
         </div>
       </div>
     </div>
@@ -442,7 +442,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
           </Button>
           <Button variant="history" onClick={() => onNavigateHistory?.()}><ArrowLeftRight size={18} /> 入出庫</Button>
           <Button variant="stock" onClick={() => onNavigateStock?.()}><Table2 size={18} /> 在庫表</Button>
-          <Button variant="assets" onClick={() => setShowPrintDialog(true)}><Printer size={18} /> 印刷</Button>
+          <Button variant="print" onClick={() => setShowPrintDialog(true)}><Printer size={18} /> 印刷</Button>
           <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 flex items-center gap-2">
             <p className="text-xs font-bold text-slate-400">表示件数</p>
             <p className="text-lg font-black text-slate-800">{filteredAssets.length.toLocaleString()}</p>
@@ -570,8 +570,8 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                   <EditField label="品名" value={editForm.name} onChange={(value) => updateEditForm('name', value)} />
                   <EditField label="読み仮名" value={editForm.kanaName} onChange={(value) => updateEditForm('kanaName', value)} />
 
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
-                    <p className="mb-3 text-xs font-bold text-amber-700">大分類</p>
+                  <div className="rounded-lg border border-purple-200 bg-purple-50 p-3">
+                    <p className="mb-3 text-xs font-bold text-purple-700">大分類</p>
                     <div className="space-y-3">
                       <EditField
                         label="分類"
@@ -628,7 +628,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                         disabled={isCreating && Boolean(editForm.parentId)}
                       />
                     </div>
-                    <p className="mt-2 text-xs text-amber-700">
+                    <p className="mt-2 text-xs text-purple-700">
                       {isCreating ? '既存ジェネリック名を選ぶと、その親IDに子資産として追加されます。' : '同じ大分類に紐づく他の資産にも反映されます。'}
                     </p>
                   </div>

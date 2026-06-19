@@ -384,7 +384,7 @@ ${summaryHTML}
         <div className="flex items-center gap-3 mr-8">
           <Button variant="assets" onClick={() => { if (onNavigateAssets) { onNavigateAssets(pinnedId); } else { setView('assets'); } }}><ArrowLeftRight size={18} /> 資産マスタ</Button>
           <Button variant="stock" onClick={() => setView('stock')}><Table2 size={18} /> 在庫表</Button>
-          <Button variant="history" onClick={() => setShowPrintMenu(true)}><Printer size={18} /> 印刷</Button>
+          <Button variant="print" onClick={() => setShowPrintMenu(true)}><Printer size={18} /> 印刷</Button>
         </div>
       </div>
 
