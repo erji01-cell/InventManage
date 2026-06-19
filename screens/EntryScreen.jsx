@@ -275,17 +275,21 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
                 className={`flex-1 min-w-0 p-2 text-center rounded border ${isIn ? 'bg-emerald-50' : 'bg-rose-50'} ${focusClass}`}
               />
             </div>
-            <div className="col-span-2 flex gap-2">
-              <div className="flex-1 min-w-0">
-                <AssetSearchInput
-                  assets={assets}
-                  value={form.assetId}
-                  onChange={(id) => setForm({...form, assetId: id})}
-                  isIn={isIn}
-                  showListSignal={assetListSignal}
-                  inputRef={assetInputRef}
-                />
-              </div>
+            <div className="col-span-2 min-w-0">
+              <AssetSearchInput
+                assets={assets}
+                value={form.assetId}
+                onChange={(id) => setForm({...form, assetId: id})}
+                isIn={isIn}
+                showListSignal={assetListSignal}
+                inputRef={assetInputRef}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 items-center gap-4">
+            <div></div>
+            <div className="col-span-2 flex justify-end">
               <Button
                 variant="action"
                 className="whitespace-nowrap"
