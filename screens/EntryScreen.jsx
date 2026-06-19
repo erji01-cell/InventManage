@@ -1,8 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Star } from 'lucide-react';
 
 import { Button, Card, InfoLine } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
 import { isMovementAfterClose } from '../utils/inventory.js';
+
+const QUICK_COUNT = 8;
 
 export default function EntryScreen({ type, onSave, onCancel, assets, movements = [], staff, setView, initialAssetId = null, savedEntryForm = null, onSaveForm }) {
   const isIn = type === 'in';
@@ -112,6 +115,31 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
     }
     return history;
   })();
+
+  // クイック選択: よく使う（過去3ヶ月）。入庫画面は入庫履歴、出庫画面は出庫履歴ベース。
+  const quickType = isIn ? 'in' : 'out';
+
+  const frequentAssets = useMemo(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 3);
+    const threeMonthsAgo = d.toISOString().slice(0, 10);
+    const counts = new Map();
+    for (const m of movements) {
+      if (m.type !== quickType) continue;
+      if ((m.date || '').slice(0, 10) < threeMonthsAgo) continue;
+      counts.set(m.assetId, (counts.get(m.assetId) || 0) + 1);
+    }
+    return [...counts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, QUICK_COUNT)
+      .map(([id, count]) => ({ asset: assets.find((a) => a.id === id), count }))
+      .filter((x) => x.asset);
+  }, [movements, assets, quickType]);
+
+  const pickQuickAsset = (asset) => {
+    setForm((current) => ({ ...current, assetId: asset.id }));
+    setSaveError('');
+  };
 
   useEffect(() => {
     if (!selectedAsset) return;
@@ -264,6 +292,19 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
               </Button>
             </div>
           </div>
+
+          {frequentAssets.length > 0 && (
+            <div className="rounded-lg border border-slate-200 bg-white p-3">
+              <div className="mb-1 flex items-center gap-1 text-xs font-bold text-slate-500">
+                <Star size={13} /> よく使う（過去3ヶ月）
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {frequentAssets.map(({ asset, count }) => (
+                  <QuickChip key={`f-${asset.id}`} asset={asset} isIn={isIn} selected={asset.id === form.assetId} badge={count} onClick={() => pickQuickAsset(asset)} />
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
             <div className="grid grid-cols-2 gap-x-5 gap-y-2">
@@ -473,5 +514,23 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
         </div>
       )}
     </div>
+  );
+}
+
+function QuickChip({ asset, isIn, selected, badge, onClick }) {
+  const selectedClass = isIn
+    ? 'bg-emerald-100 border-emerald-400 text-emerald-800'
+    : 'bg-rose-100 border-rose-400 text-rose-800';
+  const baseClass = 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100';
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={`${asset.id} ${asset.name}${asset.maker ? ' / ' + asset.maker : ''}`}
+      className={`max-w-[180px] truncate rounded border px-2 py-1 text-xs font-medium transition-colors ${selected ? selectedClass : baseClass}`}
+    >
+      {asset.name}
+      {badge ? <span className="ml-1 text-[10px] text-slate-400">×{badge}</span> : null}
+    </button>
   );
 }
