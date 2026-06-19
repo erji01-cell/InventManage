@@ -136,9 +136,9 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
       <Card className="w-full max-w-5xl flex flex-col items-center gap-10 py-12 px-8">
         <div className="text-center">
           <h1 className="text-5xl font-extrabold tracking-tight text-slate-800 mb-2">
-            在庫管理システム <span className="text-base text-orange-500 font-normal align-middle">{fiscalDisplay.versionLabel}</span>
+            在庫管理システム <span className="text-base text-slate-500 font-normal align-middle">{fiscalDisplay.versionLabel}</span>
           </h1>
-          <p className="text-xl text-slate-500">{fiscalDisplay.periodLabel}</p>
+          <p className="text-xl text-orange-500">{fiscalDisplay.periodLabel}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl">
