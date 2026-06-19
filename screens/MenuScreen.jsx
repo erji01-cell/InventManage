@@ -151,9 +151,9 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
               </div>
             </div>
 
-            <div className="flex flex-col items-start gap-1 rounded-xl border border-orange-100 bg-white px-4 py-2 md:items-end">
-              <span className="text-[10px] font-black tracking-[0.18em] text-orange-400">FISCAL YEAR</span>
-              <span className="text-sm font-black text-orange-600">{fiscalDisplay.periodLabel}</span>
+            <div className="flex flex-col items-start gap-1 rounded-xl border border-slate-200 bg-white px-4 py-2 md:items-end">
+              <span className="text-[10px] font-black tracking-[0.18em] text-slate-400">FISCAL YEAR</span>
+              <span className="text-sm font-black text-slate-800">{fiscalDisplay.periodLabel}</span>
             </div>
           </div>
         </div>
