@@ -220,12 +220,15 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
 
   return (
     <div className="flex items-center justify-center min-h-[80vh]">
-      <Card className={`max-w-2xl w-full border-t-8 ${isIn ? 'border-t-emerald-500' : 'border-t-rose-500'}`}>
-        <div className="text-center mb-8">
-          <h2 className={`text-3xl font-black ${accentColor}`}>{title}</h2>
+      <Card className={`max-w-5xl w-full border-t-8 ${isIn ? 'border-t-emerald-500' : 'border-t-rose-500'}`}>
+        <div className="text-center mb-5">
+          <h2 className={`text-2xl font-black ${accentColor}`}>{title}</h2>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit}>
+          <div className="grid lg:grid-cols-2 gap-6 lg:gap-8 items-start">
+          {/* 左カラム: 資産の特定 */}
+          <div className="space-y-4">
           <div className="grid grid-cols-3 items-center gap-4">
             <label className="font-bold text-slate-700">担当者</label>
             <div className="col-span-2">
@@ -338,7 +341,9 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
               </div>
             )}
           </div>
-
+          </div>
+          {/* 右カラム: 入力内容 */}
+          <div className="space-y-4">
           <div className="grid grid-cols-3 items-center gap-4">
             <label className="font-bold text-slate-700">{isIn ? '入庫日' : '出庫日'}</label>
             <div className="col-span-2 flex gap-2 items-center">
@@ -473,6 +478,8 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
               </Button>
               <Button variant="secondary" onClick={onCancel}>閉じる</Button>
             </div>
+          </div>
+          </div>
           </div>
         </form>
       </Card>
