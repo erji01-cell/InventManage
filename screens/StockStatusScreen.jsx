@@ -198,6 +198,7 @@ ${summaryHTML}
 
   return (
     <Card className="max-h-[90vh] flex flex-col gap-5 relative">
+      <div className="absolute left-5 right-5 top-0 h-1 rounded-b-full bg-amber-500 opacity-80" />
       <button
         onClick={() => setView('menu')}
         className="absolute top-3 right-3 rounded-full p-1 text-slate-300 hover:bg-slate-100 hover:text-slate-600 transition-colors z-10"
