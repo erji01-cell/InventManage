@@ -486,7 +486,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                       setSelectedAssetId(asset.id);
                     }}
                     className={`cursor-pointer border-b border-slate-100 transition-colors ${
-                      isSelected ? 'bg-purple-50 shadow-[inset_4px_0_0_#9333ea]' : 'hover:bg-slate-50'
+                      isSelected ? 'bg-purple-50 shadow-[inset_4px_0_0_#9333ea]' : 'hover:bg-purple-50/60'
                     }`}
                   >
                     <td className="p-3 font-mono text-slate-500 break-words">{asset.id}</td>
