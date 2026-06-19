@@ -134,7 +134,7 @@ tr.pb{page-break-after:always}
       <div className="w-[500px] rounded-xl bg-white shadow-2xl border border-slate-200 p-6 space-y-5">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-blue-500">Print Settings</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-purple-500">Print Settings</p>
             <h3 className="text-xl font-black text-slate-900">一覧印刷の設定</h3>
           </div>
           <button onClick={onClose} className="rounded-full p-1 text-slate-400 hover:bg-slate-100 transition-colors">
@@ -147,13 +147,13 @@ tr.pb{page-break-after:always}
           <div className="space-y-1">
             {SORT_OPTIONS.map(opt => (
               <div key={opt.value}>
-                <label className={`flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 border transition-colors ${sortOrder === opt.value ? 'border-blue-300 bg-blue-50' : 'border-transparent hover:bg-slate-50'}`}>
-                  <input type="radio" name="sortOrder" value={opt.value} checked={sortOrder === opt.value} onChange={() => setSortOrder(opt.value)} className="accent-blue-600" />
+                <label className={`flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 border transition-colors ${sortOrder === opt.value ? 'border-purple-300 bg-purple-50' : 'border-transparent hover:bg-slate-50'}`}>
+                  <input type="radio" name="sortOrder" value={opt.value} checked={sortOrder === opt.value} onChange={() => setSortOrder(opt.value)} className="accent-purple-600" />
                   <span className="text-sm font-medium text-slate-700">{opt.label}</span>
                 </label>
                 {(opt.value === 'category_id' || opt.value === 'category_kana') && sortOrder === opt.value && (
                   <label className="ml-8 flex cursor-pointer items-center gap-2 rounded-md px-3 py-1.5 border transition-colors border-transparent hover:bg-slate-50">
-                    <input type="checkbox" checked={pageBreak} onChange={() => setPageBreak(v => !v)} className="accent-blue-600" />
+                    <input type="checkbox" checked={pageBreak} onChange={() => setPageBreak(v => !v)} className="accent-purple-600" />
                     <span className="text-sm text-slate-600">分類ごとに改ページ</span>
                   </label>
                 )}
@@ -166,8 +166,8 @@ tr.pb{page-break-after:always}
           <p className="mb-2 text-sm font-bold text-slate-600">印刷する列</p>
           <div className="grid grid-cols-3 gap-1">
             {COLUMN_DEFS.map(col => (
-              <label key={col.key} className={`flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 border transition-colors ${enabledCols[col.key] ? 'border-blue-300 bg-blue-50' : 'border-transparent hover:bg-slate-50'}`}>
-                <input type="checkbox" checked={enabledCols[col.key]} onChange={() => toggleCol(col.key)} className="accent-blue-600" />
+              <label key={col.key} className={`flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 border transition-colors ${enabledCols[col.key] ? 'border-purple-300 bg-purple-50' : 'border-transparent hover:bg-slate-50'}`}>
+                <input type="checkbox" checked={enabledCols[col.key]} onChange={() => toggleCol(col.key)} className="accent-purple-600" />
                 <span className="text-sm font-medium text-slate-700">{col.label}</span>
               </label>
             ))}
@@ -423,7 +423,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
       <PrintDialog assets={assets} onClose={() => setShowPrintDialog(false)} />
     )}
     <Card className="max-h-[90vh] flex flex-col bg-white relative">
-      <div className="absolute left-5 right-5 top-0 h-1 rounded-b-full bg-indigo-500 opacity-80" />
+      <div className="absolute left-5 right-5 top-0 h-1 rounded-b-full bg-purple-500 opacity-80" />
       <button
         onClick={() => setView('menu')}
         className="absolute top-3 right-3 rounded-full p-1 text-slate-300 hover:bg-slate-100 hover:text-slate-600 transition-colors z-10"
@@ -433,7 +433,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
       </button>
       <div className="mb-5 flex items-end justify-between border-b border-slate-200 pb-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-500">Asset Master</p>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-purple-500">Asset Master</p>
           <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-900">資産マスタ</h2>
         </div>
         <div className="flex items-center gap-3 mr-8">
@@ -452,11 +452,11 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
 
       <div className="mb-5 flex gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 shadow-sm">
         <div className="flex-1 relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-blue-400" size={18} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-400" size={18} />
           <input 
             type="text" 
-            placeholder="ID・品名・メーカー・分類で検索..."
-            className="w-full rounded-md border border-blue-200 bg-blue-50 py-2.5 pl-10 pr-4 text-sm font-medium shadow-inner outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+            placeholder="ID・品名・メーカー・分類で検索..." 
+            className="w-full rounded-md border border-purple-200 bg-purple-50 py-2.5 pl-10 pr-4 text-sm font-medium shadow-inner outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           />
@@ -486,7 +486,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                       setSelectedAssetId(asset.id);
                     }}
                     className={`cursor-pointer border-b border-slate-100 transition-colors ${
-                      isSelected ? 'bg-blue-50 shadow-[inset_4px_0_0_#2563eb]' : 'hover:bg-slate-50'
+                      isSelected ? 'bg-purple-50 shadow-[inset_4px_0_0_#9333ea]' : 'hover:bg-slate-50'
                     }`}
                   >
                     <td className="p-3 font-mono text-slate-500 break-words">{asset.id}</td>
@@ -584,17 +584,17 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                         ]}
                       />
                       {!showNewCategory ? (
-                        <button type="button" onClick={() => setShowNewCategory(true)} className="text-xs font-bold text-blue-600 hover:underline">
+                        <button type="button" onClick={() => setShowNewCategory(true)} className="text-xs font-bold text-purple-600 hover:underline">
                           ＋ 新しい分類を追加
                         </button>
                       ) : (
-                        <div className="rounded-md border border-blue-200 bg-white p-2 space-y-2">
+                        <div className="rounded-md border border-purple-200 bg-white p-2 space-y-2">
                           <input
                             type="text"
                             value={newCategoryName}
                             onChange={(e) => setNewCategoryName(e.target.value)}
                             placeholder="新しい分類名"
-                            className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                            className="w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
                           />
                           <div className="flex gap-2">
                             <Button variant="success" className="px-3 py-1 text-xs" onClick={handleAddCategory} disabled={isCreatingCategory || !newCategoryName.trim()}>
@@ -669,7 +669,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
 
                   <div className="flex flex-col gap-2 border-t border-slate-200 pt-4">
                     <div className="grid grid-cols-3 gap-2">
-                      <Button className="w-full px-3 py-2 text-sm bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100" onClick={() => onNavigateHistory?.(selectedAsset?.id)} disabled={!selectedAsset}>
+                      <Button className="w-full px-3 py-2 text-sm bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100" onClick={() => onNavigateHistory?.(selectedAsset?.id)} disabled={!selectedAsset}>
                         <ArrowLeftRight size={16} /> 入出庫
                       </Button>
                       <Button className="w-full px-3 py-2 text-sm bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200" onClick={() => onNavigateStock?.(selectedAsset?.id)} disabled={!selectedAsset}>

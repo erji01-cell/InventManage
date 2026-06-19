@@ -163,7 +163,7 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
           <MenuButton icon={<ClipboardList size={24} />} title="入出庫データ" tone="blue" onClick={() => (onNavigateHistory ? onNavigateHistory() : setView('history'))} />
           <MenuButton icon={<Table size={24} />} title="在庫表" tone="amber" onClick={() => (onNavigateStock ? onNavigateStock() : setView('stock'))} />
           <MenuButton icon={<MinusCircle size={24} />} title="出庫画面" tone="rose" onClick={() => setView('outbound')} />
-          <MenuButton icon={<Package size={24} />} title="資産マスタ" tone="indigo" onClick={() => setView('assets')} />
+          <MenuButton icon={<Package size={24} />} title="資産マスタ" tone="purple" onClick={() => setView('assets')} />
           <div className="flex flex-col gap-1.5">
             <SmallMenuButton icon={<ClipboardCheck size={18} />} title="棚卸し" tone="teal" onClick={() => openPasswordModal('stocktaking')} />
             <SmallMenuButton icon={<RefreshCcw size={18} />} title="年度更新" tone="slate" onClick={() => openPasswordModal('yearEnd')} />

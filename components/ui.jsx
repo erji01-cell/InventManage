@@ -9,7 +9,7 @@ export const Button = React.forwardRef(({ children, onClick, variant = 'primary'
     secondary: "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100",
     ghost: "bg-transparent text-gray-500 border-transparent hover:bg-gray-100 shadow-none",
     action: "bg-white text-blue-600 border-blue-200 hover:bg-blue-50",
-    assets: "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 active:bg-blue-200",
+    assets: "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100 active:bg-purple-200",
     stock: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 active:bg-amber-200",
     history: "bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 active:bg-sky-200"
   };

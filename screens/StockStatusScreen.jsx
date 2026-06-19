@@ -347,7 +347,7 @@ ${summaryHTML}
             {displayData.map(row => (
               <tr
                 key={row.id}
-                className="border-b border-slate-100 transition-colors hover:bg-blue-50/60 cursor-pointer"
+                className="border-b border-slate-100 transition-colors hover:bg-amber-50/70 cursor-pointer"
                 onClick={() => onNavigateHistory?.(row.id)}
                 title="入出庫データを表示"
               >
