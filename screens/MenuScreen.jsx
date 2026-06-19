@@ -120,7 +120,6 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
             在庫管理システム <span className="text-orange-500 font-normal">2026年度版</span>
           </h1>
           <p className="text-xl text-slate-500">2026.07.01 更新</p>
-          {userEmail && <p className="mt-2 text-sm text-slate-400">{userEmail}</p>}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl">
