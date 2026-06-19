@@ -141,7 +141,7 @@ ${summaryHTML}
 </body></html>`;
 
   const buildTableHTML = (rows) => {
-    const headers = ['ID','メーカー','品名',startLabel,'入庫数','出庫数',endLabel,'単位','使用単価','在庫金額'];
+    const headers = ['ID','メーカー','品名',startLabel,'入庫数','出庫数',endLabel,'単位','受払単価','在庫金額'];
     const widths =  ['7%', '12%', '26%', '7%', '7%', '7%', '7%', '5%', '10%', '12%'];
     const ths = headers.map((h, i) => `<th style="width:${widths[i]}" class="${i >= 3 ? 'text-right' : ''}">${h}</th>`).join('');
     const tds = rows.map(row => `<tr>
@@ -330,7 +330,7 @@ ${summaryHTML}
               <th className="border-b border-slate-200 bg-rose-50/70 px-3 py-2 text-right w-20">出庫数</th>
               <th className="border-b border-slate-200 bg-blue-50/70 px-3 py-2 text-right font-bold w-20">{endLabel}</th>
               <th className="border-b border-slate-200 px-3 py-2 text-center w-20">単位</th>
-              <th className="border-b border-slate-200 px-3 py-2 text-right w-28">使用単価</th>
+              <th className="border-b border-slate-200 px-3 py-2 text-right w-28">受払単価</th>
               <th className="border-b border-slate-200 bg-blue-50/70 px-3 py-2 text-right font-bold w-32">在庫金額</th>
             </tr>
           </thead>

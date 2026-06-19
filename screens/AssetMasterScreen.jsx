@@ -13,9 +13,9 @@ const COLUMN_DEFS = [
   { key: 'kanaName',       label: 'かな名',    defaultOn: false },
   { key: 'packSize',       label: '規格',      defaultOn: true  },
   { key: 'purchaseUnit',   label: '購入単位',  defaultOn: false },
-  { key: 'usageUnit',      label: '使用単位',  defaultOn: true  },
+  { key: 'usageUnit',      label: '受払単位',  defaultOn: true  },
   { key: 'deliveryPrice',  label: '購入単価',  defaultOn: true  },
-  { key: 'usageUnitPrice', label: '使用単価',  defaultOn: true  },
+  { key: 'usageUnitPrice', label: '受払単価',  defaultOn: true  },
   { key: 'supplier',       label: '発注先',    defaultOn: true  },
   { key: 'janCode',        label: 'JANコード', defaultOn: false },
   { key: 'memo',           label: 'メモ',      defaultOn: false },
@@ -93,7 +93,7 @@ function PrintDialog({ assets, onClose }) {
     }
 
     const headerCells = selectedCols.map(col => `<th>${col.label}</th>`).join('');
-    // ID・購入単位・使用単位は幅1.5cm固定、それ以外は残り幅を自動配分
+    // ID・購入単位・受払単位は幅1.5cm固定、それ以外は残り幅を自動配分
     const fixedWidthKeys = new Set(['id', 'purchaseUnit', 'usageUnit']);
     const colGroup = `<colgroup>${selectedCols.map(col =>
       fixedWidthKeys.has(col.key) ? '<col style="width:1.5cm">' : '<col>'
@@ -326,7 +326,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
     const supplierId = toNullableNumber(editForm.supplierId);
 
     if (!editForm.maker.trim() || !editForm.name.trim() || !editForm.usageUnit.trim()) {
-      setSaveError('メーカー、品名、使用単位は必須です。');
+      setSaveError('メーカー、品名、受払単位は必須です。');
       return;
     }
 
@@ -639,8 +639,8 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
 
                   <div className="grid grid-cols-3 gap-3">
                     <EditField label="入数" type="number" value={editForm.packSize} onChange={(value) => updateEditForm('packSize', value)} align="right" />
-                    <EditField label="使用単位" value={editForm.usageUnit} onChange={(value) => updateEditForm('usageUnit', value)} />
-                    <DetailItem label="使用単価" value={`¥${(selectedAsset?.usageUnitPrice || 0).toLocaleString()}`} align="right" />
+                    <EditField label="受払単位" value={editForm.usageUnit} onChange={(value) => updateEditForm('usageUnit', value)} />
+                    <DetailItem label="受払単価" value={`¥${(selectedAsset?.usageUnitPrice || 0).toLocaleString()}`} align="right" />
                   </div>
 
                   <EditField label="摘要" value={editForm.memo} onChange={(value) => updateEditForm('memo', value)} multiline />
@@ -656,8 +656,8 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
 
                   <div className="grid grid-cols-3 gap-3">
                     <DetailItem label="入数" value={selectedAsset.packSize || '-'} align="right" />
-                    <DetailItem label="使用単位" value={selectedAsset.usageUnit || '-'} />
-                    <DetailItem label="使用単価" value={`¥${selectedAsset.usageUnitPrice.toLocaleString()}`} align="right" />
+                    <DetailItem label="受払単位" value={selectedAsset.usageUnit || '-'} />
+                    <DetailItem label="受払単価" value={`¥${selectedAsset.usageUnitPrice.toLocaleString()}`} align="right" />
                   </div>
 
                   <div className="space-y-2 border-t border-slate-200 pt-4">

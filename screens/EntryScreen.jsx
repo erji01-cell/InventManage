@@ -340,7 +340,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
               <InfoLine label="購入" value={`¥${(selectedAsset?.deliveryPrice || 0).toLocaleString()} / ${selectedAsset?.purchaseUnit || '-'}`} />
               <InfoLine label="入数" value={`${(selectedAsset?.packSize || 0).toLocaleString()} ${selectedAsset?.usageUnit || ''}`} />
               <div className="col-start-2 flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-300 px-2 py-1">
-                <span className="text-xs font-bold text-blue-700 whitespace-nowrap">使用単価</span>
+                <span className="text-xs font-bold text-blue-700 whitespace-nowrap">受払単価</span>
                 <span className="text-base font-black text-blue-800 whitespace-nowrap">
                   ¥{(selectedAsset?.usageUnitPrice || 0).toLocaleString()} <span className="text-sm font-bold">/ {selectedAsset?.usageUnit || '-'}</span>
                 </span>
@@ -438,7 +438,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
                       }
                     }}
                   />
-                  <p className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-300 rounded px-2 py-1">{isIn ? '入庫数' : '出庫数'}は <span className="underline">使用単位</span> で入力して下さい</p>
+                  <p className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-300 rounded px-2 py-1">{isIn ? '入庫数' : '出庫数'}は <span className="underline">受払単位</span> で入力して下さい</p>
                 </div>
                 <span className="font-bold text-slate-600 mt-2">{selectedAsset?.usageUnit || '個'}</span>
               </div>
