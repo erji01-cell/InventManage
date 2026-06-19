@@ -134,7 +134,7 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
   return (
     <div className="flex min-h-[80vh] flex-col items-center justify-center">
       <Card className="relative w-full max-w-5xl overflow-hidden border-slate-200 bg-white px-8 py-10 shadow-[0_18px_45px_rgba(15,23,42,0.08)]">
-        <div className="mb-10 w-full max-w-4xl rounded-2xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm">
+        <div className="mx-auto mb-10 w-full max-w-4xl rounded-2xl border border-slate-200 bg-slate-50/70 p-4 shadow-sm">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div className="flex items-center gap-4">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-sm">
@@ -158,7 +158,7 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl">
+        <div className="mx-auto grid w-full max-w-4xl grid-cols-1 gap-6 md:grid-cols-3">
           <MenuButton icon={<PlusCircle size={24} />} title="入庫画面" tone="emerald" onClick={() => setView('inbound')} />
           <MenuButton icon={<ClipboardList size={24} />} title="入出庫データ" tone="blue" onClick={() => (onNavigateHistory ? onNavigateHistory() : setView('history'))} />
           <MenuButton icon={<Table size={24} />} title="在庫表" tone="amber" onClick={() => (onNavigateStock ? onNavigateStock() : setView('stock'))} />
@@ -171,7 +171,7 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
           </div>
         </div>
 
-        <div className="mt-10 flex w-full max-w-4xl justify-end">
+        <div className="mx-auto mt-10 flex w-full max-w-4xl justify-end">
           <Button variant="danger" className="px-10 py-2 text-base" onClick={onLogout}>
             <LogOut size={20} />
             ログアウト
