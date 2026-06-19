@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { AlertTriangle, ClipboardCheck, ClipboardList, Database, LogOut, MinusCircle, Package, PlusCircle, RefreshCcw, Table } from 'lucide-react';
+import { AlertTriangle, Calendar, ClipboardCheck, ClipboardList, Database, LogOut, MinusCircle, Package, PlusCircle, RefreshCcw, Table } from 'lucide-react';
 
 import { Button, Card } from '../components/ui.jsx';
 
@@ -133,12 +133,21 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[80vh]">
-      <Card className="w-full max-w-5xl flex flex-col items-center gap-10 py-12 px-8">
-        <div className="text-center">
-          <h1 className="text-5xl font-extrabold tracking-tight text-slate-800 mb-2">
-            在庫管理システム <span className="text-base text-slate-500 font-normal align-middle">{fiscalDisplay.versionLabel}</span>
+      <Card className="w-full max-w-5xl flex flex-col items-center gap-10 py-12 px-8 relative overflow-hidden">
+        {/* Top Accent Line */}
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-amber-500" />
+
+        <div className="text-center flex flex-col items-center">
+          <h1 className="text-5xl font-black tracking-tight bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-800 bg-clip-text text-transparent pb-1">
+            在庫管理システム
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100/80 ml-3 shadow-sm align-middle">
+              {fiscalDisplay.versionLabel}
+            </span>
           </h1>
-          <p className="text-xl text-orange-500">{fiscalDisplay.periodLabel}</p>
+          <p className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold bg-amber-50 text-amber-800 border border-amber-200/70 shadow-sm mt-3.5">
+            <Calendar size={15} className="text-amber-600" />
+            {fiscalDisplay.periodLabel}
+          </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl">
@@ -147,7 +156,7 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
           <MenuButton icon={<Table size={24} />} title="在庫表" color="bg-amber-50 text-amber-700" onClick={() => (onNavigateStock ? onNavigateStock() : setView('stock'))} />
           <MenuButton icon={<MinusCircle size={24} />} title="出庫画面" color="bg-rose-50 text-rose-700" onClick={() => setView('outbound')} />
           <MenuButton icon={<Package size={24} />} title="資産マスタ" color="bg-indigo-50 text-indigo-700" onClick={() => setView('assets')} />
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-2">
             <SmallMenuButton icon={<ClipboardCheck size={18} />} title="棚卸し" color="bg-teal-50 text-teal-700" onClick={() => openPasswordModal('stocktaking')} />
             <SmallMenuButton icon={<RefreshCcw size={18} />} title="年度更新" color="bg-slate-50 text-slate-700" onClick={() => openPasswordModal('yearEnd')} />
             <SmallMenuButton icon={<Database size={18} />} title="バックアップ" color="bg-purple-50 text-purple-700" onClick={() => openPasswordModal('backup')} />
@@ -155,7 +164,7 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
         </div>
 
         <div className="w-full max-w-4xl flex justify-end">
-          <Button variant="danger" className="px-12 py-3 text-lg" onClick={onLogout}>
+          <Button variant="danger" className="px-12 py-3 text-lg rounded-xl hover:-translate-y-0.5 hover:shadow-md transition-all duration-200" onClick={onLogout}>
             <LogOut size={20} />
             ログアウト
           </Button>
@@ -317,12 +326,12 @@ function MenuButton({ icon, title, color, onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`${color} p-8 rounded-xl shadow-sm border border-current border-opacity-10 hover:shadow-md transition-all flex flex-col items-center justify-center gap-4 group active:scale-95`}
+      className={`${color} p-8 rounded-2xl shadow-sm border border-current border-opacity-10 hover:border-opacity-30 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col items-center justify-center gap-4 group active:scale-95`}
     >
-      <div className="p-3 bg-white bg-opacity-50 rounded-full group-hover:scale-110 transition-transform">
+      <div className="p-3 bg-white bg-opacity-60 rounded-full shadow-sm group-hover:scale-110 transition-transform duration-200">
         {icon}
       </div>
-      <span className="text-lg font-bold">{title}</span>
+      <span className="text-lg font-bold tracking-wide">{title}</span>
     </button>
   );
 }
@@ -331,12 +340,12 @@ function SmallMenuButton({ icon, title, color, onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`${color} py-1.5 px-3 rounded-xl shadow-sm border border-current border-opacity-10 hover:shadow-md transition-all flex flex-1 items-center justify-center gap-2 group active:scale-95`}
+      className={`${color} py-2.5 px-4 rounded-xl shadow-sm border border-current border-opacity-10 hover:border-opacity-30 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-1 items-center justify-center gap-2.5 group active:scale-95`}
     >
-      <div className="p-1.5 bg-white bg-opacity-50 rounded-full group-hover:scale-110 transition-transform">
+      <div className="p-1.5 bg-white bg-opacity-60 rounded-full shadow-sm group-hover:scale-110 transition-transform duration-200">
         {icon}
       </div>
-      <span className="text-sm font-bold">{title}</span>
+      <span className="text-sm font-bold tracking-wide">{title}</span>
     </button>
   );
 }
