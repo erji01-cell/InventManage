@@ -299,7 +299,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
 
           <div className="grid grid-cols-3 items-center gap-4">
             <div></div>
-            <div className="col-span-2 flex justify-between">
+            <div className="col-span-2 flex justify-end gap-2">
               <Button
                 variant="action"
                 className="whitespace-nowrap"
