@@ -437,7 +437,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
           <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-900">資産マスタ</h2>
         </div>
         <div className="flex items-center gap-3 mr-8">
-          <Button variant="success" onClick={startCreate}>
+          <Button variant="assets" onClick={startCreate}>
             <PlusCircle size={18} /> 新規登録
           </Button>
           <Button variant="history" onClick={() => onNavigateHistory?.()}><ArrowLeftRight size={18} /> 入出庫</Button>
