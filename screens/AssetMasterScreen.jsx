@@ -672,7 +672,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                       <Button variant="history" className="w-full px-3 py-2 text-sm" onClick={() => onNavigateHistory?.(selectedAsset?.id)} disabled={!selectedAsset}>
                         <ArrowLeftRight size={16} /> 入出庫
                       </Button>
-                      <Button className="w-full px-3 py-2 text-sm bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200" onClick={() => onNavigateStock?.(selectedAsset?.id)} disabled={!selectedAsset}>
+                      <Button variant="stock" className="w-full px-3 py-2 text-sm" onClick={() => onNavigateStock?.(selectedAsset?.id)} disabled={!selectedAsset}>
                         <Table2 size={16} /> 在庫表
                       </Button>
                       <Button variant="secondary" className="w-full px-3 py-2 text-sm" onClick={deleteSelectedAsset} disabled={!selectedAsset || isSaving}>
