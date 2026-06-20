@@ -386,12 +386,12 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
                   }
                 }}
               />
-              <Button onClick={() => {
+              <Button className="px-2 py-1 text-sm whitespace-nowrap" onClick={() => {
                 const d = form.date ? new Date(form.date) : new Date();
                 d.setDate(d.getDate() - 1);
                 setForm({...form, date: d.toISOString().split('T')[0]});
               }}>←</Button>
-              <Button onClick={() => {
+              <Button className="px-2 py-1 text-sm whitespace-nowrap" onClick={() => {
                 const d = form.date ? new Date(form.date) : new Date();
                 d.setDate(d.getDate() + 1);
                 setForm({...form, date: d.toISOString().split('T')[0]});
