@@ -396,7 +396,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
                 d.setDate(d.getDate() + 1);
                 setForm({...form, date: d.toISOString().split('T')[0]});
               }}>→</Button>
-              <Button onClick={() => setForm({...form, date: new Date().toISOString().split('T')[0]})}>本日</Button>
+              <Button className="px-2 py-1 text-sm whitespace-nowrap" onClick={() => setForm({...form, date: new Date().toISOString().split('T')[0]})}>本日</Button>
             </div>
           </div>
 
