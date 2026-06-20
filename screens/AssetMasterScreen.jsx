@@ -669,7 +669,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
 
                   <div className="flex flex-col gap-2 border-t border-slate-200 pt-4">
                     <div className="grid grid-cols-3 gap-2">
-                      <Button className="w-full px-3 py-2 text-sm bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100" onClick={() => onNavigateHistory?.(selectedAsset?.id)} disabled={!selectedAsset}>
+                      <Button variant="history" className="w-full px-3 py-2 text-sm" onClick={() => onNavigateHistory?.(selectedAsset?.id)} disabled={!selectedAsset}>
                         <ArrowLeftRight size={16} /> 入出庫
                       </Button>
                       <Button className="w-full px-3 py-2 text-sm bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-200" onClick={() => onNavigateStock?.(selectedAsset?.id)} disabled={!selectedAsset}>
