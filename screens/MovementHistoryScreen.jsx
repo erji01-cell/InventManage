@@ -585,6 +585,15 @@ ${summaryHTML}
                 <h3 className="mt-1 text-xl font-bold text-slate-800">{selectedMovement.asset?.name || '-'}</h3>
                 <p className="mt-1 text-sm text-slate-500">{selectedMovement.asset?.maker || '-'}</p>
               </div>
+              {selectedMovement.asset?.id && onNavigateAssets && (
+                <Button
+                  variant="assets"
+                  className="whitespace-nowrap"
+                  onClick={() => onNavigateAssets(selectedMovement.asset.id)}
+                >
+                  <ArrowLeftRight size={16} /> 資産マスタ
+                </Button>
+              )}
             </div>
 
             <div className="flex-1 overflow-auto px-6 py-4">
