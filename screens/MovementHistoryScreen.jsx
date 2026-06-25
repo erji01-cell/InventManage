@@ -588,7 +588,7 @@ ${summaryHTML}
               {selectedMovement.asset?.id && onNavigateAssets && (
                 <Button
                   variant="assets"
-                  className="whitespace-nowrap"
+                  className="whitespace-nowrap mt-[1cm]"
                   onClick={() => onNavigateAssets(selectedMovement.asset.id)}
                 >
                   <ArrowLeftRight size={16} /> 資産マスタ
