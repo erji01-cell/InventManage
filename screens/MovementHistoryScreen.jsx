@@ -697,7 +697,7 @@ ${summaryHTML}
                 </div>
 
                 <div className="flex-1 overflow-auto px-6 py-5">
-                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
                     <div className={`${metricClass} ${tone.soft}`}>
                       {readonlyBadge}
                       <p className="text-xs font-black text-slate-400">区分</p>
@@ -722,6 +722,16 @@ ${summaryHTML}
                       <p className="mt-1 text-2xl font-black text-slate-800">
                         {isInbound ? `¥${Number(movementEditForm.actualDeliveryPrice || 0).toLocaleString()}` : '-'}
                       </p>
+                    </div>
+                    <div className={metricClass}>
+                      {readonlyBadge}
+                      <p className="text-xs font-black text-slate-400">資産コード</p>
+                      <p className="mt-1 font-mono text-2xl font-black text-slate-800">{movementEditForm.assetId || '-'}</p>
+                    </div>
+                    <div className={metricClass}>
+                      {readonlyBadge}
+                      <p className="text-xs font-black text-slate-400">分類</p>
+                      <p className="mt-1 truncate text-2xl font-black text-slate-800">{editingAsset?.category || editingAsset?.parentCategory || '-'}</p>
                     </div>
                   </div>
 
@@ -804,14 +814,6 @@ ${summaryHTML}
                       />
                     </label>
 
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 md:col-span-2">
-                      <span className="text-xs font-black text-slate-400">資産コード</span>
-                      <p className="mt-2 text-center font-mono text-xl font-black text-slate-800">{movementEditForm.assetId || '-'}</p>
-                    </div>
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 md:col-span-3">
-                      <span className="text-xs font-black text-slate-400">分類</span>
-                      <p className="mt-2 text-center text-lg font-black text-slate-800">{editingAsset?.category || editingAsset?.parentCategory || '-'}</p>
-                    </div>
                     <label className="rounded-lg border border-slate-200 bg-white p-3 md:col-span-3">
                       <span className="text-xs font-black text-slate-400">使用期限</span>
                       <input
