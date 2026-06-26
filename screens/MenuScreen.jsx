@@ -23,7 +23,7 @@ function getFiscalDisplay(latestFiscalYearClosedAt) {
   };
 }
 
-export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpdate, onFetchLastStocktaking, isAdminUnlocked, setIsAdminUnlocked, onNavigateHistory, onNavigateStock, latestFiscalYearClosedAt }) {
+export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpdate, onFetchLastStocktaking, isAdminUnlocked, setIsAdminUnlocked, onNavigateHistory, onNavigateStock, latestFiscalYearClosedAt, availableFiscalYears = [], currentFiscalStartYear, selectedFiscalYear, setSelectedFiscalYear }) {
   const [passwordTarget, setPasswordTarget] = useState(null); // 'backup' | 'yearEnd' | 'stocktaking' | null
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -157,6 +157,36 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
             </div>
           </div>
         </div>
+
+        {availableFiscalYears.length > 1 && (
+          <div className="mx-auto mb-6 w-full max-w-4xl rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="mr-1 text-[10px] font-black tracking-[0.18em] text-slate-400">閲覧年度</span>
+              {availableFiscalYears.map((y) => {
+                const isSel = y === selectedFiscalYear;
+                const isCur = y === currentFiscalStartYear;
+                return (
+                  <button
+                    key={y}
+                    onClick={() => setSelectedFiscalYear?.(y)}
+                    className={`rounded-full border px-4 py-1.5 text-sm font-bold transition-all ${
+                      isSel
+                        ? 'border-blue-500 bg-blue-500 text-white shadow-sm'
+                        : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50'
+                    }`}
+                  >
+                    {y}年度{isCur ? '（現在）' : ''}
+                  </button>
+                );
+              })}
+            </div>
+            {selectedFiscalYear != null && selectedFiscalYear !== currentFiscalStartYear && (
+              <p className="mt-2 text-xs font-bold text-amber-600">
+                過去年度を選択中：入出庫データは {selectedFiscalYear}年7月〜{selectedFiscalYear + 1}年6月 の期間で表示されます。
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="mx-auto grid w-full max-w-4xl grid-cols-1 gap-6 md:grid-cols-3">
           <MenuButton icon={<PlusCircle size={24} />} title="入庫画面" tone="emerald" onClick={() => setView('inbound')} />

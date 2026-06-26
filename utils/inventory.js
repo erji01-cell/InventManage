@@ -49,6 +49,14 @@ export function normalizeAsset(row, parentMap, supplierMap, categoryMap = new Ma
   };
 }
 
+// 日付（YYYY-MM-DD / YYYY/MM/DD）が属する会計年度の開始年を返す。
+// 会計年度は7月開始（7〜12月→その年、1〜6月→前年）。
+export function fiscalStartYearOf(dateStr) {
+  const [year, month] = String(dateStr || '').replaceAll('/', '-').split('-').map(Number);
+  if (!year || !month) return null;
+  return month >= 7 ? year : year - 1;
+}
+
 // 入出庫が「年度クローズ日より後」かどうか
 // closedAt が null（未クローズ）なら全期間カウント
 export function isMovementAfterClose(movementDate, closedAt) {

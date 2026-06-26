@@ -11,7 +11,11 @@ const isAdjustmentMovement = (m) =>
   m?.stocktakingCountId != null
   || /^\s*\[棚卸し調整\]/.test(m?.memo || '');
 
-export default function MovementHistoryScreen({ movements, setView, assets, staff = [], updateMovement, updateAsset, deleteMovement, pinnedAssetId = '', onNavigateAssets }) {
+export default function MovementHistoryScreen({ movements, setView, assets, staff = [], updateMovement, updateAsset, deleteMovement, pinnedAssetId = '', onNavigateAssets, fiscalRange = null, fiscalSnapshots = [] }) {
+  // 過去年度が選択されている場合は、初期表示で会計年度の日付レンジを絞り込みに適用
+  const initialFiscalFrom = fiscalRange && !fiscalRange.isCurrent ? fiscalRange.from : '';
+  const initialFiscalTo = fiscalRange && !fiscalRange.isCurrent ? fiscalRange.to : '';
+
   const [filterType, setFilterType] = useState('all');
   const [adjustmentFilter, setAdjustmentFilter] = useState('all'); // 'all' | 'normal' | 'adjustment'
   const [movementSearchTerm, setMovementSearchTerm] = useState('');
@@ -22,10 +26,10 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
     if (pinnedId) setPinnedId('');
     setMovementSearchTerm(term);
   };
-  const [movementDateFrom, setMovementDateFrom] = useState('');
-  const [movementDateTo, setMovementDateTo] = useState('');
-  const [appliedDateFrom, setAppliedDateFrom] = useState('');
-  const [appliedDateTo, setAppliedDateTo] = useState('');
+  const [movementDateFrom, setMovementDateFrom] = useState(initialFiscalFrom);
+  const [movementDateTo, setMovementDateTo] = useState(initialFiscalTo);
+  const [appliedDateFrom, setAppliedDateFrom] = useState(initialFiscalFrom);
+  const [appliedDateTo, setAppliedDateTo] = useState(initialFiscalTo);
   const [selectedMovement, setSelectedMovement] = useState(null);
   const [movementEditForm, setMovementEditForm] = useState(null);
   const [movementSaveError, setMovementSaveError] = useState('');
@@ -56,6 +60,13 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
     setMovementEditForm(prev => ({ ...prev, assetId: matched.id }));
   };
 
+  const sortByDateThenId = (a, b) => {
+    const dateA = Date.parse(String(a.date || '').replaceAll('/', '-')) || 0;
+    const dateB = Date.parse(String(b.date || '').replaceAll('/', '-')) || 0;
+    if (dateA !== dateB) return dateA - dateB;
+    return Number(a.id || 0) - Number(b.id || 0);
+  };
+
   // 品目ごとに日付・ID順で累積計算し、各取引後の残在庫を求める
   const runningStockMap = useMemo(() => {
     const map = new Map();
@@ -64,16 +75,47 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
       if (!byAsset.has(m.assetId)) byAsset.set(m.assetId, []);
       byAsset.get(m.assetId).push(m);
     });
+
+    // 過去年度の閲覧（方法C）: スナップショットの期首在庫を起点に、
+    // その年度内の入出庫だけを積み上げて差引残を再現する。
+    const isPastYear = fiscalRange && !fiscalRange.isCurrent;
+    if (isPastYear) {
+      const snapByAsset = new Map();
+      (fiscalSnapshots || []).forEach(s => {
+        if (s.fiscalYear === fiscalRange.startYear) snapByAsset.set(String(s.assetId), s);
+      });
+      const from = fiscalRange.from;
+      const to = fiscalRange.to;
+      byAsset.forEach((assetMovements, assetId) => {
+        const inRange = assetMovements
+          .filter(m => {
+            const md = String(m.date || '').replaceAll('/', '-');
+            return md >= from && md <= to;
+          })
+          .sort(sortByDateThenId);
+        const snap = snapByAsset.get(String(assetId));
+        if (!snap) {
+          // その年度のスナップショットが無い場合は差引残を出せない
+          inRange.forEach(m => map.set(String(m.id), null));
+          return;
+        }
+        let stock = snap.openingStock;
+        inRange.forEach(m => {
+          const type = normalizeMovementType(m.type);
+          if (type === 'in') stock += m.quantity;
+          else if (type === 'out') stock -= m.quantity;
+          map.set(String(m.id), stock);
+        });
+      });
+      return map;
+    }
+
+    // 現在（アクティブ）年度: opening_stock + クローズ日以降の入出庫
     byAsset.forEach((assetMovements, assetId) => {
       const asset = assets.find(a => a.id === assetId);
       const openingStock = asset?.openingStock || 0;
       const closedAt = asset?.fiscalYearClosedAt || null;
-      const sorted = [...assetMovements].sort((a, b) => {
-        const dateA = Date.parse(String(a.date || '').replaceAll('/', '-')) || 0;
-        const dateB = Date.parse(String(b.date || '').replaceAll('/', '-')) || 0;
-        if (dateA !== dateB) return dateA - dateB;
-        return Number(a.id || 0) - Number(b.id || 0);
-      });
+      const sorted = [...assetMovements].sort(sortByDateThenId);
       let stock = openingStock;
       sorted.forEach(m => {
         // 年度クローズ済み期間の入出庫は opening_stock に反映済みなので残在庫計算から除外
@@ -88,7 +130,7 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
       });
     });
     return map;
-  }, [movements, assets]);
+  }, [movements, assets, fiscalRange, fiscalSnapshots]);
 
     const normalizedSearchTerm = movementSearchTerm.trim().toLowerCase();
   const appliedFromDate = parseLocalDate(appliedDateFrom);
@@ -378,8 +420,26 @@ ${summaryHTML}
       <div className="mb-5 flex items-end justify-between border-b border-slate-200 pb-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-500">Stock Movement</p>
-          <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-900">入出庫データ</h2>
+          <div className="mt-1 flex flex-wrap items-center gap-3">
+            <h2 className="text-3xl font-black tracking-tight text-slate-900">入出庫データ</h2>
+            {fiscalRange && (
+              <span
+                className={`rounded-full px-3 py-1 text-sm font-black ${
+                  fiscalRange.isCurrent
+                    ? 'bg-blue-100 text-blue-700'
+                    : 'bg-amber-100 text-amber-700'
+                }`}
+              >
+                {fiscalRange.startYear}年度{fiscalRange.isCurrent ? '（現在）' : '（過去）'}
+              </span>
+            )}
+          </div>
           <p className="mt-2 text-sm text-slate-500">差引残は現在の在庫ではありません</p>
+          {fiscalRange && !fiscalRange.isCurrent && !(fiscalSnapshots || []).some(s => s.fiscalYear === fiscalRange.startYear) && (
+            <p className="mt-1 text-xs font-bold text-amber-600">
+              ※ この年度のスナップショットがないため、差引残は「—」表示になります（記録は閲覧できます）。
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-3 mr-8">
           <Button variant="assets" onClick={() => { if (onNavigateAssets) { onNavigateAssets(pinnedId); } else { setView('assets'); } }}><ArrowLeftRight size={18} /> 資産マスタ</Button>

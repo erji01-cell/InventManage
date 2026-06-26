@@ -5,15 +5,20 @@ import { Button, Card } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
 import { isMovementAfterClose, normalizeMovementType, parseLocalDate } from '../utils/inventory.js';
 
-export default function StockStatusScreen({ assets, movements, setView, pinnedAssetId = '', onNavigateHistory, onNavigateAssets }) {
+export default function StockStatusScreen({ assets, movements, setView, pinnedAssetId = '', onNavigateHistory, onNavigateAssets, fiscalRange = null, fiscalSnapshots = [] }) {
   const fiscalMonths = [7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6];
   const today = new Date();
-  const fiscalEndYear = today.getMonth() + 1 >= 7 ? today.getFullYear() + 1 : today.getFullYear();
+  const isPastYear = !!(fiscalRange && !fiscalRange.isCurrent);
+  const currentEndYear = today.getMonth() + 1 >= 7 ? today.getFullYear() + 1 : today.getFullYear();
+  // 過去年度を閲覧中は、その年度の終了年（開始年+1）を基準にする
+  const fiscalEndYear = isPastYear ? fiscalRange.startYear + 1 : currentEndYear;
   const currentFiscalIndex = fiscalMonths.indexOf(today.getMonth() + 1);
-  const initialIndex = currentFiscalIndex >= 0 ? currentFiscalIndex : 10;
+  // 過去年度は年度全体（7月〜6月）を初期表示、現在年度は当月を初期表示
+  const initialFrom = isPastYear ? 0 : (currentFiscalIndex >= 0 ? currentFiscalIndex : 10);
+  const initialTo = isPastYear ? 11 : initialFrom;
 
-  const [rangeFrom, setRangeFrom] = useState(initialIndex);
-  const [rangeTo, setRangeTo] = useState(initialIndex);
+  const [rangeFrom, setRangeFrom] = useState(initialFrom);
+  const [rangeTo, setRangeTo] = useState(initialTo);
   const [isDragging, setIsDragging] = useState(false);
   const [dragAnchor, setDragAnchor] = useState(null);
   const [stockSearchTerm, setStockSearchTerm] = useState('');
@@ -56,15 +61,43 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
   const startLabel = rangeFrom === 0 ? '期首在庫' : '月初在庫';
   const endLabel = rangeTo === 11 ? '期末在庫' : '月末在庫';
 
+  // 過去年度閲覧用: その年度のスナップショット（期首在庫）を資産IDで引けるように
+  const snapByAsset = useMemo(() => {
+    const m = new Map();
+    if (isPastYear) {
+      (fiscalSnapshots || []).forEach(s => {
+        if (s.fiscalYear === fiscalRange.startYear) m.set(String(s.assetId), s);
+      });
+    }
+    return m;
+  }, [isPastYear, fiscalSnapshots, fiscalRange]);
+
+  const pastYearHasAnySnapshot = isPastYear && snapByAsset.size > 0;
+  const yearFrom = isPastYear ? `${fiscalRange.startYear}-07-01` : '';
+  const yearTo = isPastYear ? `${fiscalRange.startYear + 1}-06-30` : '';
+
   const stockData = useMemo(() => {
     return assets.map(asset => {
-      // 年度クローズ日以前の入出庫は opening_stock に既に反映済みなので除外
-      const closedAt = asset.fiscalYearClosedAt || null;
-      const assetMovements = movements.filter(m => {
-        if (m.assetId !== asset.id) return false;
-        return isMovementAfterClose(m.date, closedAt);
-      });
-      const initialStock = asset.openingStock || 0;
+      let initialStock;
+      let assetMovements;
+      if (isPastYear) {
+        // 過去年度: スナップショットの期首在庫を起点に、その年度内の入出庫のみで計算
+        const snap = snapByAsset.get(asset.id);
+        initialStock = snap ? snap.openingStock : 0;
+        assetMovements = movements.filter(m => {
+          if (m.assetId !== asset.id) return false;
+          const md = String(m.date || '').replaceAll('/', '-');
+          return md >= yearFrom && md <= yearTo;
+        });
+      } else {
+        // 現在年度: 年度クローズ日以前の入出庫は opening_stock に反映済みなので除外
+        const closedAt = asset.fiscalYearClosedAt || null;
+        assetMovements = movements.filter(m => {
+          if (m.assetId !== asset.id) return false;
+          return isMovementAfterClose(m.date, closedAt);
+        });
+        initialStock = asset.openingStock || 0;
+      }
       const beforeMonthTotal = assetMovements.reduce((sum, movement) => {
         const movementDate = parseLocalDate(movement.date);
         if (!movementDate || movementDate >= monthStart) return sum;
@@ -89,7 +122,7 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
 
       return { ...asset, prevMonth: monthStartStock, inbound: inboundTotal, outbound: outboundTotal, currentStock, stockValue };
     });
-  }, [assets, movements, monthStart.getTime(), nextMonthStart.getTime()]);
+  }, [assets, movements, monthStart.getTime(), nextMonthStart.getTime(), isPastYear, snapByAsset, yearFrom, yearTo]);
 
   const normalizedStockSearch = stockSearchTerm.trim().toLowerCase();
   const filteredStockData = useMemo(() => {
@@ -209,8 +242,24 @@ ${summaryHTML}
       <div className="flex items-end justify-between border-b border-slate-200 pb-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-500">Inventory Status</p>
-          <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-900">在庫表</h2>
+          <div className="mt-1 flex flex-wrap items-center gap-3">
+            <h2 className="text-3xl font-black tracking-tight text-slate-900">在庫表</h2>
+            {fiscalRange && (
+              <span
+                className={`rounded-full px-3 py-1 text-sm font-black ${
+                  fiscalRange.isCurrent ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'
+                }`}
+              >
+                {fiscalRange.startYear}年度{fiscalRange.isCurrent ? '（現在）' : '（過去）'}
+              </span>
+            )}
+          </div>
           <p className="mt-2 text-sm text-slate-500">月度を選択し、品名・メーカー・IDで絞り込めます。</p>
+          {isPastYear && !pastYearHasAnySnapshot && (
+            <p className="mt-1 text-xs font-bold text-amber-600">
+              ※ この年度のスナップショットがないため、期首在庫0として概算表示しています。
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-3 mr-10">
           <Button variant="history" onClick={() => setView('history')}><ArrowLeftRight size={18} /> 入出庫データ</Button>
@@ -295,8 +344,8 @@ ${summaryHTML}
           </div>
 
           <Button variant="secondary" className="h-[42px]" onClick={() => {
-            setRangeFrom(initialIndex);
-            setRangeTo(initialIndex);
+            setRangeFrom(initialFrom);
+            setRangeTo(initialTo);
             setPinnedId('');
             setStockSearchTerm('');
             setShowMinusOnly(false);

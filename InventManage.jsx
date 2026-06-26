@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 import { Button } from './components/ui.jsx';
 import { clearStoredSession, getStoredSession, loadInventoryData, signInWithPassword, signOut, storeSession, supabaseRequest } from './lib/supabase.js';
-import { getNextParentId, normalizeAsset, normalizeMovement, toNumber } from './utils/inventory.js';
+import { fiscalStartYearOf, getNextParentId, normalizeAsset, normalizeMovement, toNumber } from './utils/inventory.js';
 import AssetMasterScreen from './screens/AssetMasterScreen.jsx';
 import BackupScreen from './screens/BackupScreen.jsx';
 import EntryScreen from './screens/EntryScreen.jsx';
@@ -21,6 +21,7 @@ export default function App() {
   const [staff, setStaff] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [fiscalSnapshots, setFiscalSnapshots] = useState([]);
   const [isLoading, setIsLoading] = useState(() => Boolean(getStoredSession()));
   const [error, setError] = useState('');
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(false); // 棚卸し/年度更新/バックアップの共通解放フラグ
@@ -34,6 +35,7 @@ export default function App() {
     setStaff(data.staff);
     setSuppliers(data.suppliers);
     setCategories(data.categories || []);
+    setFiscalSnapshots(data.fiscalSnapshots || []);
   };
 
   useEffect(() => {
@@ -45,6 +47,7 @@ export default function App() {
       setStaff([]);
       setSuppliers([]);
       setCategories([]);
+      setFiscalSnapshots([]);
       setIsLoading(false);
       return () => {
         isMounted = false;
@@ -60,6 +63,7 @@ export default function App() {
         setStaff(data.staff);
         setSuppliers(data.suppliers);
         setCategories(data.categories || []);
+        setFiscalSnapshots(data.fiscalSnapshots || []);
       })
       .catch((err) => {
         if (!isMounted) return;
@@ -188,11 +192,42 @@ export default function App() {
     // 各資産の opening_stock を「期末日時点の在庫」で更新 + fiscal_year_closed_at をセット
     const updates = assets.map((asset) => {
       const key = String(asset.id);
-      const ending = Number(asset.openingStock || 0)
+      const opening = Number(asset.openingStock || 0); // 締める年度の期首在庫
+      const ending = opening
         + (inboundByAsset.get(key) || 0)
         - (outboundByAsset.get(key) || 0);
-      return { id: asset.id, newOpeningStock: ending };
+      return { id: asset.id, opening, newOpeningStock: ending };
     });
+
+    // 方法C: 締める年度の期首/期末在庫をスナップショットとして凍結保存。
+    // fiscal_year は期末日が属する会計年度の開始年（例: 2026-06-30 → 2025年度）。
+    const closedFiscalYear = fiscalStartYearOf(endDate);
+    if (closedFiscalYear != null) {
+      const snapshotRows = updates.map(({ id, opening, newOpeningStock }) => ({
+        child_asset_id: Number(id),
+        fiscal_year: closedFiscalYear,
+        opening_stock: opening,
+        closing_stock: newOpeningStock,
+        closed_at: endDate,
+      }));
+      // テーブル未作成（SQL未実行）の場合でも年度更新自体は止めない
+      try {
+        const BATCH = 500;
+        for (let i = 0; i < snapshotRows.length; i += BATCH) {
+          await supabaseRequest(
+            'invent_fiscal_snapshots?on_conflict=child_asset_id,fiscal_year',
+            {
+              method: 'POST',
+              headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+              body: JSON.stringify(snapshotRows.slice(i, i + BATCH)),
+            },
+            authSession
+          );
+        }
+      } catch (err) {
+        console.warn('[year-end] スナップショット保存に失敗しました（年度更新は継続）:', err?.message);
+      }
+    }
 
     for (const { id, newOpeningStock } of updates) {
       await supabaseRequest(
@@ -216,6 +251,27 @@ export default function App() {
       const u = updates.find((x) => String(x.id) === String(a.id));
       return u ? { ...a, openingStock: u.newOpeningStock, fiscalYearClosedAt: endDate } : a;
     }));
+
+    // スナップショットを再読み込みして state へ反映
+    if (closedFiscalYear != null) {
+      try {
+        const rows = await supabaseRequest(
+          'invent_fiscal_snapshots?select=*&order=id.asc',
+          {},
+          authSession
+        );
+        setFiscalSnapshots((rows || []).map((s) => ({
+          id: s.id,
+          assetId: String(s.child_asset_id),
+          fiscalYear: Number(s.fiscal_year),
+          openingStock: Number(s.opening_stock) || 0,
+          closingStock: Number(s.closing_stock) || 0,
+          closedAt: s.closed_at || null,
+        })));
+      } catch {
+        /* 取得失敗時は次回ロードで反映 */
+      }
+    }
   };
 
   const deleteMovement = async (id) => {
@@ -460,6 +516,7 @@ export default function App() {
   const [entryAssetId, setEntryAssetId] = useState(null);
   const [filterAssetId, setFilterAssetId] = useState('');
   const [savedEntryForm, setSavedEntryForm] = useState(null);
+  const [selectedFiscalYear, setSelectedFiscalYear] = useState(null); // 閲覧する会計年度の開始年（例: 2024 = 2024/7〜2025/6）
 
   const navigateToHistory = (assetId) => {
     setFilterAssetId(assetId || '');
@@ -491,17 +548,56 @@ export default function App() {
     return closedAt > latest ? closedAt : latest;
   }, '');
 
+  // 現在（アクティブ）年度の開始年。直近のクローズ日があればその翌期、なければ今日基準。
+  const currentFiscalStartYear = useMemo(() => {
+    if (latestFiscalYearClosedAt) {
+      const [year, month] = String(latestFiscalYearClosedAt).split('-').map(Number);
+      return month >= 7 ? year + 1 : year;
+    }
+    const now = new Date();
+    return now.getMonth() + 1 >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+  }, [latestFiscalYearClosedAt]);
+
+  // 入出庫データに存在する会計年度（+現在年度）を昇順で。タブ生成に使用。
+  const availableFiscalYears = useMemo(() => {
+    const set = new Set();
+    movements.forEach((m) => {
+      const [y, mo] = String(m.date || '').replaceAll('/', '-').split('-').map(Number);
+      if (!y || !mo) return;
+      set.add(mo >= 7 ? y : y - 1);
+    });
+    set.add(currentFiscalStartYear);
+    return Array.from(set).sort((a, b) => a - b);
+  }, [movements, currentFiscalStartYear]);
+
+  // 既定は現在年度。ユーザーが過去年度を選んだら維持。
+  useEffect(() => {
+    if (selectedFiscalYear == null && currentFiscalStartYear != null) {
+      setSelectedFiscalYear(currentFiscalStartYear);
+    }
+  }, [currentFiscalStartYear, selectedFiscalYear]);
+
+  // 選択中年度の日付レンジ（入出庫データ・在庫表の絞り込み用）
+  const historyFiscalRange = useMemo(() => (
+    selectedFiscalYear != null ? {
+      startYear: selectedFiscalYear,
+      from: `${selectedFiscalYear}-07-01`,
+      to: `${selectedFiscalYear + 1}-06-30`,
+      isCurrent: selectedFiscalYear === currentFiscalStartYear,
+    } : null
+  ), [selectedFiscalYear, currentFiscalStartYear]);
+
   const renderView = () => {
     switch (view) {
-      case 'menu': return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} />;
+      case 'menu': return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={availableFiscalYears} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={selectedFiscalYear} setSelectedFiscalYear={setSelectedFiscalYear} />;
       case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} categories={categories} onCreateCategory={createCategory} onCreateAsset={createAsset} onUpdateAsset={updateAsset} onUpdateParentAsset={updateParentAsset} onDeleteAsset={deleteAsset} setView={setView} onNavigateEntry={navigateToEntry} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} initialAssetId={filterAssetId} />;
-      case 'history': return <MovementHistoryScreen movements={movements} setView={setView} assets={assets} staff={staff} updateMovement={updateMovement} updateAsset={updateAsset} deleteMovement={deleteMovement} pinnedAssetId={filterAssetId} onNavigateAssets={navigateToAssets} />;
+      case 'history': return <MovementHistoryScreen movements={movements} setView={setView} assets={assets} staff={staff} updateMovement={updateMovement} updateAsset={updateAsset} deleteMovement={deleteMovement} pinnedAssetId={filterAssetId} onNavigateAssets={navigateToAssets} fiscalRange={historyFiscalRange} fiscalSnapshots={fiscalSnapshots} />;
       case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} />;
       case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} />;
-      case 'stock': return <StockStatusScreen assets={assets} movements={movements} setView={setView} pinnedAssetId={filterAssetId} onNavigateHistory={navigateToHistory} onNavigateAssets={navigateToAssets} />;
+      case 'stock': return <StockStatusScreen assets={assets} movements={movements} setView={setView} pinnedAssetId={filterAssetId} onNavigateHistory={navigateToHistory} onNavigateAssets={navigateToAssets} fiscalRange={historyFiscalRange} fiscalSnapshots={fiscalSnapshots} />;
       case 'backup': return <BackupScreen session={authSession} setView={setView} onRestored={refreshData} />;
       case 'stocktaking': return <StocktakingScreen session={authSession} setView={setView} assets={assets} movements={movements} staff={staff} onCompleted={refreshData} />;
-      default: return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} />;
+      default: return <MenuScreen setView={setView} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={availableFiscalYears} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={selectedFiscalYear} setSelectedFiscalYear={setSelectedFiscalYear} />;
     }
   };
 
