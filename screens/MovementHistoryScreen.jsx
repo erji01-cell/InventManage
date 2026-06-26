@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeftRight, Printer, Save, Table2, Trash2, X } from 'lucide-react';
+import { ArrowLeftRight, CheckCircle2, Printer, Save, Table2, Trash2, X } from 'lucide-react';
 
 import { Button, Card, DetailItem, EditableDetail } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
@@ -33,6 +33,7 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
   const [selectedMovement, setSelectedMovement] = useState(null);
   const [movementEditForm, setMovementEditForm] = useState(null);
   const [movementSaveError, setMovementSaveError] = useState('');
+  const [movementSaveMessage, setMovementSaveMessage] = useState('');
   const [isMovementSaving, setIsMovementSaving] = useState(false);
   const [priceConfirm, setPriceConfirm] = useState(null); // {masterPrice, actualPrice}
   const [showPrintMenu, setShowPrintMenu] = useState(false);
@@ -202,6 +203,7 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
     setSelectedMovement(null);
     setMovementEditForm(null);
     setMovementSaveError('');
+    setMovementSaveMessage('');
   };
 
   const applyMovementDateFilter = () => {
@@ -351,6 +353,7 @@ ${summaryHTML}
     const staffMember = staff.find((member) => String(member.id) === String(movementEditForm.staffId));
     setIsMovementSaving(true);
     setMovementSaveError('');
+    setMovementSaveMessage('');
     try {
       const updated = await updateMovement(selectedMovement.movement.id, {
         child_asset_id: Number(movementEditForm.assetId),
@@ -381,6 +384,8 @@ ${summaryHTML}
         staffName: updated.staffName || '',
         memo: updated.memo || '',
       });
+      setMovementSaveMessage('修正しました。');
+      window.setTimeout(() => setMovementSaveMessage(''), 2500);
     } catch (err) {
       setMovementSaveError(err.message || '入出庫データを保存できませんでした。');
     } finally {
@@ -397,6 +402,7 @@ ${summaryHTML}
     if (!window.confirm('この入出庫データを削除しますか？\nこの操作は取り消せません。')) return;
     setIsMovementSaving(true);
     setMovementSaveError('');
+    setMovementSaveMessage('');
     try {
       await deleteMovement(selectedMovement.movement.id);
       closeMovementDetail();
@@ -850,6 +856,12 @@ ${summaryHTML}
                       />
                     </label>
                   </div>
+
+                  {movementSaveMessage && (
+                    <div className="mt-4 flex items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-700">
+                      <CheckCircle2 size={18} /> {movementSaveMessage}
+                    </div>
+                  )}
 
                   {movementSaveError && (
                     <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
