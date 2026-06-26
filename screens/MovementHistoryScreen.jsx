@@ -638,170 +638,241 @@ ${summaryHTML}
 
       {selectedMovement && movementEditForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4">
-          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-lg bg-white shadow-xl">
-            <div className="flex items-start justify-between gap-4 px-6 pt-5 pb-3 border-b border-slate-100">
-              <div>
-                <p className="text-xs font-bold text-slate-400">入出庫データ詳細</p>
-                <h3 className="mt-1 text-xl font-bold text-slate-800">{selectedMovement.asset?.name || '-'}</h3>
-                <p className="mt-1 text-sm text-slate-500">{selectedMovement.asset?.maker || '-'}</p>
-              </div>
-              {selectedMovement.asset?.id && onNavigateAssets && (
-                <Button
-                  variant="assets"
-                  className="whitespace-nowrap mt-[7mm]"
-                  onClick={() => onNavigateAssets(selectedMovement.asset.id)}
-                >
-                  <ArrowLeftRight size={16} /> 資産マスタ
-                </Button>
-              )}
-            </div>
+          {(() => {
+            const editingAsset = assets.find(a => a.id === movementEditForm.assetId) || selectedMovement.asset;
+            const isInbound = movementEditForm.type === 'in';
+            const tone = isInbound
+              ? {
+                  badge: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+                  top: 'border-t-emerald-500',
+                  soft: 'bg-emerald-50 border-emerald-200',
+                  text: 'text-emerald-700',
+                  focus: 'focus:border-emerald-400 focus:ring-emerald-100',
+                }
+              : {
+                  badge: 'bg-rose-100 text-rose-700 border-rose-200',
+                  top: 'border-t-rose-500',
+                  soft: 'bg-rose-50 border-rose-200',
+                  text: 'text-rose-700',
+                  focus: 'focus:border-rose-400 focus:ring-rose-100',
+                };
+            const inputClass = `mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-slate-800 outline-none focus:ring-2 ${tone.focus}`;
+            const metricClass = `rounded-lg border bg-white px-4 py-3 shadow-sm`;
 
-            <div className="flex-1 overflow-auto px-6 py-4">
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div className="col-span-2">
-                <EditableDetail label="資産コード">
-                  <div className="mt-1 flex gap-2 items-center">
-                    <input
-                      type="text"
-                      value={editAssetCodeInput}
-                      onChange={(e) => setEditAssetCodeInput(e.target.value)}
-                      onBlur={() => { if (editAssetCodeInput && editAssetCodeInput !== movementEditForm.assetId) selectEditAssetByCode(); }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          selectEditAssetByCode();
-                        }
-                      }}
-                      placeholder="コード"
-                      className={`w-20 p-2 text-center rounded border outline-none focus:ring-2 ${
-                        movementEditForm.type === 'in' ? 'bg-emerald-50 focus:ring-emerald-200' : 'bg-rose-50 focus:ring-rose-200'
-                      }`}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <AssetSearchInput
-                        assets={assets}
-                        value={movementEditForm.assetId}
-                        onChange={(value) => updateMovementEditForm('assetId', value)}
-                        isIn={movementEditForm.type === 'in'}
-                        showListSignal={0}
-                      />
+            return (
+              <div className={`flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border-t-8 ${tone.top} bg-white shadow-2xl`}>
+                <div className="flex items-start justify-between gap-5 border-b border-slate-100 bg-slate-50/70 px-6 py-4">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-xs font-bold text-slate-400">入出庫データ詳細</p>
+                      <span className={`rounded-full border px-3 py-1 text-xs font-black ${tone.badge}`}>
+                        {isInbound ? '入庫' : '出庫'}
+                      </span>
+                    </div>
+                    <h3 className="mt-2 truncate text-2xl font-black text-slate-900">{editingAsset?.name || '-'}</h3>
+                    <p className="mt-1 truncate text-sm font-medium text-slate-500">
+                      {[editingAsset?.maker, editingAsset?.category || editingAsset?.parentCategory, `ID: ${movementEditForm.assetId || '-'}`].filter(Boolean).join(' / ')}
+                    </p>
+                  </div>
+                  {editingAsset?.id && onNavigateAssets && (
+                    <Button
+                      variant="assets"
+                      className="mt-1 whitespace-nowrap"
+                      onClick={() => onNavigateAssets(editingAsset.id)}
+                    >
+                      <ArrowLeftRight size={16} /> 資産マスタ
+                    </Button>
+                  )}
+                </div>
+
+                <div className="flex-1 overflow-auto px-6 py-5">
+                  <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                    <div className={`${metricClass} ${tone.soft}`}>
+                      <p className="text-xs font-black text-slate-400">区分</p>
+                      <p className={`mt-1 text-2xl font-black ${tone.text}`}>{isInbound ? '入庫' : '出庫'}</p>
+                    </div>
+                    <div className={metricClass}>
+                      <p className="text-xs font-black text-slate-400">入出庫日</p>
+                      <p className="mt-1 text-2xl font-black text-slate-800">{movementEditForm.date || '-'}</p>
+                    </div>
+                    <div className={metricClass}>
+                      <p className="text-xs font-black text-slate-400">数量</p>
+                      <p className="mt-1 text-3xl font-black text-slate-900">
+                        {Number(movementEditForm.quantity || 0).toLocaleString()}
+                        <span className="ml-1 text-base text-slate-500">{editingAsset?.usageUnit || ''}</span>
+                      </p>
+                    </div>
+                    <div className={metricClass}>
+                      <p className="text-xs font-black text-slate-400">実購入単価</p>
+                      <p className="mt-1 text-2xl font-black text-slate-800">
+                        {isInbound ? `¥${Number(movementEditForm.actualDeliveryPrice || 0).toLocaleString()}` : '-'}
+                      </p>
                     </div>
                   </div>
-                </EditableDetail>
-              </div>
-              <EditableDetail label="入出庫日">
-                <input
-                  type="date"
-                  value={movementEditForm.date}
-                  onChange={(event) => updateMovementEditForm('date', event.target.value)}
-                  className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                />
-              </EditableDetail>
-              <EditableDetail label="区分">
-                <select
-                  value={movementEditForm.type}
-                  onChange={(event) => updateMovementEditForm('type', event.target.value)}
-                  className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                >
-                  <option value="in">入庫</option>
-                  <option value="out">出庫</option>
-                </select>
-              </EditableDetail>
-              <DetailItem label="資産コード" value={movementEditForm.assetId || '-'} mono />
-              <DetailItem label="分類" value={assets.find(a => a.id === movementEditForm.assetId)?.category || '-'} />
-              <EditableDetail label="数量">
-                <input
-                  type="number"
-                  min="1"
-                  value={movementEditForm.quantity}
-                  onChange={(event) => updateMovementEditForm('quantity', event.target.value)}
-                  className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-right text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                />
-              </EditableDetail>
-              <DetailItem label="受払単位" value={selectedMovement.asset?.usageUnit || '-'} />
-              <EditableDetail label="実購入単価">
-                <input
-                  type="number"
-                  min="0"
-                  value={movementEditForm.type === 'in' ? movementEditForm.actualDeliveryPrice : ''}
-                  onChange={(event) => updateMovementEditForm('actualDeliveryPrice', event.target.value)}
-                  disabled={movementEditForm.type !== 'in'}
-                  placeholder={movementEditForm.type === 'in' ? '' : '-'}
-                  className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-right text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50 disabled:text-slate-400"
-                />
-              </EditableDetail>
-              <EditableDetail label="使用期限">
-                <input
-                  type="date"
-                  value={movementEditForm.expirationDate}
-                  onChange={(event) => updateMovementEditForm('expirationDate', event.target.value)}
-                  className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                />
-              </EditableDetail>
-              <EditableDetail label="ロット番号">
-                <input
-                  type="text"
-                  value={movementEditForm.lotNumber}
-                  onChange={(event) => updateMovementEditForm('lotNumber', event.target.value)}
-                  placeholder="ロット番号を入力"
-                  className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                />
-              </EditableDetail>
-              <EditableDetail label="担当者名">
-                <select
-                  value={movementEditForm.staffId}
-                  onChange={(event) => updateMovementEditForm('staffId', event.target.value)}
-                  className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                >
-                  <option value="">未設定</option>
-                  {staff.map((member) => (
-                    <option key={member.id} value={member.id}>{member.name}</option>
-                  ))}
-                </select>
-              </EditableDetail>
-            </div>
 
-            <div className="mt-4 border-t border-slate-200 pt-4 text-sm">
-              <EditableDetail label="摘要">
-                <textarea
-                  value={movementEditForm.memo}
-                  onChange={(event) => updateMovementEditForm('memo', event.target.value)}
-                  rows={3}
-                  className="mt-1 w-full resize-y rounded-md border border-slate-200 px-3 py-2 text-slate-800 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  placeholder="摘要を入力"
-                />
-              </EditableDetail>
-            </div>
+                  <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <label className="block">
+                      <span className="text-xs font-black text-slate-400">資産コード・資産検索</span>
+                      <div className="mt-2 flex gap-2">
+                        <input
+                          type="text"
+                          value={editAssetCodeInput}
+                          onChange={(e) => setEditAssetCodeInput(e.target.value)}
+                          onBlur={() => { if (editAssetCodeInput && editAssetCodeInput !== movementEditForm.assetId) selectEditAssetByCode(); }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              selectEditAssetByCode();
+                            }
+                          }}
+                          placeholder="コード"
+                          className={`w-24 rounded-md border px-3 py-2 text-center font-mono font-bold outline-none focus:ring-2 ${tone.soft} ${tone.focus}`}
+                        />
+                        <div className="min-w-0 flex-1">
+                          <AssetSearchInput
+                            assets={assets}
+                            value={movementEditForm.assetId}
+                            onChange={(value) => updateMovementEditForm('assetId', value)}
+                            isIn={isInbound}
+                            showListSignal={0}
+                          />
+                        </div>
+                      </div>
+                    </label>
+                  </div>
 
-            {movementSaveError && (
-              <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {movementSaveError}
-              </div>
-            )}
-            </div>
+                  <div className="mt-4 grid grid-cols-1 gap-3 text-sm md:grid-cols-12">
+                    <label className="rounded-lg border border-slate-200 bg-white p-3 md:col-span-3">
+                      <span className="text-xs font-black text-slate-400">入出庫日</span>
+                      <input
+                        type="date"
+                        value={movementEditForm.date}
+                        onChange={(event) => updateMovementEditForm('date', event.target.value)}
+                        className={inputClass}
+                      />
+                    </label>
+                    <label className="rounded-lg border border-slate-200 bg-white p-3 md:col-span-2">
+                      <span className="text-xs font-black text-slate-400">区分</span>
+                      <select
+                        value={movementEditForm.type}
+                        onChange={(event) => updateMovementEditForm('type', event.target.value)}
+                        className={inputClass}
+                      >
+                        <option value="in">入庫</option>
+                        <option value="out">出庫</option>
+                      </select>
+                    </label>
+                    <label className="rounded-lg border border-slate-200 bg-white p-3 md:col-span-2">
+                      <span className="text-xs font-black text-slate-400">数量</span>
+                      <input
+                        type="number"
+                        min="1"
+                        value={movementEditForm.quantity}
+                        onChange={(event) => updateMovementEditForm('quantity', event.target.value)}
+                        className={`${inputClass} text-right text-lg font-bold`}
+                      />
+                    </label>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 md:col-span-2">
+                      <span className="text-xs font-black text-slate-400">受払単位</span>
+                      <p className="mt-2 text-center text-xl font-black text-slate-800">{editingAsset?.usageUnit || '-'}</p>
+                    </div>
+                    <label className="rounded-lg border border-slate-200 bg-white p-3 md:col-span-3">
+                      <span className="text-xs font-black text-slate-400">実購入単価</span>
+                      <input
+                        type="number"
+                        min="0"
+                        value={isInbound ? movementEditForm.actualDeliveryPrice : ''}
+                        onChange={(event) => updateMovementEditForm('actualDeliveryPrice', event.target.value)}
+                        disabled={!isInbound}
+                        placeholder={isInbound ? '' : '-'}
+                        className={`${inputClass} text-right text-lg font-bold disabled:bg-slate-50 disabled:text-slate-400`}
+                      />
+                    </label>
 
-            <div className="flex justify-end gap-3 border-t border-slate-100 px-6 py-4 bg-slate-50/50 rounded-b-lg">
-              <Button variant="success" onClick={saveMovementDetail} disabled={isMovementSaving}>
-                <Save size={18} /> {isMovementSaving ? '保存中...' : '保存'}
-              </Button>
-              {(() => {
-                const isAdjust = isAdjustmentMovement(selectedMovement?.movement);
-                return (
-                  <Button
-                    variant="danger"
-                    onClick={handleDeleteMovement}
-                    disabled={isMovementSaving || isAdjust}
-                    title={isAdjust ? '棚卸し調整の行は棚卸し画面から削除してください' : '削除'}
-                  >
-                    <Trash2 size={18} /> 削除
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 md:col-span-2">
+                      <span className="text-xs font-black text-slate-400">資産コード</span>
+                      <p className="mt-2 text-center font-mono text-xl font-black text-slate-800">{movementEditForm.assetId || '-'}</p>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 md:col-span-3">
+                      <span className="text-xs font-black text-slate-400">分類</span>
+                      <p className="mt-2 text-center text-lg font-black text-slate-800">{editingAsset?.category || editingAsset?.parentCategory || '-'}</p>
+                    </div>
+                    <label className="rounded-lg border border-slate-200 bg-white p-3 md:col-span-3">
+                      <span className="text-xs font-black text-slate-400">使用期限</span>
+                      <input
+                        type="date"
+                        value={movementEditForm.expirationDate}
+                        onChange={(event) => updateMovementEditForm('expirationDate', event.target.value)}
+                        className={inputClass}
+                      />
+                    </label>
+                    <label className="rounded-lg border border-slate-200 bg-white p-3 md:col-span-4">
+                      <span className="text-xs font-black text-slate-400">担当者名</span>
+                      <select
+                        value={movementEditForm.staffId}
+                        onChange={(event) => updateMovementEditForm('staffId', event.target.value)}
+                        className={inputClass}
+                      >
+                        <option value="">未設定</option>
+                        {staff.map((member) => (
+                          <option key={member.id} value={member.id}>{member.name}</option>
+                        ))}
+                      </select>
+                    </label>
+
+                    <label className="rounded-lg border border-slate-200 bg-white p-3 md:col-span-5">
+                      <span className="text-xs font-black text-slate-400">ロット番号</span>
+                      <input
+                        type="text"
+                        value={movementEditForm.lotNumber}
+                        onChange={(event) => updateMovementEditForm('lotNumber', event.target.value)}
+                        placeholder="ロット番号を入力"
+                        className={inputClass}
+                      />
+                    </label>
+                    <label className="rounded-lg border border-slate-200 bg-white p-3 md:col-span-7">
+                      <span className="text-xs font-black text-slate-400">摘要</span>
+                      <textarea
+                        value={movementEditForm.memo}
+                        onChange={(event) => updateMovementEditForm('memo', event.target.value)}
+                        rows={2}
+                        className={`${inputClass} resize-y`}
+                        placeholder="摘要を入力"
+                      />
+                    </label>
+                  </div>
+
+                  {movementSaveError && (
+                    <div className="mt-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                      {movementSaveError}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end gap-3 border-t border-slate-100 bg-slate-50/70 px-6 py-4">
+                  <Button variant="success" onClick={saveMovementDetail} disabled={isMovementSaving}>
+                    <Save size={18} /> {isMovementSaving ? '保存中...' : '保存'}
                   </Button>
-                );
-              })()}
-              <Button variant="secondary" onClick={closeMovementDetail} disabled={isMovementSaving}>
-                閉じる
-              </Button>
-            </div>
-          </div>
+                  {(() => {
+                    const isAdjust = isAdjustmentMovement(selectedMovement?.movement);
+                    return (
+                      <Button
+                        variant="danger"
+                        onClick={handleDeleteMovement}
+                        disabled={isMovementSaving || isAdjust}
+                        title={isAdjust ? '棚卸し調整の行は棚卸し画面から削除してください' : '削除'}
+                      >
+                        <Trash2 size={18} /> 削除
+                      </Button>
+                    );
+                  })()}
+                  <Button variant="secondary" onClick={closeMovementDetail} disabled={isMovementSaving}>
+                    閉じる
+                  </Button>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 
