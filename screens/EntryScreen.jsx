@@ -293,8 +293,6 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
                 showListSignal={assetListSignal}
                 resetSignal={assetResetSignal}
                 inputRef={assetInputRef}
-                recentAssets={frequentAssets}
-                showAdvancedSearch
               />
             </div>
           </div>
