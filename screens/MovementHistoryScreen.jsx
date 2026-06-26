@@ -657,7 +657,12 @@ ${summaryHTML}
                   focus: 'focus:border-rose-400 focus:ring-rose-100',
                 };
             const inputClass = `mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-slate-800 outline-none focus:ring-2 ${tone.focus}`;
-            const metricClass = `rounded-lg border bg-white px-4 py-3 shadow-sm`;
+            const metricClass = 'relative rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm opacity-90';
+            const readonlyBadge = (
+              <span className="absolute right-3 top-3 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-black text-slate-400">
+                表示のみ
+              </span>
+            );
 
             return (
               <div className={`flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border-t-8 ${tone.top} bg-white shadow-2xl`}>
@@ -688,14 +693,17 @@ ${summaryHTML}
                 <div className="flex-1 overflow-auto px-6 py-5">
                   <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                     <div className={`${metricClass} ${tone.soft}`}>
+                      {readonlyBadge}
                       <p className="text-xs font-black text-slate-400">区分</p>
                       <p className={`mt-1 text-2xl font-black ${tone.text}`}>{isInbound ? '入庫' : '出庫'}</p>
                     </div>
                     <div className={metricClass}>
+                      {readonlyBadge}
                       <p className="text-xs font-black text-slate-400">入出庫日</p>
                       <p className="mt-1 text-2xl font-black text-slate-800">{movementEditForm.date || '-'}</p>
                     </div>
                     <div className={metricClass}>
+                      {readonlyBadge}
                       <p className="text-xs font-black text-slate-400">数量</p>
                       <p className="mt-1 text-3xl font-black text-slate-900">
                         {Number(movementEditForm.quantity || 0).toLocaleString()}
@@ -703,6 +711,7 @@ ${summaryHTML}
                       </p>
                     </div>
                     <div className={metricClass}>
+                      {readonlyBadge}
                       <p className="text-xs font-black text-slate-400">実購入単価</p>
                       <p className="mt-1 text-2xl font-black text-slate-800">
                         {isInbound ? `¥${Number(movementEditForm.actualDeliveryPrice || 0).toLocaleString()}` : '-'}
