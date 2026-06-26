@@ -663,13 +663,6 @@ ${summaryHTML}
                   focus: 'focus:border-rose-400 focus:ring-rose-100',
                 };
             const inputClass = `mt-1 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-slate-800 outline-none focus:ring-2 ${tone.focus}`;
-            const metricClass = 'relative rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm opacity-90';
-            const readonlyBadge = (
-              <span className="absolute right-3 top-3 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-black text-slate-400">
-                表示のみ
-              </span>
-            );
-
             return (
               <div className={`flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border-t-8 ${tone.top} bg-white shadow-2xl`}>
                 <div className="flex items-start justify-between gap-5 border-b border-slate-100 bg-slate-50/70 px-6 py-4">
@@ -697,44 +690,6 @@ ${summaryHTML}
                 </div>
 
                 <div className="flex-1 overflow-auto px-6 py-5">
-                  <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
-                    <div className={`${metricClass} ${tone.soft}`}>
-                      {readonlyBadge}
-                      <p className="text-xs font-black text-slate-400">区分</p>
-                      <p className={`mt-1 text-xl font-black ${tone.text}`}>{isInbound ? '入庫' : '出庫'}</p>
-                    </div>
-                    <div className={metricClass}>
-                      {readonlyBadge}
-                      <p className="text-xs font-black text-slate-400">入出庫日</p>
-                      <p className="mt-1 text-xl font-black text-slate-800">{movementEditForm.date || '-'}</p>
-                    </div>
-                    <div className={metricClass}>
-                      {readonlyBadge}
-                      <p className="text-xs font-black text-slate-400">数量</p>
-                      <p className="mt-1 text-2xl font-black text-slate-900">
-                        {Number(movementEditForm.quantity || 0).toLocaleString()}
-                        <span className="ml-1 text-base text-slate-500">{editingAsset?.usageUnit || ''}</span>
-                      </p>
-                    </div>
-                    <div className={metricClass}>
-                      {readonlyBadge}
-                      <p className="text-xs font-black text-slate-400">実購入単価</p>
-                      <p className="mt-1 text-xl font-black text-slate-800">
-                        {isInbound ? `¥${Number(movementEditForm.actualDeliveryPrice || 0).toLocaleString()}` : '-'}
-                      </p>
-                    </div>
-                    <div className={metricClass}>
-                      {readonlyBadge}
-                      <p className="text-xs font-black text-slate-400">資産コード</p>
-                      <p className="mt-1 font-mono text-xl font-black text-slate-800">{movementEditForm.assetId || '-'}</p>
-                    </div>
-                    <div className={metricClass}>
-                      {readonlyBadge}
-                      <p className="text-xs font-black text-slate-400">分類</p>
-                      <p className="mt-1 truncate text-xl font-black text-slate-800">{editingAsset?.category || editingAsset?.parentCategory || '-'}</p>
-                    </div>
-                  </div>
-
                   <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                     <label className="block">
                       <span className="text-xs font-black text-slate-400">資産コード・資産検索</span>
@@ -764,6 +719,29 @@ ${summaryHTML}
                         </div>
                       </div>
                     </label>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-x-8 gap-y-3 rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 text-sm">
+                    <div>
+                      <p className="text-xs font-black text-slate-400">購入単位</p>
+                      <p className="mt-0.5 font-bold text-slate-700">{editingAsset?.purchaseUnit || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-black text-slate-400">購入単価</p>
+                      <p className="mt-0.5 font-bold text-slate-700">{editingAsset != null ? `¥${Number(editingAsset.deliveryPrice || 0).toLocaleString()}` : '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-black text-slate-400">受払単位</p>
+                      <p className="mt-0.5 font-bold text-slate-700">{editingAsset?.usageUnit || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-black text-slate-400">受払単価</p>
+                      <p className="mt-0.5 font-bold text-slate-700">{editingAsset != null ? `¥${Number(editingAsset.usageUnitPrice || 0).toLocaleString()}` : '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-black text-slate-400">入数</p>
+                      <p className="mt-0.5 font-bold text-slate-700">{editingAsset?.packSize ?? '-'}</p>
+                    </div>
                   </div>
 
                   <div className="mt-4 grid grid-cols-1 gap-3 text-sm md:grid-cols-12">
