@@ -701,17 +701,17 @@ ${summaryHTML}
                     <div className={`${metricClass} ${tone.soft}`}>
                       {readonlyBadge}
                       <p className="text-xs font-black text-slate-400">区分</p>
-                      <p className={`mt-1 text-2xl font-black ${tone.text}`}>{isInbound ? '入庫' : '出庫'}</p>
+                      <p className={`mt-1 text-xl font-black ${tone.text}`}>{isInbound ? '入庫' : '出庫'}</p>
                     </div>
                     <div className={metricClass}>
                       {readonlyBadge}
                       <p className="text-xs font-black text-slate-400">入出庫日</p>
-                      <p className="mt-1 text-2xl font-black text-slate-800">{movementEditForm.date || '-'}</p>
+                      <p className="mt-1 text-xl font-black text-slate-800">{movementEditForm.date || '-'}</p>
                     </div>
                     <div className={metricClass}>
                       {readonlyBadge}
                       <p className="text-xs font-black text-slate-400">数量</p>
-                      <p className="mt-1 text-3xl font-black text-slate-900">
+                      <p className="mt-1 text-2xl font-black text-slate-900">
                         {Number(movementEditForm.quantity || 0).toLocaleString()}
                         <span className="ml-1 text-base text-slate-500">{editingAsset?.usageUnit || ''}</span>
                       </p>
@@ -719,19 +719,19 @@ ${summaryHTML}
                     <div className={metricClass}>
                       {readonlyBadge}
                       <p className="text-xs font-black text-slate-400">実購入単価</p>
-                      <p className="mt-1 text-2xl font-black text-slate-800">
+                      <p className="mt-1 text-xl font-black text-slate-800">
                         {isInbound ? `¥${Number(movementEditForm.actualDeliveryPrice || 0).toLocaleString()}` : '-'}
                       </p>
                     </div>
                     <div className={metricClass}>
                       {readonlyBadge}
                       <p className="text-xs font-black text-slate-400">資産コード</p>
-                      <p className="mt-1 font-mono text-2xl font-black text-slate-800">{movementEditForm.assetId || '-'}</p>
+                      <p className="mt-1 font-mono text-xl font-black text-slate-800">{movementEditForm.assetId || '-'}</p>
                     </div>
                     <div className={metricClass}>
                       {readonlyBadge}
                       <p className="text-xs font-black text-slate-400">分類</p>
-                      <p className="mt-1 truncate text-2xl font-black text-slate-800">{editingAsset?.category || editingAsset?.parentCategory || '-'}</p>
+                      <p className="mt-1 truncate text-xl font-black text-slate-800">{editingAsset?.category || editingAsset?.parentCategory || '-'}</p>
                     </div>
                   </div>
 
