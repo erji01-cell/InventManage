@@ -203,6 +203,7 @@ const createAssetEditForm = (asset) => ({
 export default function AssetMasterScreen({ assets, suppliers, categories = [], onCreateCategory, onCreateAsset, onUpdateAsset, onUpdateParentAsset, onDeleteAsset, setView, onNavigateEntry, onNavigateHistory, onNavigateStock, initialAssetId = '' }) {
   const [filter, setFilter] = useState('');
   const [selectedAssetId, setSelectedAssetId] = useState(initialAssetId);
+  const [pinnedAssetId, setPinnedAssetId] = useState(initialAssetId); // 特定資産へ遷移時、一覧をその1件だけに絞る
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState(() => createAssetEditForm(null));
@@ -210,6 +211,11 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
   const [isSaving, setIsSaving] = useState(false);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
   const filteredAssets = (() => {
+    // 特定資産へ遷移してきた場合は、その1件だけを一覧に表示
+    if (pinnedAssetId) {
+      const pinned = assets.find(a => String(a.id) === String(pinnedAssetId));
+      return pinned ? [pinned] : [];
+    }
     const q = filter.toLowerCase();
     // ローマ字入力ならかな名・大分類名のローマ字化と照合（IME不要で検索可能に）
     const romajiSearch = isRomajiQuery(q) ? romajiCanonical(q) : '';
@@ -256,6 +262,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
 
   useEffect(() => {
     setSelectedAssetId(initialAssetId);
+    setPinnedAssetId(initialAssetId);
   }, [initialAssetId]);
 
   const updateEditForm = (key, value) => {
@@ -458,11 +465,22 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
             placeholder="ID・品名・メーカー・分類で検索..." 
             className="w-full rounded-md border border-purple-200 bg-purple-50 py-2.5 pl-10 pr-4 text-sm font-medium shadow-inner outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
             value={filter}
-            onChange={(e) => setFilter(e.target.value)}
+            onChange={(e) => { setFilter(e.target.value); setPinnedAssetId(''); }}
           />
         </div>
-        <Button variant="secondary" onClick={() => setFilter('')}>リセット</Button>
+        <Button variant="secondary" onClick={() => { setFilter(''); setPinnedAssetId(''); }}>リセット</Button>
       </div>
+
+      {pinnedAssetId && (() => {
+        const pinned = assets.find(a => String(a.id) === String(pinnedAssetId));
+        if (!pinned) return null;
+        return (
+          <div className="mb-4 flex items-center gap-2 rounded-md border border-purple-200 bg-purple-50 px-3 py-2 text-sm font-bold text-purple-700 w-fit">
+            <span>絞り込み中: {pinned.name || pinnedAssetId}</span>
+            <button onClick={() => setPinnedAssetId('')} className="ml-1 text-purple-400 hover:text-purple-700" title="全件表示に戻す">×</button>
+          </div>
+        );
+      })()}
 
       <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
         <div className="overflow-auto rounded-lg border border-slate-200 shadow-sm">
