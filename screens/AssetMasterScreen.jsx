@@ -203,7 +203,7 @@ const createAssetEditForm = (asset) => ({
 export default function AssetMasterScreen({ assets, suppliers, categories = [], onCreateCategory, onCreateAsset, onUpdateAsset, onUpdateParentAsset, onDeleteAsset, setView, onNavigateEntry, onNavigateHistory, onNavigateStock, initialAssetId = '', assetPickerMode = false, onPickAsset, onCancelPick }) {
   const [filter, setFilter] = useState('');
   const [selectedAssetId, setSelectedAssetId] = useState(initialAssetId);
-  const [pinnedAssetId, setPinnedAssetId] = useState(initialAssetId); // 特定資産へ遷移時、一覧をその1件だけに絞る
+  const [pinnedAssetId, setPinnedAssetId] = useState(assetPickerMode ? '' : initialAssetId); // 特定資産へ遷移時、一覧をその1件だけに絞る
   const [isCreating, setIsCreating] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState(() => createAssetEditForm(null));
@@ -262,8 +262,8 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
 
   useEffect(() => {
     setSelectedAssetId(initialAssetId);
-    setPinnedAssetId(initialAssetId);
-  }, [initialAssetId]);
+    setPinnedAssetId(assetPickerMode ? '' : initialAssetId);
+  }, [initialAssetId, assetPickerMode]);
 
   const updateEditForm = (key, value) => {
     setEditForm(prev => ({ ...prev, [key]: value }));
