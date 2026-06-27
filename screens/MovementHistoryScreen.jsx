@@ -11,7 +11,7 @@ const isAdjustmentMovement = (m) =>
   m?.stocktakingCountId != null
   || /^\s*\[棚卸し調整\]/.test(m?.memo || '');
 
-export default function MovementHistoryScreen({ movements, setView, assets, staff = [], updateMovement, updateAsset, deleteMovement, pinnedAssetId = '', onNavigateAssets, fiscalRange = null, fiscalSnapshots = [] }) {
+export default function MovementHistoryScreen({ movements, setView, assets, staff = [], updateMovement, updateAsset, deleteMovement, pinnedAssetId = '', onNavigateAssets, onRequestAssetPick, assetSelectionResult, onAssetSelectionApplied, fiscalRange = null, fiscalSnapshots = [] }) {
   // 過去年度が選択されている場合は、初期表示で会計年度の日付レンジを絞り込みに適用
   const initialFiscalFrom = fiscalRange && !fiscalRange.isCurrent ? fiscalRange.from : '';
   const initialFiscalTo = fiscalRange && !fiscalRange.isCurrent ? fiscalRange.to : '';
@@ -194,6 +194,28 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
     setEditAssetCodeInput(movement.assetId || '');
     setMovementSaveError('');
   };
+
+  useEffect(() => {
+    if (!assetSelectionResult) return;
+    const movement = movements.find((item) => String(item.id) === String(assetSelectionResult.movementId));
+    if (!movement) {
+      onAssetSelectionApplied?.();
+      return;
+    }
+    const selectedAssetId = assetSelectionResult.selectedAssetId || assetSelectionResult.form?.assetId || movement.assetId || '';
+    const selectedAsset = assets.find((asset) => String(asset.id) === String(selectedAssetId));
+    const nextForm = {
+      ...(assetSelectionResult.form || {}),
+      assetId: selectedAsset?.id || selectedAssetId,
+    };
+
+    setSelectedMovement({ movement, asset: selectedAsset || assets.find((asset) => asset.id === movement.assetId) });
+    setMovementEditForm(nextForm);
+    setEditAssetCodeInput(nextForm.assetId || '');
+    setMovementSaveError('');
+    setMovementSaveMessage('');
+    onAssetSelectionApplied?.();
+  }, [assetSelectionResult?.requestId]);
 
   const updateMovementEditForm = (field, value) => {
     setMovementEditForm(prev => ({ ...prev, [field]: value }));
@@ -682,7 +704,13 @@ ${summaryHTML}
                     <Button
                       variant="assets"
                       className="mt-1 whitespace-nowrap"
-                      onClick={() => onNavigateAssets(editingAsset.id)}
+                      onClick={() => {
+                        if (onRequestAssetPick) {
+                          onRequestAssetPick(selectedMovement.movement.id, movementEditForm, editingAsset.id);
+                        } else {
+                          onNavigateAssets(editingAsset.id);
+                        }
+                      }}
                     >
                       <ArrowLeftRight size={16} /> 資産マスタ
                     </Button>

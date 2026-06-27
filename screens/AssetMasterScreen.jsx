@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeftRight, LogIn, LogOut, PlusCircle, Printer, Search, Table2, Trash2, X } from 'lucide-react';
+import { ArrowLeftRight, CheckCircle2, LogIn, LogOut, PlusCircle, Printer, Search, Table2, Trash2, X } from 'lucide-react';
 
 import { Button, Card, DetailItem, DetailRow, EditField } from '../components/ui.jsx';
 import { toNullableNumber } from '../utils/inventory.js';
@@ -200,7 +200,7 @@ const createAssetEditForm = (asset) => ({
   parentGenericName: asset?.parentGenericName || '',
 });
 
-export default function AssetMasterScreen({ assets, suppliers, categories = [], onCreateCategory, onCreateAsset, onUpdateAsset, onUpdateParentAsset, onDeleteAsset, setView, onNavigateEntry, onNavigateHistory, onNavigateStock, initialAssetId = '' }) {
+export default function AssetMasterScreen({ assets, suppliers, categories = [], onCreateCategory, onCreateAsset, onUpdateAsset, onUpdateParentAsset, onDeleteAsset, setView, onNavigateEntry, onNavigateHistory, onNavigateStock, initialAssetId = '', assetPickerMode = false, onPickAsset, onCancelPick }) {
   const [filter, setFilter] = useState('');
   const [selectedAssetId, setSelectedAssetId] = useState(initialAssetId);
   const [pinnedAssetId, setPinnedAssetId] = useState(initialAssetId); // 特定資産へ遷移時、一覧をその1件だけに絞る
@@ -432,7 +432,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
     <Card className="max-h-[90vh] flex flex-col bg-white relative">
       <div className="absolute left-5 right-5 top-0 h-1 rounded-b-full bg-purple-500 opacity-80" />
       <button
-        onClick={() => setView('menu')}
+        onClick={() => assetPickerMode ? onCancelPick?.() : setView('menu')}
         className="absolute top-3 right-3 rounded-full p-1 text-slate-300 hover:bg-slate-100 hover:text-slate-600 transition-colors z-10"
         title="閉じる"
       >
@@ -444,12 +444,25 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
           <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-900">資産マスタ</h2>
         </div>
         <div className="flex items-center gap-3 mr-8">
+          {assetPickerMode ? (
+            <>
+              <Button variant="assets" onClick={() => selectedAsset && onPickAsset?.(selectedAsset.id)} disabled={!selectedAsset || isCreating}>
+                <CheckCircle2 size={18} /> この資産を選択
+              </Button>
+              <Button variant="secondary" onClick={() => onCancelPick?.()}>
+                <X size={18} /> 戻る
+              </Button>
+            </>
+          ) : (
+            <>
           <Button variant="assets" onClick={startCreate}>
             <PlusCircle size={18} /> 新規登録
           </Button>
           <Button variant="history" onClick={() => onNavigateHistory?.()}><ArrowLeftRight size={18} /> 入出庫</Button>
           <Button variant="stock" onClick={() => onNavigateStock?.()}><Table2 size={18} /> 在庫表</Button>
           <Button variant="print" onClick={() => setShowPrintDialog(true)}><Printer size={18} /> 印刷</Button>
+            </>
+          )}
           <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 flex items-center gap-2">
             <p className="text-xs font-bold text-slate-400">表示件数</p>
             <p className="text-lg font-black text-slate-800">{filteredAssets.length.toLocaleString()}</p>
