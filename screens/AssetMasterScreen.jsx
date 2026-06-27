@@ -457,12 +457,22 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
         </div>
       </div>
 
-      <div className="mb-5 flex gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 shadow-sm">
+      <div className="mb-5 flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 shadow-sm">
+        {pinnedAssetId && (() => {
+          const pinned = assets.find(a => String(a.id) === String(pinnedAssetId));
+          if (!pinned) return null;
+          return (
+            <div className="flex shrink-0 items-center gap-1.5 rounded-md border border-purple-200 bg-purple-50 px-3 py-2 text-sm font-bold text-purple-700">
+              <span className="whitespace-nowrap">絞り込み中: {pinned.name || pinnedAssetId}</span>
+              <button onClick={() => setPinnedAssetId('')} className="ml-1 text-purple-400 hover:text-purple-700" title="全件表示に戻す">×</button>
+            </div>
+          );
+        })()}
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-400" size={18} />
-          <input 
-            type="text" 
-            placeholder="ID・品名・メーカー・分類で検索..." 
+          <input
+            type="text"
+            placeholder="ID・品名・メーカー・分類で検索..."
             className="w-full rounded-md border border-purple-200 bg-purple-50 py-2.5 pl-10 pr-4 text-sm font-medium shadow-inner outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
             value={filter}
             onChange={(e) => { setFilter(e.target.value); setPinnedAssetId(''); }}
@@ -470,17 +480,6 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
         </div>
         <Button variant="secondary" onClick={() => { setFilter(''); setPinnedAssetId(''); }}>リセット</Button>
       </div>
-
-      {pinnedAssetId && (() => {
-        const pinned = assets.find(a => String(a.id) === String(pinnedAssetId));
-        if (!pinned) return null;
-        return (
-          <div className="mb-4 flex items-center gap-2 rounded-md border border-purple-200 bg-purple-50 px-3 py-2 text-sm font-bold text-purple-700 w-fit">
-            <span>絞り込み中: {pinned.name || pinnedAssetId}</span>
-            <button onClick={() => setPinnedAssetId('')} className="ml-1 text-purple-400 hover:text-purple-700" title="全件表示に戻す">×</button>
-          </div>
-        );
-      })()}
 
       <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_400px]">
         <div className="overflow-auto rounded-lg border border-slate-200 shadow-sm">
