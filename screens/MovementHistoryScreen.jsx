@@ -354,6 +354,11 @@ ${summaryHTML}
       return;
     }
 
+    const assetChanged = String(movementEditForm.assetId) !== String(selectedMovement.movement.assetId);
+    if (assetChanged && !window.confirm('資産を変更しますか？\nこの入出庫データの対象資産が変更されます。')) {
+      return;
+    }
+
     // 入庫かつ「今回 実購入単価を編集した」かつ マスタ購入価格と異なる場合のみ確認モーダルを表示
     const editingAsset = assets.find((a) => String(a.id) === String(movementEditForm.assetId));
     const masterPrice = Number(editingAsset?.deliveryPrice || 0);
