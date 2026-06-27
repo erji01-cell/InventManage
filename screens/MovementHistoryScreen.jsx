@@ -777,6 +777,10 @@ ${summaryHTML}
                         </div>
                       </div>
                     </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 md:col-span-4">
+                      <span className="text-xs font-black text-slate-400">入数</span>
+                      <p className="mt-1 text-lg font-black text-slate-800">{editingAsset?.packSize ?? '-'}</p>
+                    </div>
                     <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 md:col-span-4">
                       <div className="flex items-start justify-between gap-3">
                         <div>
@@ -788,10 +792,6 @@ ${summaryHTML}
                           <p className="mt-1 text-lg font-black text-slate-800">{editingAsset != null ? `¥${Number(editingAsset.usageUnitPrice || 0).toLocaleString()}` : '-'}</p>
                         </div>
                       </div>
-                    </div>
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 md:col-span-4">
-                      <span className="text-xs font-black text-slate-400">入数</span>
-                      <p className="mt-1 text-lg font-black text-slate-800">{editingAsset?.packSize ?? '-'}</p>
                     </div>
 
                     <label className="rounded-lg border border-slate-200 bg-white p-3 md:col-span-3">
