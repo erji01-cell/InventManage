@@ -721,29 +721,6 @@ ${summaryHTML}
                     </label>
                   </div>
 
-                  <div className="mt-3 flex flex-wrap gap-x-8 gap-y-3 rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 text-sm">
-                    <div>
-                      <p className="text-xs font-black text-slate-400">購入単位</p>
-                      <p className="mt-0.5 font-bold text-slate-700">{editingAsset?.purchaseUnit || '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-black text-slate-400">購入単価</p>
-                      <p className="mt-0.5 font-bold text-slate-700">{editingAsset != null ? `¥${Number(editingAsset.deliveryPrice || 0).toLocaleString()}` : '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-black text-slate-400">受払単位</p>
-                      <p className="mt-0.5 font-bold text-slate-700">{editingAsset?.usageUnit || '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-black text-slate-400">受払単価</p>
-                      <p className="mt-0.5 font-bold text-slate-700">{editingAsset != null ? `¥${Number(editingAsset.usageUnitPrice || 0).toLocaleString()}` : '-'}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-black text-slate-400">入数</p>
-                      <p className="mt-0.5 font-bold text-slate-700">{editingAsset?.packSize ?? '-'}</p>
-                    </div>
-                  </div>
-
                   <div className="mt-4 grid grid-cols-1 gap-3 text-sm md:grid-cols-12">
                     <label className="rounded-lg border border-slate-200 bg-white p-3 md:col-span-3">
                       <span className="text-xs font-black text-slate-400">入出庫日</span>
@@ -775,11 +752,7 @@ ${summaryHTML}
                         className={`${inputClass} text-right text-lg font-bold`}
                       />
                     </label>
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 md:col-span-2">
-                      <span className="text-xs font-black text-slate-400">受払単位</span>
-                      <p className="mt-2 text-center text-xl font-black text-slate-800">{editingAsset?.usageUnit || '-'}</p>
-                    </div>
-                    <label className="rounded-lg border border-slate-200 bg-white p-3 md:col-span-3">
+                    <label className="rounded-lg border border-slate-200 bg-white p-3 md:col-span-5">
                       <span className="text-xs font-black text-slate-400">実購入単価</span>
                       <input
                         type="number"
@@ -791,6 +764,35 @@ ${summaryHTML}
                         className={`${inputClass} text-right text-lg font-bold disabled:bg-slate-50 disabled:text-slate-400`}
                       />
                     </label>
+
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 md:col-span-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <span className="text-xs font-black text-slate-400">購入単位</span>
+                          <p className="mt-1 text-lg font-black text-slate-800">{editingAsset?.purchaseUnit || '-'}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-xs font-black text-slate-400">購入単価</span>
+                          <p className="mt-1 text-lg font-black text-slate-800">{editingAsset != null ? `¥${Number(editingAsset.deliveryPrice || 0).toLocaleString()}` : '-'}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 md:col-span-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <span className="text-xs font-black text-slate-400">受払単位</span>
+                          <p className="mt-1 text-lg font-black text-slate-800">{editingAsset?.usageUnit || '-'}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-xs font-black text-slate-400">受払単価</span>
+                          <p className="mt-1 text-lg font-black text-slate-800">{editingAsset != null ? `¥${Number(editingAsset.usageUnitPrice || 0).toLocaleString()}` : '-'}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 md:col-span-4">
+                      <span className="text-xs font-black text-slate-400">入数</span>
+                      <p className="mt-1 text-lg font-black text-slate-800">{editingAsset?.packSize ?? '-'}</p>
+                    </div>
 
                     <label className="rounded-lg border border-slate-200 bg-white p-3 md:col-span-3">
                       <span className="text-xs font-black text-slate-400">使用期限</span>
