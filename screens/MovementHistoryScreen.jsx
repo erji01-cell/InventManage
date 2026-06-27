@@ -700,21 +700,6 @@ ${summaryHTML}
                       {[editingAsset?.maker, editingAsset?.category || editingAsset?.parentCategory, `ID: ${movementEditForm.assetId || '-'}`].filter(Boolean).join(' / ')}
                     </p>
                   </div>
-                  {editingAsset?.id && onNavigateAssets && (
-                    <Button
-                      variant="assets"
-                      className="mt-1 whitespace-nowrap"
-                      onClick={() => {
-                        if (onRequestAssetPick) {
-                          onRequestAssetPick(selectedMovement.movement.id, movementEditForm, editingAsset.id);
-                        } else {
-                          onNavigateAssets(editingAsset.id);
-                        }
-                      }}
-                    >
-                      <ArrowLeftRight size={16} /> 資産マスタ
-                    </Button>
-                  )}
                 </div>
 
                 <div className="flex-1 overflow-auto px-6 py-5">
@@ -745,6 +730,22 @@ ${summaryHTML}
                             showListSignal={0}
                           />
                         </div>
+                        {onNavigateAssets && (
+                          <Button
+                            variant="assets"
+                            className="whitespace-nowrap px-4"
+                            onClick={() => {
+                              const currentAssetId = editingAsset?.id || movementEditForm.assetId;
+                              if (onRequestAssetPick) {
+                                onRequestAssetPick(selectedMovement.movement.id, movementEditForm, currentAssetId);
+                              } else {
+                                onNavigateAssets(currentAssetId);
+                              }
+                            }}
+                          >
+                            <ArrowLeftRight size={16} /> 資産マスタから選択
+                          </Button>
+                        )}
                       </div>
                     </label>
                   </div>
