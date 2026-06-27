@@ -777,14 +777,14 @@ ${summaryHTML}
                         </div>
                       </div>
                     </div>
-                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 md:col-span-4">
+                    <div className="rounded-lg border border-sky-200 bg-sky-50 p-3 md:col-span-4">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <span className="text-xs font-black text-slate-400">受払単位</span>
+                          <span className="text-xs font-black text-sky-500">受払単位</span>
                           <p className="mt-1 text-lg font-black text-slate-800">{editingAsset?.usageUnit || '-'}</p>
                         </div>
                         <div className="text-right">
-                          <span className="text-xs font-black text-slate-400">受払単価</span>
+                          <span className="text-xs font-black text-sky-500">受払単価</span>
                           <p className="mt-1 text-lg font-black text-slate-800">{editingAsset != null ? `¥${Number(editingAsset.usageUnitPrice || 0).toLocaleString()}` : '-'}</p>
                         </div>
                       </div>
