@@ -29,6 +29,33 @@ const SORT_OPTIONS = [
   { value: 'kana',         label: '品名アイウエオ順' },
 ];
 
+function normalizeSearchText(value) {
+  return String(value || '')
+    .normalize('NFKC')
+    .replace(/[\u3041-\u3096]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) + 0x60))
+    .toLowerCase()
+    .replace(/[\s\u002d\u2010-\u2015\u2212\u30fc\u30fb\uff65/\\.,\uff0c\uff0e\u3001\u3002()\[\]\uff08\uff09\u300c\u300d\u300e\u300f\u3010\u3011]/g, '');
+}
+
+function assetMatchesSearch(asset, query, romajiSearch) {
+  const fields = [
+    asset.id,
+    asset.name,
+    asset.kanaName,
+    asset.maker,
+    asset.category,
+    asset.parentCategory,
+    asset.parentGenericName,
+    asset.supplier,
+    asset.janCode,
+    asset.memo,
+  ];
+  if (fields.some((field) => normalizeSearchText(field).includes(query))) return true;
+  if (!romajiSearch) return false;
+  return kanaSearchKey(asset.kanaName || '').includes(romajiSearch)
+    || kanaSearchKey(asset.parentGenericName || '').includes(romajiSearch);
+}
+
 function PrintDialog({ assets, onClose }) {
   const [sortOrder, setSortOrder] = useState('id');
   const [enabledCols, setEnabledCols] = useState(() =>
@@ -216,22 +243,11 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
       const pinned = assets.find(a => String(a.id) === String(pinnedAssetId));
       return pinned ? [pinned] : [];
     }
-    const q = filter.toLowerCase();
+    const q = normalizeSearchText(filter);
+    if (!q) return assets;
     // ローマ字入力ならかな名・大分類名のローマ字化と照合（IME不要で検索可能に）
-    const romajiSearch = isRomajiQuery(q) ? romajiCanonical(q) : '';
-    return assets.filter(a =>
-      (a.name || '').toLowerCase().includes(q) ||
-      (a.maker || '').toLowerCase().includes(q) ||
-      (a.parentCategory || '').toLowerCase().includes(q) ||
-      (a.parentGenericName || '').toLowerCase().includes(q) ||
-      (a.kanaName || '').toLowerCase().includes(q) ||
-      (a.supplier || '').toLowerCase().includes(q) ||
-      String(a.id).toLowerCase().includes(q) ||
-      (romajiSearch && (
-        kanaSearchKey(a.kanaName).includes(romajiSearch) ||
-        kanaSearchKey(a.parentGenericName).includes(romajiSearch)
-      ))
-    );
+    const romajiSearch = isRomajiQuery(filter) ? romajiCanonical(filter.toLowerCase()) : '';
+    return assets.filter(a => assetMatchesSearch(a, q, romajiSearch));
   })();
   const parentOptions = useMemo(() => {
     const parents = new Map();
