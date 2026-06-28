@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Star } from 'lucide-react';
+import { Star, ArrowLeftRight } from 'lucide-react';
 
 import { Button, Card, InfoLine } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
@@ -301,7 +301,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
             <div></div>
             <div className="col-span-2 flex justify-end gap-2">
               <Button
-                variant="action"
+                variant="assets"
                 className="whitespace-nowrap"
                 onClick={() => {
                   onSaveForm?.(form);
@@ -312,6 +312,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
                   }
                 }}
               >
+                <ArrowLeftRight size={18} />
                 資産マスタから選択
               </Button>
               <Button
