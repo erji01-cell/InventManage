@@ -554,16 +554,41 @@ export default function App() {
     setView('assets');
   };
 
-  const pickAssetForMovement = (assetId) => {
-    if (assetPickerRequest?.source !== 'movementHistory') return;
-    setMovementAssetSelection({
-      ...assetPickerRequest,
-      selectedAssetId: String(assetId),
-      requestId: Date.now(),
+  const navigateToAssetPickerFromEntry = (entryType, form, assetId) => {
+    setAssetPickerRequest({
+      source: 'entry',
+      entryType,
+      form,
     });
-    setAssetPickerRequest(null);
-    setFilterAssetId('');
-    setView('history');
+    setSavedEntryForm(form || null);
+    setFilterAssetId(assetId || form?.assetId || '');
+    setView('assets');
+  };
+
+  const pickAssetFromPicker = (assetId) => {
+    if (assetPickerRequest?.source === 'movementHistory') {
+      setMovementAssetSelection({
+        ...assetPickerRequest,
+        selectedAssetId: String(assetId),
+        requestId: Date.now(),
+      });
+      setAssetPickerRequest(null);
+      setFilterAssetId('');
+      setView('history');
+      return;
+    }
+
+    if (assetPickerRequest?.source === 'entry') {
+      const selectedAssetId = String(assetId);
+      setSavedEntryForm({
+        ...(assetPickerRequest.form || {}),
+        assetId: selectedAssetId,
+      });
+      setEntryAssetId(selectedAssetId);
+      setAssetPickerRequest(null);
+      setFilterAssetId('');
+      setView(assetPickerRequest.entryType === 'out' ? 'outbound' : 'inbound');
+    }
   };
 
   const cancelAssetPicker = () => {
@@ -573,10 +598,23 @@ export default function App() {
         selectedAssetId: assetPickerRequest.form?.assetId || '',
         requestId: Date.now(),
       });
+      setAssetPickerRequest(null);
+      setFilterAssetId('');
+      setView('history');
+      return;
     }
+
+    if (assetPickerRequest?.source === 'entry') {
+      setSavedEntryForm(assetPickerRequest.form || null);
+      setEntryAssetId(assetPickerRequest.form?.assetId || null);
+      setAssetPickerRequest(null);
+      setFilterAssetId('');
+      setView(assetPickerRequest.entryType === 'out' ? 'outbound' : 'inbound');
+      return;
+    }
+
     setAssetPickerRequest(null);
     setFilterAssetId('');
-    setView('history');
   };
 
   const navigateToEntry = (type, assetId) => {
@@ -636,10 +674,10 @@ export default function App() {
   const renderView = () => {
     switch (view) {
       case 'menu': return <MenuScreen setView={navigateFromMenu} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={availableFiscalYears} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={selectedFiscalYear} setSelectedFiscalYear={setSelectedFiscalYear} />;
-      case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} categories={categories} onCreateCategory={createCategory} onCreateAsset={createAsset} onUpdateAsset={updateAsset} onUpdateParentAsset={updateParentAsset} onDeleteAsset={deleteAsset} setView={setView} onNavigateEntry={navigateToEntry} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} initialAssetId={filterAssetId} assetPickerMode={assetPickerRequest?.source === 'movementHistory'} onPickAsset={pickAssetForMovement} onCancelPick={cancelAssetPicker} />;
+      case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} categories={categories} onCreateCategory={createCategory} onCreateAsset={createAsset} onUpdateAsset={updateAsset} onUpdateParentAsset={updateParentAsset} onDeleteAsset={deleteAsset} setView={setView} onNavigateEntry={navigateToEntry} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} initialAssetId={filterAssetId} assetPickerMode={Boolean(assetPickerRequest)} onPickAsset={pickAssetFromPicker} onCancelPick={cancelAssetPicker} />;
       case 'history': return <MovementHistoryScreen movements={movements} setView={setView} assets={assets} staff={staff} updateMovement={updateMovement} updateAsset={updateAsset} deleteMovement={deleteMovement} pinnedAssetId={filterAssetId} onNavigateAssets={navigateToAssets} onRequestAssetPick={navigateToAssetPickerFromMovement} assetSelectionResult={movementAssetSelection} onAssetSelectionApplied={() => setMovementAssetSelection(null)} fiscalRange={historyFiscalRange} fiscalSnapshots={fiscalSnapshots} />;
-      case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} />;
-      case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} />;
+      case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} onRequestAssetPick={navigateToAssetPickerFromEntry} />;
+      case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} onRequestAssetPick={navigateToAssetPickerFromEntry} />;
       case 'stock': return <StockStatusScreen assets={assets} movements={movements} setView={setView} pinnedAssetId={filterAssetId} onNavigateHistory={navigateToHistory} onNavigateAssets={navigateToAssets} fiscalRange={historyFiscalRange} fiscalSnapshots={fiscalSnapshots} />;
       case 'backup': return <BackupScreen session={authSession} setView={setView} onRestored={refreshData} />;
       case 'stocktaking': return <StocktakingScreen session={authSession} setView={setView} assets={assets} movements={movements} staff={staff} onCompleted={refreshData} />;

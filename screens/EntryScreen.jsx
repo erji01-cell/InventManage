@@ -7,7 +7,7 @@ import { isMovementAfterClose } from '../utils/inventory.js';
 
 const QUICK_COUNT = 8;
 
-export default function EntryScreen({ type, onSave, onCancel, assets, movements = [], staff, setView, initialAssetId = null, savedEntryForm = null, onSaveForm }) {
+export default function EntryScreen({ type, onSave, onCancel, assets, movements = [], staff, setView, initialAssetId = null, savedEntryForm = null, onSaveForm, onRequestAssetPick }) {
   const isIn = type === 'in';
   const title = isIn ? '入庫データ入力・修正' : '出庫データ入力・修正';
   const accentColor = isIn ? 'text-emerald-700' : 'text-rose-700';
@@ -16,8 +16,8 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
   const focusClass = `focus:outline-none focus:ring-4 focus:bg-yellow-50 ${isIn ? 'focus:ring-emerald-300 focus:border-emerald-400' : 'focus:ring-rose-300 focus:border-rose-400'}`;
 
   const [form, setForm] = useState(() => {
-    if (initialAssetId && savedEntryForm) {
-      return { ...savedEntryForm, assetId: initialAssetId };
+    if (savedEntryForm) {
+      return { ...savedEntryForm, assetId: initialAssetId || savedEntryForm.assetId || '' };
     }
     return {
       staffId: staff[0]?.id || '',
@@ -303,9 +303,16 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
               <Button
                 variant="action"
                 className="whitespace-nowrap"
-                onClick={() => { onSaveForm?.(form); setView('assets'); }}
+                onClick={() => {
+                  onSaveForm?.(form);
+                  if (onRequestAssetPick) {
+                    onRequestAssetPick(type, form, form.assetId);
+                  } else {
+                    setView('assets');
+                  }
+                }}
               >
-                資産マスタ
+                資産マスタから選択
               </Button>
               <Button
                 variant="secondary"
