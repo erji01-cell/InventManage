@@ -227,7 +227,7 @@ const createAssetEditForm = (asset) => ({
   parentGenericName: asset?.parentGenericName || '',
 });
 
-export default function AssetMasterScreen({ assets, suppliers, categories = [], onCreateCategory, onCreateAsset, onUpdateAsset, onUpdateParentAsset, onDeleteAsset, setView, onNavigateEntry, onNavigateHistory, onNavigateStock, initialAssetId = '', assetPickerMode = false, onPickAsset, onCancelPick }) {
+export default function AssetMasterScreen({ assets, suppliers, categories = [], onCreateCategory, onCreateAsset, onUpdateAsset, onUpdateParentAsset, onDeleteAsset, setView, onNavigateEntry, onNavigateHistory, onNavigateStock, initialAssetId = '', assetPickerMode = false, assetPickerSource = null, onPickAsset, onCancelPick }) {
   const [filter, setFilter] = useState('');
   const [selectedAssetId, setSelectedAssetId] = useState(initialAssetId);
   const [pinnedAssetId, setPinnedAssetId] = useState(assetPickerMode ? '' : initialAssetId); // 特定資産へ遷移時、一覧をその1件だけに絞る
@@ -237,6 +237,13 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
   const [saveError, setSaveError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
+  const assetPickerSourceLabel = assetPickerSource?.source === 'movementHistory'
+    ? '入出庫詳細から選択中'
+    : assetPickerSource?.source === 'entry' && assetPickerSource?.entryType === 'out'
+      ? '出庫入力から選択中'
+      : assetPickerSource?.source === 'entry'
+        ? '入庫入力から選択中'
+        : '';
   const filteredAssets = (() => {
     // 特定資産へ遷移してきた場合は、その1件だけを一覧に表示
     if (pinnedAssetId) {
@@ -462,6 +469,11 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
         <div className="flex items-center gap-3 mr-8">
           {assetPickerMode ? (
             <>
+              {assetPickerSourceLabel && (
+                <div className="rounded-full border border-purple-200 bg-purple-50 px-3 py-1.5 text-sm font-bold text-purple-700">
+                  {assetPickerSourceLabel}
+                </div>
+              )}
               <Button variant="assets" onClick={() => selectedAsset && onPickAsset?.(selectedAsset.id)} disabled={!selectedAsset || isCreating}>
                 <CheckCircle2 size={18} /> この資産を選択
               </Button>
