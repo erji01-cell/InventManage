@@ -237,13 +237,22 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
   const [saveError, setSaveError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
-  const assetPickerSourceLabel = assetPickerSource?.source === 'movementHistory'
-    ? '入出庫詳細から選択中'
+  const assetPickerSourceBadge = assetPickerSource?.source === 'movementHistory'
+    ? {
+        label: '入出庫詳細から選択中',
+        className: 'border-blue-200 bg-blue-50 text-blue-700',
+      }
     : assetPickerSource?.source === 'entry' && assetPickerSource?.entryType === 'out'
-      ? '出庫入力から選択中'
+      ? {
+          label: '出庫から選択中',
+          className: 'border-rose-200 bg-rose-50 text-rose-700',
+        }
       : assetPickerSource?.source === 'entry'
-        ? '入庫入力から選択中'
-        : '';
+        ? {
+            label: '入庫から選択中',
+            className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+          }
+        : null;
   const filteredAssets = (() => {
     // 特定資産へ遷移してきた場合は、その1件だけを一覧に表示
     if (pinnedAssetId) {
@@ -469,9 +478,9 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
         <div className="flex items-center gap-3 mr-8">
           {assetPickerMode ? (
             <>
-              {assetPickerSourceLabel && (
-                <div className="rounded-full border border-purple-200 bg-purple-50 px-3 py-1.5 text-sm font-bold text-purple-700">
-                  {assetPickerSourceLabel}
+              {assetPickerSourceBadge && (
+                <div className={`rounded-full border px-3 py-1.5 text-sm font-bold ${assetPickerSourceBadge.className}`}>
+                  {assetPickerSourceBadge.label}
                 </div>
               )}
               <Button variant="assets" onClick={() => selectedAsset && onPickAsset?.(selectedAsset.id)} disabled={!selectedAsset || isCreating}>
