@@ -702,6 +702,11 @@ ${summaryHTML}
                       <span className={`rounded-full border px-3 py-1 text-xs font-black ${tone.badge}`}>
                         {isInbound ? '入庫' : '出庫'}
                       </span>
+                      {selectedMovement?.movement?.id && (
+                        <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
+                          No. {selectedMovement.movement.id}
+                        </span>
+                      )}
                     </div>
                     <h3 className="mt-2 truncate text-2xl font-black text-slate-900">{editingAsset?.name || '-'}</h3>
                     <p className="mt-1 truncate text-sm font-medium text-slate-500">
