@@ -267,13 +267,14 @@ ${summaryHTML}
 </body></html>`;
 
   const buildTableHTML = (rows) => {
-    const headers = ['日付','分類','ID','メーカー','品名','入庫','出庫','差引残','受払単位','実購入価格','使用期限'];
-    const widths =  ['11%', '8%', '6%', '10%', '22%', '6%', '6%', '7%', '6%', '10%', '8%'];
+    const headers = ['No','日付','分類','ID','メーカー','品名','入庫','出庫','差引残','受払単位','実購入価格','使用期限'];
+    const widths =  ['5%', '10%', '8%', '6%', '10%', '19%', '6%', '6%', '7%', '5%', '10%', '8%'];
     const ths = headers.map((h, i) => `<th style="width:${widths[i]}">${h}</th>`).join('');
     const tds = rows.map(({ m, asset, rs }) => {
       const type = m.normalizedType;
       const rsVal = rs !== undefined ? rs : null;
       return `<tr>
+        <td>${m.id || '-'}</td>
         <td>${m.date || '-'}</td>
         <td>${asset?.category || '-'}</td>
         <td>${m.assetId}</td>
@@ -586,20 +587,21 @@ ${summaryHTML}
         );
       })()}
             <div className="overflow-auto border border-slate-200 rounded-lg flex-1">
-        <table className="w-full text-left border-collapse min-w-[1180px] text-sm">
+        <table className="w-full text-left border-collapse min-w-[1120px] text-sm">
           <thead className="bg-slate-100 sticky top-0 z-10">
             <tr>
+              <th className="px-3 py-2 border-b border-slate-200 w-16">No</th>
               <th className="px-3 py-2 border-b border-slate-200 w-24">日付</th>
-              <th className="px-3 py-2 border-b border-slate-200 w-20">分類</th>
-              <th className="px-3 py-2 border-b border-slate-200 w-20">ID</th>
-              <th className="px-3 py-2 border-b border-slate-200 w-28">メーカー</th>
-              <th className="px-3 py-2 border-b border-slate-200 min-w-[300px]">品名</th>
-              <th className="px-2 py-2 border-b border-slate-200 text-right w-16">入庫</th>
-              <th className="px-2 py-2 border-b border-slate-200 text-right w-16">出庫</th>
-              <th className="px-2 py-2 border-b border-slate-200 text-right w-20 bg-blue-50/70">差引残</th>
+              <th className="px-3 py-2 border-b border-slate-200 w-16">分類</th>
+              <th className="px-3 py-2 border-b border-slate-200 w-12">ID</th>
+              <th className="px-3 py-2 border-b border-slate-200 w-24">メーカー</th>
+              <th className="px-3 py-2 border-b border-slate-200 min-w-[280px]">品名</th>
+              <th className="px-2 py-2 border-b border-slate-200 text-right w-14">入庫</th>
+              <th className="px-2 py-2 border-b border-slate-200 text-right w-14">出庫</th>
+              <th className="px-2 py-2 border-b border-slate-200 text-right w-16 bg-blue-50/70">差引残</th>
               <th className="px-2 py-2 border-b border-slate-200 text-center w-14">受払単位</th>
-              <th className="px-3 py-2 border-b border-slate-200 text-right w-28">実購入価格</th>
-              <th className="px-3 py-2 border-b border-slate-200 w-24">使用期限</th>
+              <th className="px-3 py-2 border-b border-slate-200 text-right w-24">実購入価格</th>
+              <th className="px-3 py-2 border-b border-slate-200 w-20">使用期限</th>
             </tr>
           </thead>
           <tbody>
@@ -609,11 +611,12 @@ ${summaryHTML}
               const isAdjust = isAdjustmentMovement(m);
               return (
                 <tr key={`${filterType}-${m.id || 'movement'}-${movementType}-${m.assetId}-${m.date}-${index}`} className={`cursor-pointer transition-colors border-b border-slate-100 group align-top ${isAdjust ? 'bg-teal-50 hover:bg-teal-100 border-l-4 border-l-teal-400' : 'hover:bg-blue-50'}`} onClick={() => openMovementDetail(m, asset)}>
+                  <td className="px-3 py-3 font-mono text-slate-400 whitespace-nowrap">{m.id || '-'}</td>
                   <td className="px-3 py-3 text-slate-500 whitespace-nowrap">{m.date}</td>
-                  <td className="px-3 py-3 w-20 max-w-20 whitespace-normal break-words">{asset?.category || '-'}</td>
+                  <td className="px-3 py-3 w-16 max-w-16 whitespace-normal break-words">{asset?.category || '-'}</td>
                   <td className="px-3 py-3 font-mono">{m.assetId}</td>
-                  <td className="px-3 py-3 w-28 max-w-28 whitespace-normal break-words">{asset?.maker}</td>
-                  <td className="px-3 py-3 min-w-[300px] font-medium whitespace-normal break-words text-blue-700">
+                  <td className="px-3 py-3 w-24 max-w-24 whitespace-normal break-words">{asset?.maker}</td>
+                  <td className="px-3 py-3 min-w-[280px] font-medium whitespace-normal break-words text-blue-700">
                     {isAdjust && (
                       <span className="inline-block mr-2 px-2 py-0.5 rounded text-xs font-bold bg-teal-200 text-teal-800">🔧 棚卸調整</span>
                     )}
