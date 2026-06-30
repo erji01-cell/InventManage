@@ -3,7 +3,7 @@ import { Star, ArrowLeftRight } from 'lucide-react';
 
 import { Button, Card, InfoLine } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
-import { isMovementAfterClose } from '../utils/inventory.js';
+import { isMovementAfterClose, useStaffNumberSelect } from '../utils/inventory.js';
 
 const QUICK_COUNT = 8;
 
@@ -50,6 +50,13 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
   useEffect(() => {
     setTimeout(() => staffSelectRef.current?.focus(), 0);
   }, []);
+
+  // 担当者selectで番号タイプ → 完全一致の担当者を選択（type-ahead巡回バグ対策）
+  const handleStaffKeyDown = useStaffNumberSelect(
+    staff,
+    (id) => setForm((current) => ({ ...current, staffId: id })),
+    { onEnter: (e) => { e.preventDefault(); assetCodeInputRef.current?.focus(); } },
+  );
 
   // form.assetId が外部から変わった場合、コード入力枠にも反映
   useEffect(() => {
@@ -241,12 +248,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
                 className={`w-full p-2 border rounded-md ${focusClass}`}
                 value={form.staffId}
                 onChange={(e) => setForm({...form, staffId: e.target.value})}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    assetCodeInputRef.current?.focus();
-                  }
-                }}
+                onKeyDown={handleStaffKeyDown}
               >
                 <option value="">担当者を選んでください</option>
                 {staff.map(s => <option key={s.id} value={s.id}>{s.id} {s.name}</option>)}

@@ -12,6 +12,7 @@ import {
   countLinkedMovements,
 } from '../lib/stocktaking.js';
 import { performBackup } from '../lib/backup.js';
+import { useStaffNumberSelect } from '../utils/inventory.js';
 
 export default function StocktakingScreen({ session, setView, assets, movements, staff, onCompleted }) {
   const [mode, setMode] = useState('list'); // 'list' | 'entry' | 'review'
@@ -24,6 +25,7 @@ export default function StocktakingScreen({ session, setView, assets, movements,
   const [showOnlyDiff, setShowOnlyDiff] = useState(false);
   const [sortOrder, setSortOrder] = useState('id');
   const [staffId, setStaffId] = useState('');
+  const handleStaffKeyDown = useStaffNumberSelect(staff, setStaffId);
   const [memo, setMemo] = useState('');
   const [basisDate, setBasisDate] = useState(new Date().toISOString().split('T')[0]);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -234,7 +236,7 @@ export default function StocktakingScreen({ session, setView, assets, movements,
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
             <label className="flex flex-col gap-1">
               <span className="text-sm font-bold text-slate-600">担当者</span>
-              <select value={staffId} onChange={(e) => setStaffId(e.target.value)} className="p-2 border rounded bg-white">
+              <select value={staffId} onChange={(e) => setStaffId(e.target.value)} onKeyDown={handleStaffKeyDown} className="p-2 border rounded bg-white">
                 <option value="">担当者を選んでください</option>
                 {staff.map((s) => <option key={s.id} value={s.id}>{s.id} {s.name}</option>)}
               </select>
