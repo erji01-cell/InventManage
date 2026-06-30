@@ -23,7 +23,7 @@ export default function StocktakingScreen({ session, setView, assets, movements,
   const [search, setSearch] = useState('');
   const [showOnlyDiff, setShowOnlyDiff] = useState(false);
   const [sortOrder, setSortOrder] = useState('id');
-  const [staffId, setStaffId] = useState(staff[0]?.id || '');
+  const [staffId, setStaffId] = useState('');
   const [memo, setMemo] = useState('');
   const [basisDate, setBasisDate] = useState(new Date().toISOString().split('T')[0]);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -235,6 +235,7 @@ export default function StocktakingScreen({ session, setView, assets, movements,
             <label className="flex flex-col gap-1">
               <span className="text-sm font-bold text-slate-600">担当者</span>
               <select value={staffId} onChange={(e) => setStaffId(e.target.value)} className="p-2 border rounded bg-white">
+                <option value="">担当者を選んでください</option>
                 {staff.map((s) => <option key={s.id} value={s.id}>{s.id} {s.name}</option>)}
               </select>
             </label>

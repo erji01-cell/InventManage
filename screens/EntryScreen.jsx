@@ -20,7 +20,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
       return { ...savedEntryForm, assetId: initialAssetId || savedEntryForm.assetId || '' };
     }
     return {
-      staffId: staff[0]?.id || '',
+      staffId: '',
       assetId: initialAssetId || '',
       date: new Date().toISOString().split('T')[0],
       quantity: 0,
@@ -82,11 +82,6 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
     }
   };
 
-  useEffect(() => {
-    if (!form.staffId && staff.length > 0) {
-      setForm((current) => ({ ...current, staffId: staff[0].id }));
-    }
-  }, [form.staffId, staff]);
 
 
   const selectedAsset = assets.find(a => a.id === form.assetId);
@@ -253,6 +248,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
                   }
                 }}
               >
+                <option value="">担当者を選んでください</option>
                 {staff.map(s => <option key={s.id} value={s.id}>{s.id} {s.name}</option>)}
               </select>
             </div>
