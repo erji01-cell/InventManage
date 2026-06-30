@@ -2,9 +2,34 @@
   "permissions": {
     "allow": [
       "Bash(rtk git *)",
+      "Bash(rm .claude/settings.local.json && rtk git pull origin main)",
+      "Bash(rtk npm *)",
+      "Bash(rtk ls *)",
+      "Bash(cd /c/Users/PC_User/InventManage && rtk npm run build 2>&1 | tail -5)",
+      "Bash(node patch2.mjs)",
+      "Bash(xxd screens/EntryScreen.jsx)",
+      "Bash(node patch3.mjs)",
       "Bash(rtk grep *)",
-      "Bash(PYTHONIOENCODING=utf-8 python -c ' *)",
-      "mcp__Claude_Preview__preview_start"
+      "Bash(node patch_asset.mjs)",
+      "Bash(sed -n '199,215p' screens/AssetMasterScreen.jsx)",
+      "Bash(sed -n '403,415p' screens/AssetMasterScreen.jsx)",
+      "Bash(node patch_asset2.mjs)",
+      "Bash(rm patch_asset2.mjs)",
+      "Bash(rtk read *)",
+      "Bash(vercel --version)",
+      "Bash(rtk npx *)",
+      "Bash(vercel ls *)",
+      "Bash(vercel inspect *)",
+      "Bash(node patch_shift.mjs)",
+      "Bash(rm patch_shift.mjs)",
+      "Bash(sed -n '1,10p' screens/MovementHistoryScreen.jsx)",
+      "Bash(sed -n '195,270p' screens/MovementHistoryScreen.jsx)",
+      "Bash(node p.mjs)",
+      "Bash(rm p.mjs)",
+      "Bash(sed -n '7,12p' screens/MovementHistoryScreen.jsx)",
+      "Bash(sed -n '23,30p' screens/MovementHistoryScreen.jsx)",
+      "Bash(sed -n '18,22p' screens/StockStatusScreen.jsx)",
+      "Bash(vercel --prod)"
     ]
   }
 }

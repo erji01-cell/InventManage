@@ -22,6 +22,7 @@ export default function StocktakingScreen({ session, setView, assets, movements,
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [showOnlyDiff, setShowOnlyDiff] = useState(false);
+  const [sortOrder, setSortOrder] = useState('id');
   const [staffId, setStaffId] = useState(staff[0]?.id || '');
   const [memo, setMemo] = useState('');
   const [basisDate, setBasisDate] = useState(new Date().toISOString().split('T')[0]);
@@ -143,8 +144,27 @@ export default function StocktakingScreen({ session, setView, assets, movements,
     if (showOnlyDiff) {
       list = list.filter((x) => x.counted_qty == null || (x.diff !== null && x.diff !== 0));
     }
-    return list;
-  }, [enriched, search, showOnlyDiff]);
+    const arr = [...list];
+    const catOrder = (x) => x.asset?.categoryOrder ?? 9999;
+    const kana = (x) => x.asset?.kanaName || x.asset?.name || '';
+    const code = (x) => Number(x.asset_id) || 0;
+    switch (sortOrder) {
+      case 'category_id':
+        arr.sort((a, b) => (catOrder(a) - catOrder(b)) || (code(a) - code(b)));
+        break;
+      case 'category_kana':
+        arr.sort((a, b) => (catOrder(a) - catOrder(b)) || kana(a).localeCompare(kana(b), 'ja'));
+        break;
+      case 'kana':
+        arr.sort((a, b) => kana(a).localeCompare(kana(b), 'ja'));
+        break;
+      case 'id':
+      default:
+        arr.sort((a, b) => code(a) - code(b));
+        break;
+    }
+    return arr;
+  }, [enriched, search, showOnlyDiff, sortOrder]);
 
   const currentSession = useMemo(
     () => sessions.find((s) => s.id === currentCountId),
@@ -390,6 +410,19 @@ export default function StocktakingScreen({ session, setView, assets, movements,
             className="flex-1 min-w-64 p-2 border rounded"
           />
           <label className="flex items-center gap-2 text-sm font-bold cursor-pointer">
+            <span className="text-slate-600">並び順</span>
+            <select
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value)}
+              className="p-2 border rounded bg-white font-normal"
+            >
+              <option value="id">コード順</option>
+              <option value="category_id">分類ごと → コード順</option>
+              <option value="category_kana">分類ごと → アイウエオ順</option>
+              <option value="kana">品名アイウエオ順</option>
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm font-bold cursor-pointer">
             <input type="checkbox" checked={showOnlyDiff} onChange={(e) => setShowOnlyDiff(e.target.checked)} />
             未入力・差異ありのみ表示
           </label>
@@ -416,8 +449,19 @@ export default function StocktakingScreen({ session, setView, assets, movements,
             <tbody>
               {filtered.length === 0 ? (
                 <tr><td colSpan={7} className="p-8 text-center text-slate-500">該当する資産がありません。</td></tr>
-              ) : filtered.map((item) => (
-                <tr key={item.id} className="border-b hover:bg-slate-50">
+              ) : filtered.map((item, idx) => {
+                const isGrouped = sortOrder === 'category_id' || sortOrder === 'category_kana';
+                const cat = item.asset?.parentCategory || '（分類なし）';
+                const prevCat = idx > 0 ? (filtered[idx - 1].asset?.parentCategory || '（分類なし）') : null;
+                const showHeader = isGrouped && cat !== prevCat;
+                return (
+                <React.Fragment key={item.id}>
+                  {showHeader && (
+                    <tr className="bg-teal-50">
+                      <td colSpan={7} className="p-2 font-bold text-teal-800 border-y border-teal-200">{cat}</td>
+                    </tr>
+                  )}
+                <tr className="border-b hover:bg-slate-50">
                   <td className="p-2 font-mono">{item.asset_id}</td>
                   <td className="p-2">{item.asset?.name || '(削除済資産)'}</td>
                   <td className="p-2 text-right">{Number(item.system_qty).toLocaleString()}</td>
@@ -454,7 +498,9 @@ export default function StocktakingScreen({ session, setView, assets, movements,
                     />
                   </td>
                 </tr>
-              ))}
+                </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
