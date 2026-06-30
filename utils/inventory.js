@@ -1,29 +1,4 @@
-import { useRef } from 'react';
-
 export const toNumber = (value) => Number(value ?? 0) || 0;
-
-// 担当者selectで番号を打つと、ネイティブのtype-ahead（先頭文字一致で巡回）により
-// 「11」を打っても10や12に飛ぶことがある（id 1,10,11,12… が全て"1"始まりのため）。
-// 打鍵された数字を一定時間バッファし、id完全一致の担当者を選ぶ onKeyDown を返す。
-export function useStaffNumberSelect(staff, onSelect, { onEnter } = {}) {
-  const bufferRef = useRef('');
-  const timerRef = useRef(null);
-
-  return (event) => {
-    const { key } = event;
-    if (key >= '0' && key <= '9') {
-      event.preventDefault(); // ネイティブの先頭一致巡回を抑止
-      bufferRef.current += key;
-      const match = staff.find((s) => String(s.id) === bufferRef.current);
-      if (match) onSelect(String(match.id));
-      clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => { bufferRef.current = ''; }, 1200);
-      return;
-    }
-    bufferRef.current = ''; // 数字以外が押されたらバッファをリセット
-    if (key === 'Enter' && onEnter) onEnter(event);
-  };
-}
 export const toNullableNumber = (value) => {
   if (value === '' || value === null || value === undefined) return null;
   const number = Number(value);

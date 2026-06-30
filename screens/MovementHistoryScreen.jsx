@@ -3,7 +3,8 @@ import { ArrowLeftRight, CheckCircle2, Printer, Save, Table2, Trash2, X } from '
 
 import { Button, Card, DetailItem, EditableDetail } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
-import { isMovementAfterClose, normalizeMovementType, parseLocalDate, useStaffNumberSelect } from '../utils/inventory.js';
+import { isMovementAfterClose, normalizeMovementType, parseLocalDate } from '../utils/inventory.js';
+import StaffSelect from '../components/StaffSelect.jsx';
 
 // 棚卸し調整かどうか判定
 // 新データは stocktakingCountId、旧データは memo プレフィックスで後方互換
@@ -220,8 +221,6 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
   const updateMovementEditForm = (field, value) => {
     setMovementEditForm(prev => ({ ...prev, [field]: value }));
   };
-
-  const handleStaffKeyDown = useStaffNumberSelect(staff, (id) => updateMovementEditForm('staffId', id));
 
   const closeMovementDetail = () => {
     setSelectedMovement(null);
@@ -849,17 +848,14 @@ ${summaryHTML}
                     </label>
                     <label className="rounded-lg border border-slate-200 bg-white p-3 md:col-span-4">
                       <span className="text-xs font-black text-slate-400">担当者名</span>
-                      <select
-                        value={movementEditForm.staffId}
-                        onChange={(event) => updateMovementEditForm('staffId', event.target.value)}
-                        onKeyDown={handleStaffKeyDown}
+                      <StaffSelect
                         className={inputClass}
-                      >
-                        <option value="">未設定</option>
-                        {staff.map((member) => (
-                          <option key={member.id} value={member.id}>{member.name}</option>
-                        ))}
-                      </select>
+                        staff={staff}
+                        value={movementEditForm.staffId}
+                        onChange={(id) => updateMovementEditForm('staffId', id)}
+                        placeholder="未設定"
+                        emptyLabel="（未設定）"
+                      />
                     </label>
 
                     <label className="rounded-lg border border-slate-200 bg-white p-3 md:col-span-5">

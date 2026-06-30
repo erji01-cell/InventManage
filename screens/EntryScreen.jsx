@@ -3,7 +3,8 @@ import { Star, ArrowLeftRight } from 'lucide-react';
 
 import { Button, Card, InfoLine } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
-import { isMovementAfterClose, useStaffNumberSelect } from '../utils/inventory.js';
+import { isMovementAfterClose } from '../utils/inventory.js';
+import StaffSelect from '../components/StaffSelect.jsx';
 
 const QUICK_COUNT = 8;
 
@@ -50,13 +51,6 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
   useEffect(() => {
     setTimeout(() => staffSelectRef.current?.focus(), 0);
   }, []);
-
-  // 担当者selectで番号タイプ → 完全一致の担当者を選択（type-ahead巡回バグ対策）
-  const handleStaffKeyDown = useStaffNumberSelect(
-    staff,
-    (id) => setForm((current) => ({ ...current, staffId: id })),
-    { onEnter: (e) => { e.preventDefault(); assetCodeInputRef.current?.focus(); } },
-  );
 
   // form.assetId が外部から変わった場合、コード入力枠にも反映
   useEffect(() => {
@@ -243,16 +237,14 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
           <div className="grid grid-cols-3 items-center gap-4">
             <label className="font-bold text-slate-700">担当者</label>
             <div className="col-span-2">
-              <select
+              <StaffSelect
                 ref={staffSelectRef}
                 className={`w-full p-2 border rounded-md ${focusClass}`}
+                staff={staff}
                 value={form.staffId}
-                onChange={(e) => setForm({...form, staffId: e.target.value})}
-                onKeyDown={handleStaffKeyDown}
-              >
-                <option value="">担当者を選んでください</option>
-                {staff.map(s => <option key={s.id} value={s.id}>{s.id} {s.name}</option>)}
-              </select>
+                onChange={(id) => setForm((current) => ({ ...current, staffId: id }))}
+                onEnter={(e) => { e.preventDefault(); assetCodeInputRef.current?.focus(); }}
+              />
             </div>
           </div>
 
