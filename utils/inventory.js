@@ -17,7 +17,19 @@ export function getNextParentId(assets) {
 export function normalizeAsset(row, parentMap, supplierMap, categoryMap = new Map()) {
   const parent = parentMap.get(row.parent_id);
   const supplier = supplierMap.get(row.supplier_id);
-  const category = parent?.category_id ? categoryMap.get(parent.category_id) : null;
+
+  let resolvedCategoryId = parent?.category_id || null;
+  let category = resolvedCategoryId ? categoryMap.get(resolvedCategoryId) : null;
+  // category_id が未設定のとき、テキスト名で照合してIDを解決する
+  if (!resolvedCategoryId && parent?.category) {
+    for (const [id, cat] of categoryMap) {
+      if (cat.name === parent.category) {
+        resolvedCategoryId = id;
+        category = cat;
+        break;
+      }
+    }
+  }
   const categoryName = category?.name || parent?.category || '';
 
   return {
@@ -27,7 +39,7 @@ export function normalizeAsset(row, parentMap, supplierMap, categoryMap = new Ma
     name: row.brand_name,
     kanaName: row.kana_name || '',
     category: categoryName,
-    categoryId: parent?.category_id || null,
+    categoryId: resolvedCategoryId,
     categoryOrder: category?.display_order ?? 9999,
     parentGenericName: parent?.generic_name || '',
     parentCategory: categoryName,
