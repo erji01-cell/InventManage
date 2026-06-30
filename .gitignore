@@ -10,6 +10,9 @@ dist/
 build/
 vite-dev.*.log
 
+# Supabase 移行前の実データバックアップ（ローカル保管・コミットしない）
+backups/
+
 .DS_Store
 Thumbs.db
 
