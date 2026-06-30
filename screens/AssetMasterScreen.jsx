@@ -229,6 +229,7 @@ const createAssetEditForm = (asset) => ({
 
 export default function AssetMasterScreen({ assets, suppliers, categories = [], onCreateCategory, onCreateAsset, onUpdateAsset, onUpdateParentAsset, onDeleteAsset, setView, onNavigateEntry, onNavigateHistory, onNavigateStock, initialAssetId = '', assetPickerMode = false, assetPickerSource = null, onPickAsset, onCancelPick }) {
   const [filter, setFilter] = useState('');
+  const [listSortOrder, setListSortOrder] = useState('id');
   const [selectedAssetId, setSelectedAssetId] = useState(initialAssetId);
   const [pinnedAssetId, setPinnedAssetId] = useState(assetPickerMode ? '' : initialAssetId); // 特定資産へ遷移時、一覧をその1件だけに絞る
   const [isCreating, setIsCreating] = useState(false);
@@ -253,6 +254,23 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
             className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
           }
         : null;
+  const sortAssetList = (arr) => {
+    const sorted = [...arr];
+    switch (listSortOrder) {
+      case 'category_id':
+        return sorted.sort((a, b) =>
+          ((a.categoryOrder ?? 9999) - (b.categoryOrder ?? 9999)) || (Number(a.id) - Number(b.id)));
+      case 'category_kana':
+        return sorted.sort((a, b) =>
+          ((a.categoryOrder ?? 9999) - (b.categoryOrder ?? 9999)) || (a.kanaName || a.name).localeCompare(b.kanaName || b.name, 'ja'));
+      case 'kana':
+        return sorted.sort((a, b) => (a.kanaName || a.name).localeCompare(b.kanaName || b.name, 'ja'));
+      case 'id':
+      default:
+        return sorted.sort((a, b) => Number(a.id) - Number(b.id));
+    }
+  };
+
   const filteredAssets = (() => {
     // 特定資産へ遷移してきた場合は、その1件だけを一覧に表示
     if (pinnedAssetId) {
@@ -260,11 +278,12 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
       return pinned ? [pinned] : [];
     }
     const q = normalizeSearchText(filter);
-    if (!q) return assets;
-    // ローマ字入力ならかな名・大分類名のローマ字化と照合（IME不要で検索可能に）
-    const romajiSearch = isRomajiQuery(filter) ? romajiCanonical(filter.toLowerCase()) : '';
-    return assets.filter(a => assetMatchesSearch(a, q, romajiSearch));
+    const matched = !q
+      ? assets
+      : assets.filter(a => assetMatchesSearch(a, q, isRomajiQuery(filter) ? romajiCanonical(filter.toLowerCase()) : ''));
+    return sortAssetList(matched);
   })();
+  const isListGrouped = listSortOrder === 'category_id' || listSortOrder === 'category_kana';
   const parentOptions = useMemo(() => {
     const parents = new Map();
     assets.forEach(asset => {
@@ -528,6 +547,17 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
             onChange={(e) => { setFilter(e.target.value); setPinnedAssetId(''); }}
           />
         </div>
+        <select
+          value={listSortOrder}
+          onChange={(e) => setListSortOrder(e.target.value)}
+          className="rounded-md border border-purple-200 bg-white py-2.5 px-3 text-sm font-medium shadow-inner outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
+          title="並び順"
+        >
+          <option value="id">ID順</option>
+          <option value="category_id">分類ごと → ID順</option>
+          <option value="category_kana">分類ごと → アイウエオ順</option>
+          <option value="kana">品名アイウエオ順</option>
+        </select>
         <Button variant="secondary" onClick={() => { setFilter(''); setPinnedAssetId(''); }}>リセット</Button>
       </div>
 
@@ -543,11 +573,19 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
               </tr>
             </thead>
             <tbody>
-              {filteredAssets.map(asset => {
+              {filteredAssets.map((asset, idx) => {
                 const isSelected = selectedAsset?.id === asset.id;
+                const cat = asset.parentCategory || '（分類なし）';
+                const prevCat = idx > 0 ? (filteredAssets[idx - 1].parentCategory || '（分類なし）') : null;
+                const showHeader = isListGrouped && cat !== prevCat;
                 return (
+                  <React.Fragment key={asset.id}>
+                    {showHeader && (
+                      <tr className="bg-purple-100">
+                        <td colSpan={4} className="p-2 font-bold text-purple-800 border-y border-purple-200">{cat}</td>
+                      </tr>
+                    )}
                   <tr
-                    key={asset.id}
                     onClick={() => {
                       setIsCreating(false);
                       setSelectedAssetId(asset.id);
@@ -563,6 +601,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                     </td>
                     <td className="p-3 font-medium text-blue-700 whitespace-normal break-words">{asset.name}</td>
                   </tr>
+                  </React.Fragment>
                 );
               })}
             </tbody>
