@@ -39,6 +39,12 @@ def main() -> None:
     )
     parser.add_argument("--input-dir", type=Path, default=DEFAULT_INPUT_DIR)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
+    parser.add_argument(
+        "--staff-csv",
+        type=Path,
+        default=None,
+        help="担当者マスタ Excel の代わりに既存の invent_staff.csv から担当者を読み込む",
+    )
     args = parser.parse_args()
 
     input_dir = args.input_dir
@@ -46,13 +52,16 @@ def main() -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     suppliers = read_sheet(input_dir / WORKBOOKS["suppliers"])
-    staff = read_sheet(input_dir / WORKBOOKS["staff"])
     categories = read_sheet(input_dir / WORKBOOKS["categories"])
     assets = read_sheet(input_dir / WORKBOOKS["assets"])
     movements = read_sheet(input_dir / WORKBOOKS["movements"])
 
     supplier_rows, supplier_map = build_suppliers(suppliers)
-    staff_rows, staff_map = build_staff(staff)
+    if args.staff_csv is not None:
+        staff_rows, staff_map = build_staff_from_csv(args.staff_csv)
+    else:
+        staff = read_sheet(input_dir / WORKBOOKS["staff"])
+        staff_rows, staff_map = build_staff(staff)
     category_map = build_category_map(categories)
     parent_rows, parent_id_by_key = build_parent_assets(assets, category_map)
     child_rows, asset_map = build_child_assets(assets, supplier_map, parent_id_by_key)
@@ -80,7 +89,7 @@ def main() -> None:
             "T_分類マスタ.xlsx": len(categories),
             "T_資産マスタ.xlsx": len(assets),
             "T_入出庫データ.xlsx": len(movements),
-            "T_担当者マスタ.xlsx": len(staff),
+            "T_担当者マスタ.xlsx": len(staff_rows),
         },
         "warnings": movement_warnings,
         "supabase_schema_notes": {
@@ -184,6 +193,31 @@ def build_staff(rows: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[
                     "id": int(staff_code),
                     "name": staff_name,
                     "is_active": "true",
+                }
+            )
+            staff_map[staff_code] = staff_name
+    return output, staff_map
+
+
+def build_staff_from_csv(path: Path) -> tuple[list[dict[str, Any]], dict[str, str]]:
+    """既存の invent_staff.csv を読み、staff_rows と staff_map(code→name) を返す。"""
+    if not path.exists():
+        raise FileNotFoundError(f"Staff CSV not found: {path}")
+
+    output = []
+    staff_map = {}
+    with path.open("r", encoding="utf-8-sig", newline="") as csv_file:
+        for row in csv.DictReader(csv_file):
+            staff_code = clean_code(row.get("id"))
+            staff_name = clean_text(row.get("name"))
+            if not staff_code or not staff_name:
+                continue
+            is_active = clean_text(row.get("is_active")).lower()
+            output.append(
+                {
+                    "id": int(staff_code),
+                    "name": staff_name,
+                    "is_active": "false" if is_active == "false" else "true",
                 }
             )
             staff_map[staff_code] = staff_name

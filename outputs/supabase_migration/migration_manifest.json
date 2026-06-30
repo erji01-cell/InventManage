@@ -1,19 +1,19 @@
 {
-  "input_dir": "G:\\マイドライブ\\吉野個人用\\WebApp\\InventManage",
+  "input_dir": "G:\\マイドライブ\\吉野個人用\\WebApp\\InventManage\\2026年06月30日_データコンバート元ファイル",
   "output_dir": "outputs\\supabase_migration",
   "files": {
     "invent_suppliers.csv": 34,
     "invent_staff.csv": 10,
-    "invent_parent_assets.csv": 484,
-    "invent_child_assets.csv": 539,
-    "invent_stock_movements.csv": 3230
+    "invent_parent_assets.csv": 486,
+    "invent_child_assets.csv": 541,
+    "invent_stock_movements.csv": 3610
   },
   "source_rows": {
     "T_取引先マスタ.xlsx": 34,
     "T_分類マスタ.xlsx": 9,
-    "T_資産マスタ.xlsx": 539,
-    "T_入出庫データ.xlsx": 3231,
-    "T_担当者マスタ.xlsx": 14
+    "T_資産マスタ.xlsx": 541,
+    "T_入出庫データ.xlsx": 3611,
+    "T_担当者マスタ.xlsx": 10
   },
   "warnings": [],
   "supabase_schema_notes": {
