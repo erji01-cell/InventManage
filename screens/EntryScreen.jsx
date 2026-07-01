@@ -88,6 +88,14 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
   const selectedAsset = assets.find(a => a.id === form.assetId);
   // 年度更新でクローズ済みの期間は除外（opening_stock に既に反映済みのため二重計上を防ぐ）
   const closedAt = selectedAsset?.fiscalYearClosedAt || null;
+  // 年度更新で締め済みの資産は「クローズ日の翌日」以降しか入力できないようにする
+  const minDate = closedAt
+    ? (() => {
+        const [y, m, d] = String(closedAt).replaceAll('/', '-').split('-').map(Number);
+        const next = new Date(y, m - 1, d + 1);
+        return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
+      })()
+    : undefined;
   const selectedAssetMovements = selectedAsset
     ? movements.filter(movement => movement.assetId === selectedAsset.id && isMovementAfterClose(movement.date, closedAt))
     : [];
@@ -174,6 +182,11 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
 
     if (actualDeliveryPrice < 0) {
       setSaveError(`${isIn ? '実購入価格' : '評価単価'}は0以上で入力してください。`);
+      return;
+    }
+    // 年度更新で締め済みの期間には登録させない（在庫に反映されず混乱を招くため）
+    if (closedAt && !isMovementAfterClose(form.date, closedAt)) {
+      setSaveError(`この資産は ${closedAt} まで年度更新で締め済みです。${isIn ? '入庫日' : '出庫日'}は ${minDate} 以降で入力してください。`);
       return;
     }
     if (!isIn && Number(form.quantity) > currentStock) {
@@ -373,6 +386,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
               <input
                 ref={dateInputRef}
                 type="date"
+                min={minDate}
                 className={`flex-1 p-2 border rounded-md ${focusClass}`}
                 value={form.date}
                 onChange={(e) => setForm({...form, date: e.target.value})}
