@@ -10,6 +10,7 @@ import {
   completeStocktaking,
   deleteStocktaking,
   countLinkedMovements,
+  buildSystemQtyMap,
 } from '../lib/stocktaking.js';
 import { performBackup } from '../lib/backup.js';
 import StaffSelect from '../components/StaffSelect.jsx';
@@ -126,11 +127,29 @@ export default function StocktakingScreen({ session, setView, assets, movements,
 
   const assetMap = useMemo(() => new Map(assets.map((a) => [String(a.id), a])), [assets]);
 
+  const currentSession = useMemo(
+    () => sessions.find((s) => s.id === currentCountId),
+    [sessions, currentCountId]
+  );
+
+  // 確定前（in_progress）は system_qty を最新の入出庫でライブ再計算する。
+  // 開始時に凍結した値を使い続けると、棚卸し中に基準日以前の入出庫を追加・修正した
+  // 場合に調整量がズレる（前回の不整合の原因）。確定後は調整入出庫が movements に
+  // 含まれてしまうため、凍結値（item.system_qty）をそのまま使う。
+  const liveSystemQtyMap = useMemo(() => {
+    if (!currentSession || currentSession.status === 'completed') return null;
+    return buildSystemQtyMap(assets, movements, currentSession.basis_date || null);
+  }, [assets, movements, currentSession]);
+
   const enriched = useMemo(() => items.map((item) => {
     const asset = assetMap.get(String(item.asset_id));
-    const diff = item.counted_qty == null ? null : Number(item.counted_qty) - Number(item.system_qty);
-    return { ...item, asset, diff };
-  }), [items, assetMap]);
+    const key = String(item.asset_id);
+    const systemQty = liveSystemQtyMap && liveSystemQtyMap.has(key)
+      ? liveSystemQtyMap.get(key)
+      : Number(item.system_qty);
+    const diff = item.counted_qty == null ? null : Number(item.counted_qty) - systemQty;
+    return { ...item, asset, system_qty: systemQty, diff };
+  }), [items, assetMap, liveSystemQtyMap]);
 
   const filtered = useMemo(() => {
     let list = enriched;
@@ -166,11 +185,6 @@ export default function StocktakingScreen({ session, setView, assets, movements,
     }
     return arr;
   }, [enriched, search, showOnlyDiff, sortOrder]);
-
-  const currentSession = useMemo(
-    () => sessions.find((s) => s.id === currentCountId),
-    [sessions, currentCountId]
-  );
 
   const diffSummary = useMemo(() => {
     const diffs = enriched.filter((x) => x.diff !== null && x.diff !== 0);
