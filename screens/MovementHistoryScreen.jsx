@@ -15,12 +15,13 @@ const isAdjustmentMovement = (m) =>
 // 並べ替えの選択肢。defaultDir はその項目を選んだときの初期方向
 // （入出庫日だけ新しい順＝降順、他は昇順）。昇順/降順は別途トグルで切替可能。
 const SORT_OPTIONS = [
-  { key: 'assetCode', label: '資産コード', defaultDir: 'asc' },
-  { key: 'category',  label: '分類',       defaultDir: 'asc' },
-  { key: 'name',      label: '品名',       defaultDir: 'asc' },
-  { key: 'date',      label: '入出庫日',   defaultDir: 'desc' },
-  { key: 'staff',     label: '担当者名',   defaultDir: 'asc' },
-  { key: 'entry',     label: '入力順',     defaultDir: 'asc' },
+  { key: 'assetCode',     label: '資産コード',       defaultDir: 'asc' },
+  { key: 'category_id',   label: '分類→ID順',       defaultDir: 'asc' },
+  { key: 'category_kana', label: '分類→アイウエオ順', defaultDir: 'asc' },
+  { key: 'name',          label: '品名',             defaultDir: 'asc' },
+  { key: 'date',          label: '入出庫日',         defaultDir: 'desc' },
+  { key: 'staff',         label: '担当者名',         defaultDir: 'asc' },
+  { key: 'entry',         label: '入力順',           defaultDir: 'asc' },
 ];
 
 export default function MovementHistoryScreen({ movements, setView, assets, staff = [], updateMovement, updateAsset, deleteMovement, pinnedAssetId = '', onNavigateAssets, onRequestAssetPick, assetSelectionResult, onAssetSelectionApplied, fiscalRange = null, fiscalSnapshots = [] }) {
@@ -199,11 +200,22 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
         case 'assetCode':
           r = (Number(a.assetId) || 0) - (Number(b.assetId) || 0);
           break;
-        case 'category': {
+        case 'category_id': {
           const ca = assetById.get(a.assetId)?.categoryOrder ?? 9999;
           const cb = assetById.get(b.assetId)?.categoryOrder ?? 9999;
           r = ca - cb;
           if (r === 0) r = (Number(a.assetId) || 0) - (Number(b.assetId) || 0);
+          break;
+        }
+        case 'category_kana': {
+          const ca = assetById.get(a.assetId)?.categoryOrder ?? 9999;
+          const cb = assetById.get(b.assetId)?.categoryOrder ?? 9999;
+          r = ca - cb;
+          if (r === 0) {
+            const na = assetById.get(a.assetId)?.kanaName || assetById.get(a.assetId)?.name || '';
+            const nb = assetById.get(b.assetId)?.kanaName || assetById.get(b.assetId)?.name || '';
+            r = na.localeCompare(nb, 'ja');
+          }
           break;
         }
         case 'name': {
