@@ -3,7 +3,7 @@ import { Star, ArrowLeftRight } from 'lucide-react';
 
 import { Button, Card, InfoLine } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
-import { isMovementAfterClose } from '../utils/inventory.js';
+import { isMovementAfterClose, dayAfter } from '../utils/inventory.js';
 import StaffSelect from '../components/StaffSelect.jsx';
 
 const QUICK_COUNT = 8;
@@ -89,13 +89,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
   // 年度更新でクローズ済みの期間は除外（opening_stock に既に反映済みのため二重計上を防ぐ）
   const closedAt = selectedAsset?.fiscalYearClosedAt || null;
   // 年度更新で締め済みの資産は「クローズ日の翌日」以降しか入力できないようにする
-  const minDate = closedAt
-    ? (() => {
-        const [y, m, d] = String(closedAt).replaceAll('/', '-').split('-').map(Number);
-        const next = new Date(y, m - 1, d + 1);
-        return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
-      })()
-    : undefined;
+  const minDate = dayAfter(closedAt);
   const selectedAssetMovements = selectedAsset
     ? movements.filter(movement => movement.assetId === selectedAsset.id && isMovementAfterClose(movement.date, closedAt))
     : [];

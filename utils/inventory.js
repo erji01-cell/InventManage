@@ -61,6 +61,16 @@ export function normalizeAsset(row, parentMap, supplierMap, categoryMap = new Ma
   };
 }
 
+// クローズ日（YYYY-MM-DD / YYYY/MM/DD）の翌日を YYYY-MM-DD で返す。
+// 締め済み資産で入力可能な最小日（date input の min）として使う。
+export function dayAfter(dateStr) {
+  if (!dateStr) return undefined;
+  const [year, month, day] = String(dateStr).replaceAll('/', '-').split('-').map(Number);
+  if (!year || !month || !day) return undefined;
+  const next = new Date(year, month - 1, day + 1);
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
+}
+
 // 日付（YYYY-MM-DD / YYYY/MM/DD）が属する会計年度の開始年を返す。
 // 会計年度は7月開始（7〜12月→その年、1〜6月→前年）。
 export function fiscalStartYearOf(dateStr) {

@@ -3,7 +3,7 @@ import { ArrowLeftRight, CheckCircle2, Printer, Save, Table2, Trash2, X } from '
 
 import { Button, Card, DetailItem, EditableDetail } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
-import { isMovementAfterClose, normalizeMovementType, parseLocalDate } from '../utils/inventory.js';
+import { isMovementAfterClose, normalizeMovementType, parseLocalDate, dayAfter } from '../utils/inventory.js';
 import StaffSelect from '../components/StaffSelect.jsx';
 
 // 棚卸し調整かどうか判定
@@ -345,6 +345,19 @@ ${summaryHTML}
     }
     if (!movementEditForm.date) {
       setMovementSaveError('入出庫日を入力してください。');
+      return;
+    }
+    // 変更前が締め済み期間のデータは編集させない（年度更新済みで在庫に反映されないため）
+    const origClosedAt = selectedMovement.asset?.fiscalYearClosedAt || null;
+    if (origClosedAt && !isMovementAfterClose(selectedMovement.movement.date, origClosedAt)) {
+      setMovementSaveError(`このデータは ${origClosedAt} まで年度更新で締め済みの期間のため編集できません。`);
+      return;
+    }
+    // 変更後の日付も締め済み期間に入れない（対象資産の締め日で判定）
+    const targetAsset = assets.find((a) => String(a.id) === String(movementEditForm.assetId));
+    const targetClosedAt = targetAsset?.fiscalYearClosedAt || null;
+    if (targetClosedAt && !isMovementAfterClose(movementEditForm.date, targetClosedAt)) {
+      setMovementSaveError(`この資産は ${targetClosedAt} まで年度更新で締め済みです。入出庫日は ${dayAfter(targetClosedAt)} 以降で入力してください。`);
       return;
     }
     if (!Number.isFinite(quantity) || quantity <= 0) {
@@ -769,6 +782,7 @@ ${summaryHTML}
                       <span className="text-xs font-black text-slate-400">入出庫日</span>
                       <input
                         type="date"
+                        min={dayAfter(editingAsset?.fiscalYearClosedAt || null)}
                         value={movementEditForm.date}
                         onChange={(event) => updateMovementEditForm('date', event.target.value)}
                         className={inputClass}
