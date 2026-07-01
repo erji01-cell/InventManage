@@ -608,7 +608,7 @@ ${summaryHTML}
             <tr>
               <th className="px-3 py-2 border-b border-slate-200 w-16">No</th>
               <th className="px-3 py-2 border-b border-slate-200 w-24">日付</th>
-              <th className="px-3 py-2 border-b border-slate-200 w-16">分類</th>
+              <th className="px-3 py-2 border-b border-slate-200 w-[83px]">分類</th>
               <th className="px-3 py-2 border-b border-slate-200 w-12">ID</th>
               <th className="px-3 py-2 border-b border-slate-200 w-24">メーカー</th>
               <th className="px-3 py-2 border-b border-slate-200 min-w-[280px]">品名</th>
@@ -629,7 +629,7 @@ ${summaryHTML}
                 <tr key={`${filterType}-${m.id || 'movement'}-${movementType}-${m.assetId}-${m.date}-${index}`} className={`cursor-pointer transition-colors border-b border-slate-100 group align-top ${isAdjust ? 'bg-teal-50 hover:bg-teal-100 border-l-4 border-l-teal-400' : 'hover:bg-blue-50'}`} onClick={() => openMovementDetail(m, asset)}>
                   <td className="px-3 py-3 font-mono text-slate-400 whitespace-nowrap">{m.id || '-'}</td>
                   <td className="px-3 py-3 text-slate-500 whitespace-nowrap">{m.date}</td>
-                  <td className="px-3 py-3 w-16 max-w-16 whitespace-normal break-words">{asset?.category || '-'}</td>
+                  <td className="px-3 py-3 w-[83px] max-w-[83px] whitespace-normal break-words">{asset?.category || '-'}</td>
                   <td className="px-3 py-3 font-mono">{m.assetId}</td>
                   <td className="px-3 py-3 w-24 max-w-24 whitespace-normal break-words">{asset?.maker}</td>
                   <td className="px-3 py-3 min-w-[280px] font-medium whitespace-normal break-words text-blue-700">
