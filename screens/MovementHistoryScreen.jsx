@@ -13,9 +13,10 @@ const isAdjustmentMovement = (m) =>
   || /^\s*\[棚卸し調整\]/.test(m?.memo || '');
 
 export default function MovementHistoryScreen({ movements, setView, assets, staff = [], updateMovement, updateAsset, deleteMovement, pinnedAssetId = '', onNavigateAssets, onRequestAssetPick, assetSelectionResult, onAssetSelectionApplied, fiscalRange = null, fiscalSnapshots = [] }) {
-  // 過去年度が選択されている場合は、初期表示で会計年度の日付レンジを絞り込みに適用
-  const initialFiscalFrom = fiscalRange && !fiscalRange.isCurrent ? fiscalRange.from : '';
-  const initialFiscalTo = fiscalRange && !fiscalRange.isCurrent ? fiscalRange.to : '';
+  // 初期表示は選択中の会計年度の日付レンジで絞り込む（現在年度・過去年度とも）。
+  // 全期間を見たい場合は画面上の「リセット」で日付フィルタをクリアできる。
+  const initialFiscalFrom = fiscalRange ? fiscalRange.from : '';
+  const initialFiscalTo = fiscalRange ? fiscalRange.to : '';
 
   const [filterType, setFilterType] = useState('all');
   const [adjustmentFilter, setAdjustmentFilter] = useState('all'); // 'all' | 'normal' | 'adjustment'
