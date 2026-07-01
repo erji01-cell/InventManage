@@ -578,10 +578,11 @@ ${summaryHTML}
                 onClick={() => {
                   setPinnedId('');
                   setMovementSearchTerm('');
-                  setMovementDateFrom('');
-                  setMovementDateTo('');
-                  setAppliedDateFrom('');
-                  setAppliedDateTo('');
+                  // 日付は空にせず選択中の年度レンジに戻す（過年度を混ぜない）
+                  setMovementDateFrom(initialFiscalFrom);
+                  setMovementDateTo(initialFiscalTo);
+                  setAppliedDateFrom(initialFiscalFrom);
+                  setAppliedDateTo(initialFiscalTo);
                   setAssetResetSignal(s => s + 1);
                 }}
               >
