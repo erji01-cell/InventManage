@@ -12,6 +12,17 @@ const isAdjustmentMovement = (m) =>
   m?.stocktakingCountId != null
   || /^\s*\[棚卸し調整\]/.test(m?.memo || '');
 
+// 並べ替えの選択肢。defaultDir はその項目を選んだときの初期方向
+// （入出庫日だけ新しい順＝降順、他は昇順）。昇順/降順は別途トグルで切替可能。
+const SORT_OPTIONS = [
+  { key: 'assetCode', label: '資産コード', defaultDir: 'asc' },
+  { key: 'category',  label: '分類',       defaultDir: 'asc' },
+  { key: 'name',      label: '品名',       defaultDir: 'asc' },
+  { key: 'date',      label: '入出庫日',   defaultDir: 'desc' },
+  { key: 'staff',     label: '担当者名',   defaultDir: 'asc' },
+  { key: 'entry',     label: '入力順',     defaultDir: 'asc' },
+];
+
 export default function MovementHistoryScreen({ movements, setView, assets, staff = [], updateMovement, updateAsset, deleteMovement, pinnedAssetId = '', onNavigateAssets, onRequestAssetPick, assetSelectionResult, onAssetSelectionApplied, fiscalRange = null, fiscalSnapshots = [] }) {
   // 初期表示は選択中の会計年度の日付レンジで絞り込む（現在年度・過去年度とも）。
   // 全期間を見たい場合は画面上の「リセット」で日付フィルタをクリアできる。
@@ -23,6 +34,14 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
   const [movementSearchTerm, setMovementSearchTerm] = useState('');
   const [pinnedId, setPinnedId] = useState(pinnedAssetId);
   const [assetResetSignal, setAssetResetSignal] = useState(0);
+  const [sortKey, setSortKey] = useState('date'); // 既定は入出庫日
+  const [sortDir, setSortDir] = useState('desc'); // 既定は新しい順
+
+  // 並べ替え項目を切り替えたら、その項目の既定方向にリセットする
+  const changeSortKey = (key) => {
+    setSortKey(key);
+    setSortDir(SORT_OPTIONS.find((o) => o.key === key)?.defaultDir || 'asc');
+  };
 
   const handleSearchTermChange = (term) => {
     if (pinnedId) setPinnedId('');
@@ -138,6 +157,7 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
     const normalizedSearchTerm = movementSearchTerm.trim().toLowerCase();
   const appliedFromDate = parseLocalDate(appliedDateFrom);
   const appliedToDate = parseLocalDate(appliedDateTo);
+  const assetById = new Map(assets.map((a) => [a.id, a]));
 
   const displayedMovements = movements
     .map(m => ({ ...m, normalizedType: normalizeMovementType(m.type) }))
@@ -173,10 +193,41 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
       ].some(value => String(value || '').toLowerCase().includes(normalizedSearchTerm));
     })
     .sort((a, b) => {
-      const dateA = Date.parse(String(a.date || '').replaceAll('/', '-')) || 0;
-      const dateB = Date.parse(String(b.date || '').replaceAll('/', '-')) || 0;
-      if (dateA !== dateB) return dateB - dateA;
-      return Number(b.id || 0) - Number(a.id || 0);
+      const dir = sortDir === 'asc' ? 1 : -1;
+      let r = 0;
+      switch (sortKey) {
+        case 'assetCode':
+          r = (Number(a.assetId) || 0) - (Number(b.assetId) || 0);
+          break;
+        case 'category': {
+          const ca = assetById.get(a.assetId)?.categoryOrder ?? 9999;
+          const cb = assetById.get(b.assetId)?.categoryOrder ?? 9999;
+          r = ca - cb;
+          if (r === 0) r = (Number(a.assetId) || 0) - (Number(b.assetId) || 0);
+          break;
+        }
+        case 'name': {
+          const na = assetById.get(a.assetId)?.kanaName || assetById.get(a.assetId)?.name || '';
+          const nb = assetById.get(b.assetId)?.kanaName || assetById.get(b.assetId)?.name || '';
+          r = na.localeCompare(nb, 'ja');
+          break;
+        }
+        case 'staff':
+          r = String(a.staffName || '').localeCompare(String(b.staffName || ''), 'ja');
+          break;
+        case 'entry':
+          r = (Number(a.id) || 0) - (Number(b.id) || 0);
+          break;
+        case 'date':
+        default: {
+          const da = Date.parse(String(a.date || '').replaceAll('/', '-')) || 0;
+          const db = Date.parse(String(b.date || '').replaceAll('/', '-')) || 0;
+          r = da - db;
+          if (r === 0) r = (Number(a.id) || 0) - (Number(b.id) || 0);
+          break;
+        }
+      }
+      return r * dir;
     });
 
   const openMovementDetail = (movement, asset) => {
@@ -589,6 +640,29 @@ ${summaryHTML}
                 リセット
               </Button>
             </div>
+          </div>
+        </div>
+
+        <div className="w-full flex flex-wrap items-center gap-3 border-t border-slate-200 pt-3">
+          <span className="text-sm font-bold text-slate-500">並べ替え</span>
+          <div className="flex flex-wrap gap-1 bg-white border border-slate-200 rounded-md p-1">
+            {SORT_OPTIONS.map((opt) => (
+              <button
+                key={opt.key}
+                onClick={() => changeSortKey(opt.key)}
+                className={`px-3 py-1 rounded-md text-sm ${sortKey === opt.key ? 'bg-blue-500 text-white shadow-sm' : 'text-slate-600'}`}
+              >{opt.label}</button>
+            ))}
+          </div>
+          <div className="flex bg-white border border-slate-200 rounded-md p-1">
+            <button
+              onClick={() => setSortDir('asc')}
+              className={`px-3 py-1 rounded-md text-sm ${sortDir === 'asc' ? 'bg-slate-600 text-white shadow-sm' : 'text-slate-600'}`}
+            >昇順</button>
+            <button
+              onClick={() => setSortDir('desc')}
+              className={`px-3 py-1 rounded-md text-sm ${sortDir === 'desc' ? 'bg-slate-600 text-white shadow-sm' : 'text-slate-600'}`}
+            >降順</button>
           </div>
         </div>
       </div>
