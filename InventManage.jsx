@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button } from './components/ui.jsx';
 import { clearStoredSession, getStoredSession, loadInventoryData, signInWithPassword, signOut, storeSession, supabaseRequest } from './lib/supabase.js';
-import { fiscalStartYearOf, getNextParentId, isMovementAfterClose, normalizeAsset, normalizeMovement, toNumber } from './utils/inventory.js';
+import { fiscalStartYearOf, isMovementAfterClose, normalizeAsset, normalizeMovement, toNumber } from './utils/inventory.js';
 import AssetMasterScreen from './screens/AssetMasterScreen.jsx';
 import BackupScreen from './screens/BackupScreen.jsx';
 import EntryScreen from './screens/EntryScreen.jsx';
@@ -414,32 +414,32 @@ export default function App() {
         );
 
     if (!parent) {
-      const parentRows = await supabaseRequest(
-        'invent_parent_assets?select=id&order=id.desc&limit=1',
-        {},
-        authSession
-      );
-      const nextParentId = getNextParentId(parentRows.map(row => ({ parentId: row.id })));
-
       const categoryName = categories.find(c => c.id === data.categoryId)?.name || '';
 
-      const [createdParent] = await supabaseRequest(
-        'invent_parent_assets?select=*',
-        {
-          method: 'POST',
-          headers: {
-            Prefer: 'return=representation',
+      // 採番＋登録はDB関数が直列化して行う（2台同時の新規登録でもID重複しない）
+      let createdParent;
+      try {
+        [createdParent] = await supabaseRequest(
+          'rpc/invent_create_parent_asset',
+          {
+            method: 'POST',
+            body: JSON.stringify({
+              p_category: categoryName,
+              p_category_id: data.categoryId,
+              p_generic_name: data.parentGenericName || null,
+            }),
           },
-          body: JSON.stringify({
-            id: nextParentId,
-            category: categoryName,
-            category_id: data.categoryId,
-            generic_name: data.parentGenericName || null,
-            safety_stock: null,
-          }),
-        },
-        authSession
-      );
+          authSession
+        );
+      } catch (err) {
+        if (/could not find the function|schema cache/i.test(err?.message || '')) {
+          throw new Error(
+            '資産登録用のDB関数が未導入です。outputs/supabase_migration/create_parent_asset_rpc.sql を' +
+            'SupabaseのSQL Editorで実行してください（データは変更されていません）。'
+          );
+        }
+        throw err;
+      }
       parent = {
         parentId: createdParent.id,
         categoryId: createdParent.category_id,
