@@ -168,28 +168,38 @@ export default function App() {
     const staffMember = staff.find((member) => member.id === data.staffId);
     const actualDeliveryPrice = Number(data.actualDeliveryPrice ?? asset?.deliveryPrice ?? 0);
 
-    const [created] = await supabaseRequest(
-      'invent_stock_movements?select=*',
-      {
-        method: 'POST',
-        headers: {
-          Prefer: 'return=representation',
+    // 登録はDB関数経由。出庫は対象資産を行ロックした上で最新在庫をDB側で
+    // チェックしてから登録するため、複数PCの同時出庫でも在庫マイナスにならない。
+    let created;
+    try {
+      [created] = await supabaseRequest(
+        'rpc/invent_register_movement',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            p_child_asset_id: Number(data.assetId),
+            p_movement_date: data.date,
+            p_movement_type: data.type,
+            p_quantity: Number(data.quantity),
+            p_actual_delivery_price: data.type === 'in' ? actualDeliveryPrice : 0,
+            p_expiration_date: data.expirationDate || null,
+            p_lot_number: data.lotNumber || null,
+            p_staff_code: staffMember ? Number(staffMember.id) : null,
+            p_staff_name: staffMember?.name || null,
+            p_memo: data.memo || null,
+          }),
         },
-        body: JSON.stringify({
-          child_asset_id: Number(data.assetId),
-          movement_date: data.date,
-          movement_type: data.type,
-          quantity: Number(data.quantity),
-          actual_delivery_price: data.type === 'in' ? actualDeliveryPrice : 0,
-          expiration_date: data.expirationDate || null,
-          lot_number: data.lotNumber || null,
-          staff_code: staffMember ? Number(staffMember.id) : null,
-          staff_name: staffMember?.name || null,
-          memo: data.memo || null,
-        }),
-      },
-      authSession
-    );
+        authSession
+      );
+    } catch (err) {
+      if (/could not find the function|schema cache/i.test(err?.message || '')) {
+        throw new Error(
+          '登録用のDB関数が未導入です。outputs/supabase_migration/register_movement_rpc.sql を' +
+          'SupabaseのSQL Editorで実行してください（データは変更されていません）。'
+        );
+      }
+      throw err;
+    }
 
     const staffMap = new Map(staff.map((member) => [Number(member.id), member]));
     setMovements(prev => [normalizeMovement(created, staffMap), ...prev]);
