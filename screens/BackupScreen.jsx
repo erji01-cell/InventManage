@@ -36,6 +36,24 @@ export default function BackupScreen({ session, setView, onRestored }) {
   const [error, setError] = useState('');
   const [autoEnabled, setAutoEnabledState] = useState(isAutoBackupEnabled());
   const [lastBackup, setLastBackup] = useState(getLastBackupTime());
+  const [restoreMode, setRestoreMode] = useState('merge'); // 'merge' | 'replace'
+
+  const restoreConfirmText = (name) =>
+    restoreMode === 'replace'
+      ? `${name} で【完全復元】します。\n\n・バックアップ時点の状態に完全に戻します\n・バックアップより後に追加されたデータは削除されます\n・担当者マスタは保護のため変更されません\n\nよろしいですか?`
+      : `${name} で復元します。\n\n・同IDのデータはバックアップの内容で上書きされます\n・バックアップより後に追加されたデータはそのまま残ります\n・担当者マスタは保護のため変更されません\n\nよろしいですか?`;
+
+  const summarizeRestore = (result) => {
+    let upserted = 0;
+    let deleted = 0;
+    Object.values(result).forEach((v) => {
+      if (v && typeof v === 'object') {
+        upserted += v.upserted || 0;
+        deleted += v.deleted || 0;
+      }
+    });
+    return `復元完了: ${upserted} 件を書き戻し${restoreMode === 'replace' ? `、後から追加された ${deleted} 件を削除` : ''}（担当者マスタは対象外）`;
+  };
 
   const refresh = async () => {
     setLoading(true);
@@ -74,15 +92,14 @@ export default function BackupScreen({ session, setView, onRestored }) {
 
   const handleRestoreFromStorage = async (fileName) => {
     if (busy) return;
-    if (!window.confirm(`${fileName} で復元します。\n現在のデータは同IDのものが上書きされます。よろしいですか?`)) return;
+    if (!window.confirm(restoreConfirmText(fileName))) return;
     setBusy(true);
     setMessage('');
     setError('');
     try {
       const payload = await downloadStorageBackup(session, fileName);
-      const result = await restoreFromPayload(payload, session);
-      const total = Object.values(result).reduce((a, b) => a + b, 0);
-      setMessage(`復元完了: 合計 ${total} 件`);
+      const result = await restoreFromPayload(payload, session, { mode: restoreMode });
+      setMessage(summarizeRestore(result));
       if (onRestored) await onRestored();
     } catch (e) {
       setError(e.message);
@@ -111,16 +128,15 @@ export default function BackupScreen({ session, setView, onRestored }) {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
-    if (!window.confirm(`${file.name} で復元します。\n現在のデータは同IDのものが上書きされます。よろしいですか?`)) return;
+    if (!window.confirm(restoreConfirmText(file.name))) return;
     setBusy(true);
     setMessage('');
     setError('');
     try {
       const text = await file.text();
       const payload = JSON.parse(text);
-      const result = await restoreFromPayload(payload, session);
-      const total = Object.values(result).reduce((a, b) => a + b, 0);
-      setMessage(`復元完了: 合計 ${total} 件`);
+      const result = await restoreFromPayload(payload, session, { mode: restoreMode });
+      setMessage(summarizeRestore(result));
       if (onRestored) await onRestored();
     } catch (e) {
       setError(`復元に失敗しました: ${e.message}`);
@@ -193,6 +209,38 @@ export default function BackupScreen({ session, setView, onRestored }) {
         <span className="text-xs text-slate-400 ml-auto">
           ① Storage 保存 ② ローカル DL ③ 古い分を自動削除（最大30件）
         </span>
+      </div>
+
+      {/* 復元モード */}
+      <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+        <div className="flex items-center gap-6 flex-wrap">
+          <span className="text-sm font-bold text-slate-600">復元方法</span>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="restoreMode"
+              checked={restoreMode === 'merge'}
+              onChange={() => setRestoreMode('merge')}
+              className="accent-blue-600"
+            />
+            <span className="text-sm font-medium">通常復元（上書きのみ・後から追加したデータは残る）</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              name="restoreMode"
+              checked={restoreMode === 'replace'}
+              onChange={() => setRestoreMode('replace')}
+              className="accent-red-600"
+            />
+            <span className={`text-sm font-medium ${restoreMode === 'replace' ? 'text-red-700 font-bold' : ''}`}>
+              完全復元（バックアップ時点に戻す・後から追加したデータは削除）
+            </span>
+          </label>
+        </div>
+        <p className="mt-2 text-xs text-slate-400">
+          ※ どちらの方法でも担当者マスタ（invent_staff）は保護のため変更されません。
+        </p>
       </div>
 
       {/* Storage 一覧 */}
