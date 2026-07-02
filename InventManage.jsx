@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button } from './components/ui.jsx';
 import { clearStoredSession, getStoredSession, loadInventoryData, signInWithPassword, signOut, storeSession, supabaseRequest } from './lib/supabase.js';
@@ -54,6 +54,10 @@ export default function App() {
     }
   };
 
+  // フォーカス時自動更新のスロットル用（直近のフルロード時刻と実行中フラグ）
+  const lastFocusRefreshRef = useRef(Date.now());
+  const focusRefreshBusyRef = useRef(false);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -90,6 +94,7 @@ export default function App() {
         setError(err.message);
       })
       .finally(() => {
+        lastFocusRefreshRef.current = Date.now();
         if (isMounted) {
           setIsLoading(false);
         }
@@ -97,6 +102,31 @@ export default function App() {
 
     return () => {
       isMounted = false;
+    };
+  }, [authSession]);
+
+  // ウィンドウにフォーカスが戻ったらデータを再読み込み（複数PC運用での鮮度対策）。
+  // 直近のロードから1分以内なら何もしない。失敗しても画面は変えず次回に任せる。
+  useEffect(() => {
+    if (!authSession) return;
+    const FOCUS_REFRESH_MIN_MS = 60 * 1000;
+    const handleFocus = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (focusRefreshBusyRef.current) return;
+      if (Date.now() - lastFocusRefreshRef.current < FOCUS_REFRESH_MIN_MS) return;
+      lastFocusRefreshRef.current = Date.now();
+      focusRefreshBusyRef.current = true;
+      refreshData()
+        .catch((err) => console.warn('[focus-refresh] 再読み込みに失敗:', err?.message))
+        .finally(() => {
+          focusRefreshBusyRef.current = false;
+        });
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleFocus);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleFocus);
     };
   }, [authSession]);
 
