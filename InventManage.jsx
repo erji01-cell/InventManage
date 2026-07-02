@@ -192,12 +192,13 @@ export default function App() {
     await performBackup(authSession);
 
     // 期末日までの入出庫だけを集計（過去のクローズ日も考慮）
+    const assetMapForClose = new Map(assets.map((a) => [a.id, a]));
     const inboundByAsset = new Map();
     const outboundByAsset = new Map();
     movements.forEach((m) => {
       const md = String(m.date || '').replaceAll('/', '-');
       if (!md || md > endDate) return; // 期末日より後はスキップ
-      const asset = assets.find((a) => a.id === m.assetId);
+      const asset = assetMapForClose.get(m.assetId);
       // 既にクローズされている期間の入出庫は二重カウントしない
       if (asset?.fiscalYearClosedAt && md <= asset.fiscalYearClosedAt) return;
       const key = String(m.assetId);

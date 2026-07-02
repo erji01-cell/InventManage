@@ -76,26 +76,34 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
   const yearFrom = isPastYear ? `${fiscalRange.startYear}-07-01` : '';
   const yearTo = isPastYear ? `${fiscalRange.startYear + 1}-06-30` : '';
 
+  // 資産IDごとに入出庫を先にグループ化（資産×全入出庫の総当たりを避ける）
+  const movementsByAsset = useMemo(() => {
+    const map = new Map();
+    movements.forEach((m) => {
+      const list = map.get(m.assetId);
+      if (list) list.push(m);
+      else map.set(m.assetId, [m]);
+    });
+    return map;
+  }, [movements]);
+
   const stockData = useMemo(() => {
     return assets.map(asset => {
+      const ownMovements = movementsByAsset.get(asset.id) || [];
       let initialStock;
       let assetMovements;
       if (isPastYear) {
         // 過去年度: スナップショットの期首在庫を起点に、その年度内の入出庫のみで計算
         const snap = snapByAsset.get(asset.id);
         initialStock = snap ? snap.openingStock : 0;
-        assetMovements = movements.filter(m => {
-          if (m.assetId !== asset.id) return false;
+        assetMovements = ownMovements.filter(m => {
           const md = String(m.date || '').replaceAll('/', '-');
           return md >= yearFrom && md <= yearTo;
         });
       } else {
         // 現在年度: 年度クローズ日以前の入出庫は opening_stock に反映済みなので除外
         const closedAt = asset.fiscalYearClosedAt || null;
-        assetMovements = movements.filter(m => {
-          if (m.assetId !== asset.id) return false;
-          return isMovementAfterClose(m.date, closedAt);
-        });
+        assetMovements = ownMovements.filter(m => isMovementAfterClose(m.date, closedAt));
         initialStock = asset.openingStock || 0;
       }
       const beforeMonthTotal = assetMovements.reduce((sum, movement) => {
@@ -122,7 +130,7 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
 
       return { ...asset, prevMonth: monthStartStock, inbound: inboundTotal, outbound: outboundTotal, currentStock, stockValue };
     });
-  }, [assets, movements, monthStart.getTime(), nextMonthStart.getTime(), isPastYear, snapByAsset, yearFrom, yearTo]);
+  }, [assets, movementsByAsset, monthStart.getTime(), nextMonthStart.getTime(), isPastYear, snapByAsset, yearFrom, yearTo]);
 
   const normalizedStockSearch = stockSearchTerm.trim().toLowerCase();
   const filteredStockData = useMemo(() => {

@@ -90,6 +90,9 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
     return Number(a.id || 0) - Number(b.id || 0);
   };
 
+  // 資産IDからの逆引きMap（ループ内の assets.find を避けるため）
+  const assetById = useMemo(() => new Map(assets.map((a) => [a.id, a])), [assets]);
+
   // 品目ごとに日付・ID順で累積計算し、各取引後の残在庫を求める
   const runningStockMap = useMemo(() => {
     const map = new Map();
@@ -135,7 +138,7 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
 
     // 現在（アクティブ）年度: opening_stock + クローズ日以降の入出庫
     byAsset.forEach((assetMovements, assetId) => {
-      const asset = assets.find(a => a.id === assetId);
+      const asset = assetById.get(assetId);
       const openingStock = asset?.openingStock || 0;
       const closedAt = asset?.fiscalYearClosedAt || null;
       const sorted = [...assetMovements].sort(sortByDateThenId);
@@ -153,12 +156,11 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
       });
     });
     return map;
-  }, [movements, assets, fiscalRange, fiscalSnapshots]);
+  }, [movements, assetById, fiscalRange, fiscalSnapshots]);
 
-    const normalizedSearchTerm = movementSearchTerm.trim().toLowerCase();
+  const normalizedSearchTerm = movementSearchTerm.trim().toLowerCase();
   const appliedFromDate = parseLocalDate(appliedDateFrom);
   const appliedToDate = parseLocalDate(appliedDateTo);
-  const assetById = new Map(assets.map((a) => [a.id, a]));
 
   const displayedMovements = movements
     .map(m => ({ ...m, normalizedType: normalizeMovementType(m.type) }))
@@ -183,7 +185,7 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
     .filter(m => {
       if (pinnedId) return m.assetId === pinnedId;
       if (!normalizedSearchTerm) return true;
-      const asset = assets.find(a => a.id === m.assetId);
+      const asset = assetById.get(m.assetId);
       return [
         m.assetId,
         m.staffName,
@@ -365,7 +367,7 @@ ${summaryHTML}
   const handlePrintList = () => {
     setShowPrintMenu(false);
     const today = new Date().toLocaleDateString('ja-JP');
-    const rows = displayedMovements.map(m => ({ m, asset: assets.find(a => a.id === m.assetId), rs: runningStockMap.get(String(m.id)) }));
+    const rows = displayedMovements.map(m => ({ m, asset: assetById.get(m.assetId), rs: runningStockMap.get(String(m.id)) }));
     const subtitle = `印刷日: ${today}　件数: ${rows.length}件`;
     const html = buildPrintDoc('入出庫データ一覧', subtitle, buildTableHTML(rows));
     openPrintWindow(html);
@@ -708,7 +710,7 @@ ${summaryHTML}
           </thead>
           <tbody>
             {displayedMovements.map((m, index) => {
-              const asset = assets.find(a => a.id === m.assetId);
+              const asset = assetById.get(m.assetId);
               const movementType = m.normalizedType;
               const isAdjust = isAdjustmentMovement(m);
               return (
