@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 
 import { Button } from './components/ui.jsx';
 import { clearStoredSession, getStoredSession, loadInventoryData, signInWithPassword, signOut, storeSession, supabaseRequest } from './lib/supabase.js';
-import { fiscalStartYearOf, getNextParentId, normalizeAsset, normalizeMovement, toNumber } from './utils/inventory.js';
+import { fiscalStartYearOf, getNextParentId, isMovementAfterClose, normalizeAsset, normalizeMovement, toNumber } from './utils/inventory.js';
 import AssetMasterScreen from './screens/AssetMasterScreen.jsx';
 import BackupScreen from './screens/BackupScreen.jsx';
 import EntryScreen from './screens/EntryScreen.jsx';
@@ -662,6 +662,31 @@ export default function App() {
     return now.getMonth() + 1 >= 7 ? now.getFullYear() : now.getFullYear() - 1;
   }, [latestFiscalYearClosedAt]);
 
+  // 現在庫がマイナスの資産を抽出（起動時の警告バナー用）。
+  // 現在庫 = opening_stock + 年度クローズ日より後の入庫 − 出庫（在庫表と同じ計算）。
+  const negativeStockAssets = useMemo(() => {
+    const assetMap = new Map(assets.map((a) => [a.id, a]));
+    const inByAsset = new Map();
+    const outByAsset = new Map();
+    movements.forEach((m) => {
+      const asset = assetMap.get(m.assetId);
+      if (!asset) return;
+      if (!isMovementAfterClose(m.date, asset.fiscalYearClosedAt || null)) return;
+      const qty = Number(m.quantity) || 0;
+      if (m.type === 'in') inByAsset.set(m.assetId, (inByAsset.get(m.assetId) || 0) + qty);
+      else if (m.type === 'out') outByAsset.set(m.assetId, (outByAsset.get(m.assetId) || 0) + qty);
+    });
+    return assets
+      .map((a) => ({
+        id: a.id,
+        name: a.name,
+        usageUnit: a.usageUnit,
+        currentStock: Number(a.openingStock || 0) + (inByAsset.get(a.id) || 0) - (outByAsset.get(a.id) || 0),
+      }))
+      .filter((x) => x.currentStock < 0)
+      .sort((a, b) => a.currentStock - b.currentStock); // マイナスが大きい順
+  }, [assets, movements]);
+
   // 入出庫データに存在する会計年度（+現在年度）を昇順で。タブ生成に使用。
   const availableFiscalYears = useMemo(() => {
     const set = new Set();
@@ -693,7 +718,7 @@ export default function App() {
 
   const renderView = () => {
     switch (view) {
-      case 'menu': return <MenuScreen setView={navigateFromMenu} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={availableFiscalYears} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={selectedFiscalYear} setSelectedFiscalYear={setSelectedFiscalYear} />;
+      case 'menu': return <MenuScreen setView={navigateFromMenu} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={availableFiscalYears} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={selectedFiscalYear} setSelectedFiscalYear={setSelectedFiscalYear} negativeStockAssets={negativeStockAssets} />;
       case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} categories={categories} onCreateCategory={createCategory} onCreateAsset={createAsset} onUpdateAsset={updateAsset} onUpdateParentAsset={updateParentAsset} onDeleteAsset={deleteAsset} setView={setView} onNavigateEntry={navigateToEntry} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} initialAssetId={filterAssetId} assetPickerMode={Boolean(assetPickerRequest)} assetPickerSource={assetPickerRequest} onPickAsset={pickAssetFromPicker} onCancelPick={cancelAssetPicker} />;
       case 'history': return <MovementHistoryScreen movements={movements} setView={setView} assets={assets} staff={staff} updateMovement={updateMovement} updateAsset={updateAsset} deleteMovement={deleteMovement} pinnedAssetId={filterAssetId} onNavigateAssets={navigateToAssets} onRequestAssetPick={navigateToAssetPickerFromMovement} assetSelectionResult={movementAssetSelection} onAssetSelectionApplied={() => setMovementAssetSelection(null)} fiscalRange={historyFiscalRange} fiscalSnapshots={fiscalSnapshots} />;
       case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} onRequestAssetPick={navigateToAssetPickerFromEntry} />;
@@ -701,7 +726,7 @@ export default function App() {
       case 'stock': return <StockStatusScreen assets={assets} movements={movements} setView={setView} pinnedAssetId={filterAssetId} onNavigateHistory={navigateToHistory} onNavigateAssets={navigateToAssets} fiscalRange={historyFiscalRange} fiscalSnapshots={fiscalSnapshots} />;
       case 'backup': return <BackupScreen session={authSession} setView={setView} onRestored={refreshData} />;
       case 'stocktaking': return <StocktakingScreen session={authSession} setView={setView} assets={assets} movements={movements} staff={staff} onCompleted={refreshData} />;
-      default: return <MenuScreen setView={navigateFromMenu} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={availableFiscalYears} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={selectedFiscalYear} setSelectedFiscalYear={setSelectedFiscalYear} />;
+      default: return <MenuScreen setView={navigateFromMenu} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={availableFiscalYears} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={selectedFiscalYear} setSelectedFiscalYear={setSelectedFiscalYear} negativeStockAssets={negativeStockAssets} />;
     }
   };
 

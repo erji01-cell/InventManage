@@ -23,7 +23,8 @@ function getFiscalDisplay(latestFiscalYearClosedAt) {
   };
 }
 
-export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpdate, onFetchLastStocktaking, isAdminUnlocked, setIsAdminUnlocked, onNavigateHistory, onNavigateStock, latestFiscalYearClosedAt, availableFiscalYears = [], currentFiscalStartYear, selectedFiscalYear, setSelectedFiscalYear }) {
+export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpdate, onFetchLastStocktaking, isAdminUnlocked, setIsAdminUnlocked, onNavigateHistory, onNavigateStock, latestFiscalYearClosedAt, availableFiscalYears = [], currentFiscalStartYear, selectedFiscalYear, setSelectedFiscalYear, negativeStockAssets = [] }) {
+  const [showNegativeList, setShowNegativeList] = useState(false);
   const [passwordTarget, setPasswordTarget] = useState(null); // 'backup' | 'yearEnd' | 'stocktaking' | null
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -184,6 +185,48 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
               <p className="mt-2 text-xs font-bold text-amber-600">
                 過去年度を選択中：入出庫データは {selectedFiscalYear}年7月〜{selectedFiscalYear + 1}年6月 の期間で表示されます。
               </p>
+            )}
+          </div>
+        )}
+
+        {negativeStockAssets.length > 0 && (
+          <div className="mx-auto mb-6 w-full max-w-4xl rounded-xl border-2 border-red-300 bg-red-50 p-4 shadow-sm">
+            <button
+              onClick={() => setShowNegativeList((v) => !v)}
+              className="flex w-full items-center justify-between gap-3 text-left"
+            >
+              <span className="flex items-center gap-2 text-red-700">
+                <AlertTriangle size={22} />
+                <span className="text-base font-black">在庫がマイナスの資産が {negativeStockAssets.length} 件あります</span>
+              </span>
+              <span className="text-sm font-bold text-red-500 whitespace-nowrap">{showNegativeList ? '閉じる ▲' : '一覧を見る ▼'}</span>
+            </button>
+            {showNegativeList && (
+              <>
+                <div className="mt-3 max-h-56 overflow-auto rounded-lg border border-red-200 bg-white">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-red-100/70 text-red-800">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-bold">品名</th>
+                        <th className="px-3 py-2 text-right font-bold">現在庫</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {negativeStockAssets.map((a) => (
+                        <tr
+                          key={a.id}
+                          onClick={() => onNavigateHistory?.(a.id)}
+                          className="cursor-pointer border-t border-red-100 hover:bg-red-50"
+                        >
+                          <td className="px-3 py-2 font-medium text-blue-700">{a.name}</td>
+                          <td className="px-3 py-2 text-right font-black text-red-600">{a.currentStock.toLocaleString()} {a.usageUnit || ''}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="mt-2 text-xs text-red-600">品名をクリックすると入出庫データを確認できます。</p>
+              </>
             )}
           </div>
         )}
