@@ -250,50 +250,55 @@ export default function App() {
       return { id: asset.id, opening, newOpeningStock: ending };
     });
 
-    // 方法C: 締める年度の期首/期末在庫をスナップショットとして凍結保存。
-    // fiscal_year は期末日が属する会計年度の開始年（例: 2026-06-30 → 2025年度）。
     const closedFiscalYear = fiscalStartYearOf(endDate);
-    if (closedFiscalYear != null) {
-      const snapshotRows = updates.map(({ id, opening, newOpeningStock }) => ({
-        child_asset_id: Number(id),
-        fiscal_year: closedFiscalYear,
-        opening_stock: opening,
-        closing_stock: newOpeningStock,
-        closed_at: endDate,
-      }));
-      // テーブル未作成（SQL未実行）の場合でも年度更新自体は止めない
+
+    // スナップショット保存と期首在庫更新はDB関数 invent_year_end_update が
+    // 単一トランザクションで実行する（全成功 or 全失敗。途中で止まる事故を防ぐ）。
+    // 事故防止のため、まず dry_run で計算だけ行い、上のクライアント計算と
+    // 全件一致することを確認してから本実行する。
+    const callYearEndRpc = async (dryRun) => {
       try {
-        const BATCH = 500;
-        for (let i = 0; i < snapshotRows.length; i += BATCH) {
-          await supabaseRequest(
-            'invent_fiscal_snapshots?on_conflict=child_asset_id,fiscal_year',
-            {
-              method: 'POST',
-              headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-              body: JSON.stringify(snapshotRows.slice(i, i + BATCH)),
-            },
-            authSession
+        return await supabaseRequest(
+          'rpc/invent_year_end_update',
+          {
+            method: 'POST',
+            body: JSON.stringify({ end_date: endDate, dry_run: dryRun }),
+          },
+          authSession
+        );
+      } catch (err) {
+        if (/could not find the function|schema cache/i.test(err?.message || '')) {
+          throw new Error(
+            '年度更新のDB関数が未導入です。outputs/supabase_migration/year_end_update_rpc.sql を' +
+            'SupabaseのSQL Editorで実行してから、もう一度年度更新を行ってください（データは変更されていません）。'
           );
         }
-      } catch (err) {
-        console.warn('[year-end] スナップショット保存に失敗しました（年度更新は継続）:', err?.message);
+        throw err;
       }
-    }
+    };
 
-    for (const { id, newOpeningStock } of updates) {
-      await supabaseRequest(
-        `invent_child_assets?id=eq.${id}`,
-        {
-          method: 'PATCH',
-          headers: { Prefer: 'return=minimal' },
-          body: JSON.stringify({
-            opening_stock: newOpeningStock,
-            fiscal_year_closed_at: endDate,
-          }),
-        },
-        authSession
+    const dryRunResult = await callYearEndRpc(true);
+    const rpcRows = new Map((dryRunResult?.rows || []).map((r) => [String(r.id), r]));
+    const diffs = [];
+    if (rpcRows.size !== updates.length) {
+      diffs.push(`対象件数が不一致（アプリ計算 ${updates.length} 件 / DB計算 ${rpcRows.size} 件）`);
+    }
+    for (const u of updates) {
+      const r = rpcRows.get(String(u.id));
+      if (!r) {
+        diffs.push(`ID ${u.id}: DB計算に存在しません`);
+      } else if (Number(r.opening) !== u.opening || Number(r.closing) !== u.newOpeningStock) {
+        diffs.push(`ID ${u.id}: アプリ計算 期首${u.opening}→期末${u.newOpeningStock} / DB計算 期首${r.opening}→期末${r.closing}`);
+      }
+      if (diffs.length >= 6) break;
+    }
+    if (diffs.length > 0) {
+      throw new Error(
+        `年度更新を中止しました。アプリ計算とDB計算が一致しません（データは変更されていません）:\n${diffs.slice(0, 5).join('\n')}`
       );
     }
+
+    await callYearEndRpc(false);
 
     // ⚠ movements は削除しない（過去の履歴を全期間保持）
 
