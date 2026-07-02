@@ -26,16 +26,32 @@ export default function App() {
   const [error, setError] = useState('');
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(false); // 棚卸し/年度更新/バックアップの共通解放フラグ
 
+  // 認証切れ（リフレッシュトークン失効）はエラー表示ではなくログイン画面に戻す
+  const handleAuthExpired = () => {
+    clearStoredSession();
+    setAuthSession(null);
+    setIsAdminUnlocked(false);
+    setView('menu');
+  };
+
   const refreshData = async () => {
     if (!authSession) return;
     setError('');
-    const data = await loadInventoryData(authSession);
-    setAssets(data.assets);
-    setMovements(data.movements);
-    setStaff(data.staff);
-    setSuppliers(data.suppliers);
-    setCategories(data.categories || []);
-    setFiscalSnapshots(data.fiscalSnapshots || []);
+    try {
+      const data = await loadInventoryData(authSession);
+      setAssets(data.assets);
+      setMovements(data.movements);
+      setStaff(data.staff);
+      setSuppliers(data.suppliers);
+      setCategories(data.categories || []);
+      setFiscalSnapshots(data.fiscalSnapshots || []);
+    } catch (err) {
+      if (err?.code === 'AUTH_EXPIRED') {
+        handleAuthExpired();
+        return;
+      }
+      throw err;
+    }
   };
 
   useEffect(() => {
@@ -67,6 +83,10 @@ export default function App() {
       })
       .catch((err) => {
         if (!isMounted) return;
+        if (err?.code === 'AUTH_EXPIRED') {
+          handleAuthExpired();
+          return;
+        }
         setError(err.message);
       })
       .finally(() => {
