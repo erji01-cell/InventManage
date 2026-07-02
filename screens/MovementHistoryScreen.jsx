@@ -159,10 +159,13 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
   }, [movements, assetById, fiscalRange, fiscalSnapshots]);
 
   const normalizedSearchTerm = movementSearchTerm.trim().toLowerCase();
+
+  // フィルタ・並べ替えは件数×操作頻度が高いので useMemo でレンダーごとの再計算を避ける
+  const displayedMovements = useMemo(() => {
   const appliedFromDate = parseLocalDate(appliedDateFrom);
   const appliedToDate = parseLocalDate(appliedDateTo);
 
-  const displayedMovements = movements
+  return movements
     .map(m => ({ ...m, normalizedType: normalizeMovementType(m.type) }))
     .filter(m => {
       if (filterType === 'in') return m.normalizedType === 'in';
@@ -243,6 +246,7 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
       }
       return r * dir;
     });
+  }, [movements, filterType, adjustmentFilter, appliedDateFrom, appliedDateTo, pinnedId, normalizedSearchTerm, assetById, sortKey, sortDir]);
 
   const openMovementDetail = (movement, asset) => {
     setSelectedMovement({ movement, asset });

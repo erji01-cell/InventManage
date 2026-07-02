@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Button } from './components/ui.jsx';
-import { clearStoredSession, getStoredSession, loadInventoryData, signInWithPassword, signOut, storeSession, supabaseRequest } from './lib/supabase.js';
+import { clearStoredSession, fetchMovementsForFiscalYear, getStoredSession, loadInventoryData, signInWithPassword, signOut, storeSession, supabaseRequest } from './lib/supabase.js';
 import { fiscalStartYearOf, isMovementAfterClose, normalizeAsset, normalizeMovement, toNumber } from './utils/inventory.js';
 import AssetMasterScreen from './screens/AssetMasterScreen.jsx';
 import BackupScreen from './screens/BackupScreen.jsx';
@@ -25,6 +25,9 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(() => Boolean(getStoredSession()));
   const [error, setError] = useState('');
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(false); // 棚卸し/年度更新/バックアップの共通解放フラグ
+  // 追加読み込み済みの過去年度（フルリロード時にリセットして再取得させる）
+  const [loadedPastYears, setLoadedPastYears] = useState(() => new Set());
+  const [isLoadingPastYear, setIsLoadingPastYear] = useState(false);
 
   // 認証切れ（リフレッシュトークン失効）はエラー表示ではなくログイン画面に戻す
   const handleAuthExpired = () => {
@@ -45,6 +48,7 @@ export default function App() {
       setSuppliers(data.suppliers);
       setCategories(data.categories || []);
       setFiscalSnapshots(data.fiscalSnapshots || []);
+      setLoadedPastYears(new Set()); // フルリロードで過去年度分は消えるため再取得させる
     } catch (err) {
       if (err?.code === 'AUTH_EXPIRED') {
         handleAuthExpired();
@@ -84,6 +88,7 @@ export default function App() {
         setSuppliers(data.suppliers);
         setCategories(data.categories || []);
         setFiscalSnapshots(data.fiscalSnapshots || []);
+        setLoadedPastYears(new Set());
       })
       .catch((err) => {
         if (!isMounted) return;
@@ -733,7 +738,9 @@ export default function App() {
       .sort((a, b) => a.currentStock - b.currentStock); // マイナスが大きい順
   }, [assets, movements]);
 
-  // 入出庫データに存在する会計年度（+現在年度）を昇順で。タブ生成に使用。
+  // 会計年度タブ。過去年度の入出庫は遅延読み込みのため、読み込み済みとは限らない。
+  // 年度の存在はスナップショット（年度更新時に必ず作られる）から判定し、
+  // 読み込み済み入出庫の年度と現在年度も合わせる。
   const availableFiscalYears = useMemo(() => {
     const set = new Set();
     movements.forEach((m) => {
@@ -741,9 +748,12 @@ export default function App() {
       if (!y || !mo) return;
       set.add(mo >= 7 ? y : y - 1);
     });
+    (fiscalSnapshots || []).forEach((s) => {
+      if (Number.isFinite(s.fiscalYear)) set.add(s.fiscalYear);
+    });
     set.add(currentFiscalStartYear);
     return Array.from(set).sort((a, b) => a - b);
-  }, [movements, currentFiscalStartYear]);
+  }, [movements, fiscalSnapshots, currentFiscalStartYear]);
 
   // 既定は現在年度。ユーザーが過去年度を選んだら維持。
   useEffect(() => {
@@ -751,6 +761,42 @@ export default function App() {
       setSelectedFiscalYear(currentFiscalStartYear);
     }
   }, [currentFiscalStartYear, selectedFiscalYear]);
+
+  // 過去年度を選択したら、その年度の入出庫を追加読み込み（年度ごとに1回だけ）。
+  // 取得分は movements に合流させる。現在年度の計算はすべて
+  // 「クローズ日より後」フィルタ済みのため、過去分が混ざっても影響しない。
+  useEffect(() => {
+    if (!authSession || selectedFiscalYear == null) return;
+    if (selectedFiscalYear === currentFiscalStartYear) return;
+    if (loadedPastYears.has(selectedFiscalYear)) return;
+    let cancelled = false;
+    setIsLoadingPastYear(true);
+    (async () => {
+      try {
+        const rows = await fetchMovementsForFiscalYear(selectedFiscalYear, authSession);
+        if (cancelled) return;
+        const staffMap = new Map(staff.map((member) => [Number(member.id), member]));
+        const normalized = rows.map((row) => normalizeMovement(row, staffMap));
+        setMovements((prev) => {
+          const known = new Set(prev.map((m) => String(m.id)));
+          const added = normalized.filter((m) => !known.has(String(m.id)));
+          return added.length > 0 ? [...prev, ...added] : prev;
+        });
+        setLoadedPastYears((prev) => new Set(prev).add(selectedFiscalYear));
+      } catch (err) {
+        if (err?.code === 'AUTH_EXPIRED') {
+          handleAuthExpired();
+          return;
+        }
+        console.warn('[past-year] 過去年度の入出庫読み込みに失敗:', err?.message);
+      } finally {
+        if (!cancelled) setIsLoadingPastYear(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [authSession, selectedFiscalYear, currentFiscalStartYear, loadedPastYears, staff]);
 
   // 選択中年度の日付レンジ（入出庫データ・在庫表の絞り込み用）
   const historyFiscalRange = useMemo(() => (
@@ -783,11 +829,13 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
-        {isLoading && (
+        {(isLoading || isLoadingPastYear) && (
           <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-50">
             <div className="flex flex-col items-center gap-4">
               <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin" />
-              <p className="text-lg font-bold text-blue-700">データベース読み込み中...</p>
+              <p className="text-lg font-bold text-blue-700">
+                {isLoading ? 'データベース読み込み中...' : `${selectedFiscalYear}年度のデータ読み込み中...`}
+              </p>
             </div>
           </div>
         )}
