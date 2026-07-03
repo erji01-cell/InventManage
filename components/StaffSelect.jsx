@@ -33,6 +33,13 @@ const StaffSelect = forwardRef(function StaffSelect(
 
   const selected = staff.find((s) => String(s.id) === String(value)) || null;
 
+  // 退職者（isActive === false）は選択肢から隠す。ただし、既に選択されている
+  // 担当者が退職済みの場合は、過去データの名前が消えないよう末尾に残して表示する。
+  const activeStaff = staff.filter((s) => s.isActive !== false);
+  const visibleStaff = selected && selected.isActive === false
+    ? [...activeStaff, selected]
+    : activeStaff;
+
   // 外側クリックで閉じる
   useEffect(() => {
     if (!open) return;
@@ -48,7 +55,7 @@ const StaffSelect = forwardRef(function StaffSelect(
   // 開いたら現在値の位置をハイライト
   useEffect(() => {
     if (!open) return;
-    setHighlight(staff.findIndex((s) => String(s.id) === String(value)));
+    setHighlight(visibleStaff.findIndex((s) => String(s.id) === String(value)));
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ハイライト行を可視領域へスクロール
@@ -67,9 +74,9 @@ const StaffSelect = forwardRef(function StaffSelect(
 
   const handleNumber = (key) => {
     bufferRef.current += key;
-    const idx = staff.findIndex((s) => String(s.id) === bufferRef.current);
+    const idx = visibleStaff.findIndex((s) => String(s.id) === bufferRef.current);
     if (idx >= 0) {
-      onChange(String(staff[idx].id)); // id 完全一致のみ選択（巡回しない）
+      onChange(String(visibleStaff[idx].id)); // id 完全一致のみ選択（巡回しない）
       setHighlight(idx);
     }
     clearTimeout(timerRef.current);
@@ -89,7 +96,7 @@ const StaffSelect = forwardRef(function StaffSelect(
     if (key === 'ArrowDown') {
       event.preventDefault();
       if (!open) { setOpen(true); return; }
-      setHighlight((h) => Math.min(staff.length - 1, h + 1));
+      setHighlight((h) => Math.min(visibleStaff.length - 1, h + 1));
       return;
     }
     if (key === 'ArrowUp') {
@@ -101,7 +108,7 @@ const StaffSelect = forwardRef(function StaffSelect(
     if (key === 'Enter') {
       if (open) {
         event.preventDefault();
-        if (highlight >= 0 && staff[highlight]) commit(String(staff[highlight].id));
+        if (highlight >= 0 && visibleStaff[highlight]) commit(String(visibleStaff[highlight].id));
         else setOpen(false);
         return;
       }
@@ -146,9 +153,10 @@ const StaffSelect = forwardRef(function StaffSelect(
               {emptyLabel}
             </li>
           )}
-          {staff.map((s, idx) => {
+          {visibleStaff.map((s, idx) => {
             const isSelected = String(s.id) === String(value);
             const isHighlighted = idx === highlight;
+            const isRetired = s.isActive === false;
             return (
               <li
                 key={s.id}
@@ -157,7 +165,7 @@ const StaffSelect = forwardRef(function StaffSelect(
                 onMouseEnter={() => setHighlight(idx)}
                 className={`cursor-pointer px-3 py-2 ${isHighlighted ? 'bg-purple-100' : ''} ${isSelected ? 'font-bold text-purple-700' : 'text-slate-700'}`}
               >
-                {s.id} {s.name}
+                {s.id} {s.name}{isRetired && <span className="ml-1 text-xs text-slate-400">（退職）</span>}
               </li>
             );
           })}
