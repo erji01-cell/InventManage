@@ -11,7 +11,7 @@ import MenuScreen from './screens/MenuScreen.jsx';
 import MovementHistoryScreen from './screens/MovementHistoryScreen.jsx';
 import StockStatusScreen from './screens/StockStatusScreen.jsx';
 import StocktakingScreen from './screens/StocktakingScreen.jsx';
-import { performBackup, shouldRunAutoBackup } from './lib/backup.js';
+import { performBackup, isAutoBackupEnabled } from './lib/backup.js';
 
 export default function App() {
   const [view, setView] = useState('menu');
@@ -135,24 +135,48 @@ export default function App() {
     };
   }, [authSession]);
 
-  // Auto-backup on startup: only if >=24h since last backup.
+  // 起動時の自動バックアップ：毎回チェックし、前回バックアップと差分があれば保存
+  // （同一内容ならスキップ。同じ日の分は上書きされ1日1ファイルに保たれる）
   useEffect(() => {
     if (!authSession) return;
-    let cancelled = false;
     (async () => {
       try {
-        const shouldRun = await shouldRunAutoBackup(authSession);
-        if (!cancelled && shouldRun) {
-          await performBackup(authSession, { downloadLocal: false });
+        if (isAutoBackupEnabled()) {
+          await performBackup(authSession, { downloadLocal: false, skipIfUnchanged: true });
         }
       } catch (err) {
         console.warn('[auto-backup] failed:', err.message);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
   }, [authSession]);
+
+  // --- 変更後の自動バックアップ（最後の変更から3分後に実行） ---
+  // タイマー内から常に最新のセッションを参照できるようにする
+  const authSessionRef = useRef(authSession);
+  const changeBackupTimer = useRef(null);
+  useEffect(() => {
+    authSessionRef.current = authSession;
+    // ログアウト時は保留中の変更後バックアップを取り消す
+    if (!authSession && changeBackupTimer.current) {
+      clearTimeout(changeBackupTimer.current);
+      changeBackupTimer.current = null;
+    }
+  }, [authSession]);
+
+  const scheduleChangeBackup = () => {
+    if (changeBackupTimer.current) clearTimeout(changeBackupTimer.current);
+    changeBackupTimer.current = setTimeout(async () => {
+      if (!isAutoBackupEnabled()) return;
+      const s = authSessionRef.current;
+      if (!s) return;
+      try {
+        // 変更がなければスキップ／同じ日の分は上書き（backup.js側で処理）
+        await performBackup(s, { downloadLocal: false, skipIfUnchanged: true });
+      } catch {
+        /* 失敗しても次回起動時の自動バックアップで保存される */
+      }
+    }, 3 * 60 * 1000);
+  };
 
   const handleLogin = async (email, password) => {
     const session = await signInWithPassword(email, password);
@@ -212,6 +236,7 @@ export default function App() {
     if (data.updateMasterDeliveryPrice && asset && actualDeliveryPrice !== asset.deliveryPrice) {
       await updateAsset(asset.id, { delivery_price: actualDeliveryPrice });
     }
+    scheduleChangeBackup();
     // 登録後は画面遷移せず、その場に留まる（フォームのリセットはEntryScreen側で実施）
   };
 
@@ -343,6 +368,7 @@ export default function App() {
         /* 取得失敗時は次回ロードで反映 */
       }
     }
+    scheduleChangeBackup();
   };
 
   const deleteMovement = async (id) => {
@@ -357,6 +383,7 @@ export default function App() {
       authSession
     );
     setMovements(prev => prev.filter(m => m.id !== id));
+    scheduleChangeBackup();
   };
 
   const updateMovement = async (id, data) => {
@@ -381,6 +408,7 @@ export default function App() {
     setMovements(prev => prev.map(m => (
       String(m.id) === String(normalized.id) ? normalized : m
     )));
+    scheduleChangeBackup();
     return normalized;
   };
 
@@ -407,6 +435,7 @@ export default function App() {
 
     const normalized = { id: created.id, name: created.name, displayOrder: created.display_order };
     setCategories(prev => [...prev, normalized].sort((a, b) => a.displayOrder - b.displayOrder));
+    scheduleChangeBackup();
     return normalized;
   };
 
@@ -491,6 +520,7 @@ export default function App() {
     const categoryMap = new Map(categories.map((cat) => [cat.id, { id: cat.id, name: cat.name, display_order: cat.displayOrder }]));
     const normalized = normalizeAsset(createdAsset, parentMap, supplierMap, categoryMap);
     setAssets(prev => [...prev, normalized].sort((a, b) => Number(a.id) - Number(b.id)));
+    scheduleChangeBackup();
     return normalized;
   };
 
@@ -507,6 +537,7 @@ export default function App() {
       authSession
     );
     setAssets(prev => prev.filter(asset => asset.id !== String(assetId)));
+    scheduleChangeBackup();
   };
 
   const updateAsset = async (assetId, data) => {
@@ -548,6 +579,7 @@ export default function App() {
         memo: updated.child_memo || '',
       };
     }));
+    scheduleChangeBackup();
   };
 
   const updateParentAsset = async (parentId, data) => {
@@ -582,6 +614,7 @@ export default function App() {
           }
         : asset
     )));
+    scheduleChangeBackup();
   };
 
   const [entryAssetId, setEntryAssetId] = useState(null);
@@ -817,7 +850,7 @@ export default function App() {
       case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} onRequestAssetPick={navigateToAssetPickerFromEntry} />;
       case 'stock': return <StockStatusScreen assets={assets} movements={movements} setView={setView} pinnedAssetId={filterAssetId} onNavigateHistory={navigateToHistory} onNavigateAssets={navigateToAssets} fiscalRange={historyFiscalRange} fiscalSnapshots={fiscalSnapshots} />;
       case 'backup': return <BackupScreen session={authSession} setView={setView} onRestored={refreshData} />;
-      case 'stocktaking': return <StocktakingScreen session={authSession} setView={setView} assets={assets} movements={movements} staff={staff} onCompleted={refreshData} />;
+      case 'stocktaking': return <StocktakingScreen session={authSession} setView={setView} assets={assets} movements={movements} staff={staff} onCompleted={async () => { await refreshData(); scheduleChangeBackup(); }} />;
       default: return <MenuScreen setView={navigateFromMenu} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={availableFiscalYears} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={selectedFiscalYear} setSelectedFiscalYear={setSelectedFiscalYear} negativeStockAssets={negativeStockAssets} />;
     }
   };
