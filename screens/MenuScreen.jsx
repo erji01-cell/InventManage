@@ -29,6 +29,13 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
   const [quickBackupBusy, setQuickBackupBusy] = useState(false);
   const [quickBackupMessage, setQuickBackupMessage] = useState('');
   const [quickBackupError, setQuickBackupError] = useState('');
+  const [showQuickBackupConfirm, setShowQuickBackupConfirm] = useState(false);
+
+  const closeQuickBackupConfirm = () => {
+    setShowQuickBackupConfirm(false);
+    setQuickBackupMessage('');
+    setQuickBackupError('');
+  };
 
   const handleQuickBackup = async () => {
     if (quickBackupBusy) return;
@@ -204,24 +211,17 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
                 </>
               )}
               <button
-                onClick={handleQuickBackup}
-                disabled={quickBackupBusy}
-                className="ml-auto flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm font-bold text-slate-600 transition-all hover:border-blue-300 hover:bg-blue-50 disabled:opacity-50"
+                onClick={() => setShowQuickBackupConfirm(true)}
+                className="ml-auto flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm font-bold text-slate-600 transition-all hover:border-blue-300 hover:bg-blue-50"
               >
                 <Database size={16} />
-                {quickBackupBusy ? 'バックアップ中...' : 'バックアップ'}
+                バックアップ
               </button>
             </div>
             {selectedFiscalYear != null && selectedFiscalYear !== currentFiscalStartYear && (
               <p className="mt-2 text-xs font-bold text-amber-600">
                 過去年度を選択中：入出庫データは {selectedFiscalYear}年7月〜{selectedFiscalYear + 1}年6月 の期間で表示されます。
               </p>
-            )}
-            {quickBackupMessage && (
-              <p className="mt-2 text-xs font-bold text-emerald-600">{quickBackupMessage}</p>
-            )}
-            {quickBackupError && (
-              <p className="mt-2 text-xs font-bold text-red-600">{quickBackupError}</p>
             )}
           </div>
 
@@ -287,6 +287,43 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
           </Button>
         </div>
       </Card>
+
+      {showQuickBackupConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-[26rem] flex flex-col items-center gap-5">
+            <div className="flex flex-col items-center gap-2">
+              <div className="p-3 bg-slate-100 rounded-full">
+                <Database size={28} className="text-slate-700" />
+              </div>
+              <h2 className="text-lg font-black text-slate-800">バックアップ</h2>
+            </div>
+            {quickBackupMessage ? (
+              <>
+                <p className="text-sm text-emerald-700 font-bold text-center">{quickBackupMessage}</p>
+                <Button variant="primary" className="w-full" onClick={closeQuickBackupConfirm}>閉じる</Button>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-slate-700 text-center leading-relaxed">
+                  現在のデータをバックアップします<br />
+                  （Supabase Storage と ローカルDL）。<br />
+                  同じ日の既存バックアップは上書きされます。<br /><br />
+                  <span className="font-black text-slate-900">バックアップしてよろしいですか？</span>
+                </p>
+                {quickBackupError && (
+                  <p className="text-sm text-red-600 font-bold text-center">{quickBackupError}</p>
+                )}
+                <div className="flex gap-2 w-full">
+                  <Button variant="secondary" className="flex-1" onClick={closeQuickBackupConfirm} disabled={quickBackupBusy}>キャンセル</Button>
+                  <Button variant="primary" className="flex-1" onClick={handleQuickBackup} disabled={quickBackupBusy}>
+                    {quickBackupBusy ? 'バックアップ中...' : '実行する'}
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {showStocktakingWarning && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
