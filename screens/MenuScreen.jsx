@@ -288,6 +288,15 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
         </div>
       </Card>
 
+      {quickBackupBusy && (
+        <div className="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-slate-50">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin" />
+            <p className="text-lg font-bold text-blue-700">バックアップ中...</p>
+          </div>
+        </div>
+      )}
+
       {showQuickBackupConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
           <div className="bg-white rounded-2xl shadow-2xl p-8 w-[26rem] flex flex-col items-center gap-5">
