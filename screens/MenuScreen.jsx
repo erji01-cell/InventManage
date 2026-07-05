@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import { AlertTriangle, ClipboardCheck, ClipboardList, Database, LogOut, MinusCircle, Package, PlusCircle, RefreshCcw, Table } from 'lucide-react';
 
 import { Button, Card } from '../components/ui.jsx';
+import { performBackup } from '../lib/backup.js';
 
 const ADMIN_PASSWORD = '0125';
 
@@ -23,8 +24,27 @@ function getFiscalDisplay(latestFiscalYearClosedAt) {
   };
 }
 
-export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpdate, onFetchLastStocktaking, isAdminUnlocked, setIsAdminUnlocked, onNavigateHistory, onNavigateStock, latestFiscalYearClosedAt, availableFiscalYears = [], currentFiscalStartYear, selectedFiscalYear, setSelectedFiscalYear, negativeStockAssets = [] }) {
+export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpdate, onFetchLastStocktaking, isAdminUnlocked, setIsAdminUnlocked, onNavigateHistory, onNavigateStock, latestFiscalYearClosedAt, availableFiscalYears = [], currentFiscalStartYear, selectedFiscalYear, setSelectedFiscalYear, negativeStockAssets = [], session }) {
   const [showNegativeList, setShowNegativeList] = useState(false);
+  const [quickBackupBusy, setQuickBackupBusy] = useState(false);
+  const [quickBackupMessage, setQuickBackupMessage] = useState('');
+  const [quickBackupError, setQuickBackupError] = useState('');
+
+  const handleQuickBackup = async () => {
+    if (quickBackupBusy) return;
+    setQuickBackupBusy(true);
+    setQuickBackupMessage('');
+    setQuickBackupError('');
+    try {
+      const result = await performBackup(session);
+      setQuickBackupMessage(`バックアップ完了: ${result.fileName}`);
+    } catch (err) {
+      setQuickBackupError(err?.message || 'バックアップに失敗しました。');
+    } finally {
+      setQuickBackupBusy(false);
+    }
+  };
+
   const [passwordTarget, setPasswordTarget] = useState(null); // 'backup' | 'yearEnd' | 'stocktaking' | null
   const [passwordInput, setPasswordInput] = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -159,35 +179,51 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
           </div>
         </div>
 
-        {availableFiscalYears.length > 1 && (
-          <div className="mx-auto mb-6 w-full max-w-4xl rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+        <div className="mx-auto mb-6 w-full max-w-4xl rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="mr-1 text-[10px] font-black tracking-[0.18em] text-slate-400">閲覧年度</span>
-              {availableFiscalYears.map((y) => {
-                const isSel = y === selectedFiscalYear;
-                const isCur = y === currentFiscalStartYear;
-                return (
-                  <button
-                    key={y}
-                    onClick={() => setSelectedFiscalYear?.(y)}
-                    className={`rounded-full border px-4 py-1.5 text-sm font-bold transition-all ${
-                      isSel
-                        ? 'border-blue-500 bg-blue-500 text-white shadow-sm'
-                        : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50'
-                    }`}
-                  >
-                    {y}年度{isCur ? '（現在）' : ''}
-                  </button>
-                );
-              })}
+              {availableFiscalYears.length > 1 && (
+                <>
+                  <span className="mr-1 text-[10px] font-black tracking-[0.18em] text-slate-400">閲覧年度</span>
+                  {availableFiscalYears.map((y) => {
+                    const isSel = y === selectedFiscalYear;
+                    const isCur = y === currentFiscalStartYear;
+                    return (
+                      <button
+                        key={y}
+                        onClick={() => setSelectedFiscalYear?.(y)}
+                        className={`rounded-full border px-4 py-1.5 text-sm font-bold transition-all ${
+                          isSel
+                            ? 'border-blue-500 bg-blue-500 text-white shadow-sm'
+                            : 'border-slate-200 bg-white text-slate-600 hover:border-blue-300 hover:bg-blue-50'
+                        }`}
+                      >
+                        {y}年度{isCur ? '（現在）' : ''}
+                      </button>
+                    );
+                  })}
+                </>
+              )}
+              <button
+                onClick={handleQuickBackup}
+                disabled={quickBackupBusy}
+                className="ml-auto flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm font-bold text-slate-600 transition-all hover:border-blue-300 hover:bg-blue-50 disabled:opacity-50"
+              >
+                <Database size={16} />
+                {quickBackupBusy ? 'バックアップ中...' : 'バックアップ'}
+              </button>
             </div>
             {selectedFiscalYear != null && selectedFiscalYear !== currentFiscalStartYear && (
               <p className="mt-2 text-xs font-bold text-amber-600">
                 過去年度を選択中：入出庫データは {selectedFiscalYear}年7月〜{selectedFiscalYear + 1}年6月 の期間で表示されます。
               </p>
             )}
+            {quickBackupMessage && (
+              <p className="mt-2 text-xs font-bold text-emerald-600">{quickBackupMessage}</p>
+            )}
+            {quickBackupError && (
+              <p className="mt-2 text-xs font-bold text-red-600">{quickBackupError}</p>
+            )}
           </div>
-        )}
 
         {negativeStockAssets.length > 0 && (
           <div className="mx-auto mb-6 w-full max-w-4xl rounded-xl border-2 border-red-300 bg-red-50 p-4 shadow-sm">
@@ -240,7 +276,7 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
           <div className="flex flex-col gap-1.5">
             <SmallMenuButton icon={<ClipboardCheck size={18} />} title="棚卸し" tone="teal" onClick={() => openPasswordModal('stocktaking')} />
             <SmallMenuButton icon={<RefreshCcw size={18} />} title="年度更新" tone="slate" onClick={() => openPasswordModal('yearEnd')} />
-            <SmallMenuButton icon={<Database size={18} />} title="バックアップ" tone="backup" onClick={() => openPasswordModal('backup')} />
+            <SmallMenuButton icon={<Database size={18} />} title="データ管理" tone="backup" onClick={() => openPasswordModal('backup')} />
           </div>
         </div>
 
