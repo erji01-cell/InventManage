@@ -201,7 +201,7 @@ export default function BackupScreen({ session, setView, onRestored }) {
       <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 flex items-center gap-6 flex-wrap">
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={autoEnabled} onChange={toggleAuto} className="w-4 h-4" />
-          <span className="text-sm font-medium">自動バックアップ（起動時＋変更の3分後）</span>
+          <span className="text-sm font-medium">自動バックアップ（起動時＋変更を3分ごとに確認して保存）</span>
         </label>
         <span className="text-sm text-slate-500">
           前回: <span className="font-bold text-slate-700">{formatDateTime(lastBackup)}</span>

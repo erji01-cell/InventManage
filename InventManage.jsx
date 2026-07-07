@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { AlertTriangle, X } from 'lucide-react';
 
 import { Button } from './components/ui.jsx';
 import { clearStoredSession, fetchMovementsForFiscalYear, getStoredSession, loadInventoryData, signInWithPassword, signOut, storeSession, supabaseRequest } from './lib/supabase.js';
@@ -28,6 +29,7 @@ export default function App() {
   // 追加読み込み済みの過去年度（フルリロード時にリセットして再取得させる）
   const [loadedPastYears, setLoadedPastYears] = useState(() => new Set());
   const [isLoadingPastYear, setIsLoadingPastYear] = useState(false);
+  const [backupWarning, setBackupWarning] = useState(''); // バックアップ失敗時の警告バナー
 
   // 認証切れ（リフレッシュトークン失効）はエラー表示ではなくログイン画面に戻す
   const handleAuthExpired = () => {
@@ -146,37 +148,40 @@ export default function App() {
         }
       } catch (err) {
         console.warn('[auto-backup] failed:', err.message);
+        setBackupWarning(`起動時の自動バックアップに失敗しました（${err?.message || '不明なエラー'}）。データ管理画面から手動バックアップを実行してください。`);
       }
     })();
   }, [authSession]);
 
-  // --- 変更後の自動バックアップ（最後の変更から3分後に実行） ---
-  // タイマー内から常に最新のセッションを参照できるようにする
+  // --- 変更後の自動バックアップ（変更フラグ＋3分ごとの定期チェック方式） ---
+  // タイマーが再生成されてもフラグはrefに残るため、次の周期で必ず拾われる
   const authSessionRef = useRef(authSession);
-  const changeBackupTimer = useRef(null);
+  const backupDirty = useRef(false);
+  const scheduleChangeBackup = () => { backupDirty.current = true; };
   useEffect(() => {
     authSessionRef.current = authSession;
-    // ログアウト時は保留中の変更後バックアップを取り消す
-    if (!authSession && changeBackupTimer.current) {
-      clearTimeout(changeBackupTimer.current);
-      changeBackupTimer.current = null;
-    }
   }, [authSession]);
 
-  const scheduleChangeBackup = () => {
-    if (changeBackupTimer.current) clearTimeout(changeBackupTimer.current);
-    changeBackupTimer.current = setTimeout(async () => {
-      if (!isAutoBackupEnabled()) return;
+  useEffect(() => {
+    if (!authSession) return;
+    // 3分ごとに変更フラグを確認して実行
+    const changeBackupTimer = setInterval(async () => {
+      if (!backupDirty.current || !isAutoBackupEnabled()) return;
       const s = authSessionRef.current;
       if (!s) return;
+      // 実行前にフラグを下ろす（実行中に入った新しい変更は次の周期で拾う）
+      backupDirty.current = false;
       try {
         // 変更がなければスキップ／同じ日の分は上書き（backup.js側で処理）
         await performBackup(s, { downloadLocal: false, skipIfUnchanged: true });
-      } catch {
-        /* 失敗しても次回起動時の自動バックアップで保存される */
+      } catch (err) {
+        backupDirty.current = true; // 失敗した分は次の周期で再試行する
+        console.error('変更後の自動バックアップに失敗:', err);
+        setBackupWarning(`自動バックアップに失敗しました（${err?.message || '不明なエラー'}）。データ管理画面から手動バックアップを実行してください。`);
       }
     }, 3 * 60 * 1000);
-  };
+    return () => clearInterval(changeBackupTimer);
+  }, [authSession]);
 
   const handleLogin = async (email, password) => {
     const session = await signInWithPassword(email, password);
@@ -877,6 +882,15 @@ export default function App() {
             <div className="font-bold">データ接続エラー</div>
             <div className="text-sm">{error}</div>
             <Button variant="secondary" className="mt-3" onClick={refreshData}>再読み込み</Button>
+          </div>
+        )}
+        {backupWarning && (
+          <div className="mb-4 flex items-center gap-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
+            <AlertTriangle size={20} className="shrink-0 text-amber-500" />
+            <span className="flex-grow text-sm font-bold text-amber-800">{backupWarning}</span>
+            <button onClick={() => setBackupWarning('')} className="shrink-0 p-1 text-amber-400 hover:text-amber-700">
+              <X size={18} />
+            </button>
           </div>
         )}
         {renderView()}
