@@ -25,6 +25,8 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
   const [pinnedId, setPinnedId] = useState(pinnedAssetId);
   const [assetResetSignal, setAssetResetSignal] = useState(0);
   const [showMinusOnly, setShowMinusOnly] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState(''); // '' = 全分類
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [showPrintMenu, setShowPrintMenu] = useState(false);
   const [categoryPickTarget, setCategoryPickTarget] = useState(null); // 'detail' | 'summary'
   const [checkedCategories, setCheckedCategories] = useState(() => new Set());
@@ -148,7 +150,24 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
     ].some(value => String(value || '').toLowerCase().includes(normalizedStockSearch)));
   }, [stockData, normalizedStockSearch, pinnedId]);
 
-  const displayData = showMinusOnly ? filteredStockData.filter(row => row.currentStock < 0) : filteredStockData;
+  // 分類フィルタのドロップダウン用: 全データに含まれる分類の一覧（マスタ表示順）
+  const allCategories = useMemo(() => {
+    const m = new Map();
+    stockData.forEach(r => {
+      const key = r.category || '未分類';
+      const g = m.get(key);
+      if (g) g.count += 1;
+      else m.set(key, { count: 1, order: r.categoryOrder ?? 9999 });
+    });
+    return [...m.entries()]
+      .map(([name, v]) => ({ name, ...v }))
+      .sort((a, b) => (a.order - b.order) || a.name.localeCompare(b.name, 'ja'));
+  }, [stockData]);
+
+  const minusFilteredData = showMinusOnly ? filteredStockData.filter(row => row.currentStock < 0) : filteredStockData;
+  const displayData = categoryFilter
+    ? minusFilteredData.filter(row => (row.category || '未分類') === categoryFilter)
+    : minusFilteredData;
   const totalStockValue = displayData.reduce((sum, row) => sum + row.stockValue, 0);
 
   // 表示中データに含まれる分類の一覧（マスタ表示順）。分類選択チェックボックスに使用
@@ -488,6 +507,37 @@ ${summaryHTML}
               >
                 在庫マイナス抽出
               </button>
+              <div className="relative">
+                <button
+                  onClick={() => setShowCategoryDropdown(v => !v)}
+                  className={`text-xs font-bold px-2 py-0.5 rounded-full border transition-colors ${categoryFilter ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-blue-600 border-blue-300 hover:bg-blue-50'}`}
+                >
+                  {categoryFilter ? `分類: ${categoryFilter}` : '分類で絞り込み'} ▾
+                </button>
+                {showCategoryDropdown && (
+                  <>
+                    <div className="fixed inset-0 z-20" onClick={() => setShowCategoryDropdown(false)} />
+                    <div className="absolute left-0 top-full z-30 mt-1 w-60 max-h-72 overflow-auto rounded-lg border border-slate-200 bg-white shadow-xl">
+                      <button
+                        onClick={() => { setCategoryFilter(''); setShowCategoryDropdown(false); }}
+                        className={`w-full text-left px-4 py-2 text-sm font-bold transition-colors hover:bg-blue-50 ${!categoryFilter ? 'text-blue-600 bg-blue-50/60' : 'text-slate-700'}`}
+                      >
+                        すべての分類
+                      </button>
+                      {allCategories.map(cat => (
+                        <button
+                          key={cat.name}
+                          onClick={() => { setCategoryFilter(cat.name); setShowCategoryDropdown(false); }}
+                          className={`w-full flex items-center text-left px-4 py-2 text-sm font-bold border-t border-slate-100 transition-colors hover:bg-blue-50 ${categoryFilter === cat.name ? 'text-blue-600 bg-blue-50/60' : 'text-slate-700'}`}
+                        >
+                          <span>{cat.name}</span>
+                          <span className="ml-auto text-xs font-normal text-slate-400">{cat.count.toLocaleString()}件</span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
             <AssetSearchInput
               assets={assets}
@@ -506,6 +556,8 @@ ${summaryHTML}
             setPinnedId('');
             setStockSearchTerm('');
             setShowMinusOnly(false);
+            setCategoryFilter('');
+            setShowCategoryDropdown(false);
             setAssetResetSignal(s => s + 1);
           }}>
             <RefreshCcw size={16} /> リセット
