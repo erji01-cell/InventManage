@@ -168,7 +168,12 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
     .summary { margin-top: 5mm; border: 0.4mm solid #fcd34d; border-radius: 2mm; padding: 3mm 5mm; background: #fffbeb; display: flex; justify-content: space-between; align-items: center; }
     .summary-label { font-size: 9pt; color: #92400e; font-weight: bold; }
     .summary-value { font-size: 14pt; font-weight: bold; color: #b45309; }
+    .cat-header td { background: #fde68a !important; font-weight: bold; font-size: 8.5pt; color: #78350f; border: 0.3mm solid #d4a017; }
+    .subtotal td { background: #fef9c3 !important; font-weight: bold; border-top: 0.4mm solid #d4a017; }
+    .subtotal-incl td { background: #fef9c3 !important; font-weight: bold; color: #92400e; }
   `;
+
+  const TAX_RATE = 0.1; // 消費税率10%（税込小計は円未満切り捨て）
 
   const buildPrintDoc = (title, subtitle, tableHTML, summaryHTML = '') => `<!DOCTYPE html>
 <html lang="ja"><head><meta charset="UTF-8"><title>${title}</title>
@@ -181,11 +186,13 @@ ${summaryHTML}
 <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close();}<\/script>
 </body></html>`;
 
-  const buildTableHTML = (rows) => {
+  const tableHeaderHTML = () => {
     const headers = ['ID','メーカー','品名',startLabel,'入庫数','出庫数',endLabel,'単位','受払単価','在庫金額'];
     const widths =  ['7%', '12%', '26%', '7%', '7%', '7%', '7%', '5%', '10%', '12%'];
-    const ths = headers.map((h, i) => `<th style="width:${widths[i]}" class="${i >= 3 ? 'text-right' : ''}">${h}</th>`).join('');
-    const tds = rows.map(row => `<tr>
+    return headers.map((h, i) => `<th style="width:${widths[i]}" class="${i >= 3 ? 'text-right' : ''}">${h}</th>`).join('');
+  };
+
+  const buildRowHTML = (row) => `<tr>
       <td>${row.id}</td>
       <td>${row.maker || '-'}</td>
       <td>${row.name || '-'}</td>
@@ -196,8 +203,36 @@ ${summaryHTML}
       <td class="text-center">${row.usageUnit || '-'}</td>
       <td class="text-right">¥${(row.usageUnitPrice || 0).toLocaleString()}</td>
       <td class="text-right${row.stockValue < 0 ? ' neg' : ' total'}">¥${row.stockValue.toLocaleString()}</td>
-    </tr>`).join('');
-    return `<table><thead><tr>${ths}</tr></thead><tbody>${tds}</tbody></table>`;
+    </tr>`;
+
+  const buildTableHTML = (rows) => {
+    const tds = rows.map(buildRowHTML).join('');
+    return `<table><thead><tr>${tableHeaderHTML()}</tr></thead><tbody>${tds}</tbody></table>`;
+  };
+
+  // 分類ごとにグループ化し、各分類の末尾に税抜・税込の小計行を挿入したテーブルを生成
+  const buildCategoryTableHTML = (rows) => {
+    const groups = new Map();
+    rows.forEach(row => {
+      const key = row.category || '未分類';
+      const list = groups.get(key);
+      if (list) list.push(row);
+      else groups.set(key, [row]);
+    });
+    const sortedKeys = [...groups.keys()].sort((a, b) => a.localeCompare(b, 'ja'));
+
+    const bodyHTML = sortedKeys.map(key => {
+      const groupRows = groups.get(key);
+      const subtotalEx = groupRows.reduce((s, r) => s + r.stockValue, 0);
+      const subtotalIn = Math.floor(subtotalEx * (1 + TAX_RATE));
+      const negCls = (v) => v < 0 ? ' neg' : '';
+      return `<tr class="cat-header"><td colspan="10">■ ${key}（${groupRows.length}件）</td></tr>`
+        + groupRows.map(buildRowHTML).join('')
+        + `<tr class="subtotal"><td colspan="9" class="text-right">${key} 小計（税抜）</td><td class="text-right${negCls(subtotalEx)}">¥${subtotalEx.toLocaleString()}</td></tr>`
+        + `<tr class="subtotal subtotal-incl"><td colspan="9" class="text-right">${key} 小計（税込）</td><td class="text-right${negCls(subtotalIn)}">¥${subtotalIn.toLocaleString()}</td></tr>`;
+    }).join('');
+
+    return `<table><thead><tr>${tableHeaderHTML()}</tr></thead><tbody>${bodyHTML}</tbody></table>`;
   };
 
   const openPrintWindow = (html) => {
@@ -217,6 +252,31 @@ ${summaryHTML}
       <div><span class="summary-label">在庫金額合計: </span><span class="summary-value">¥${total.toLocaleString()}</span></div>
     </div>`;
     const html = buildPrintDoc('在庫表', subtitle, buildTableHTML(displayData), summaryHTML);
+    openPrintWindow(html);
+  };
+
+  const handlePrintByCategory = () => {
+    setShowPrintMenu(false);
+    const today = new Date().toLocaleDateString('ja-JP');
+    const periodLabel = rangeFrom === rangeTo ? `${fromMonth}月度` : `${fromMonth}月〜${toMonth}月`;
+    const categoryCount = new Set(displayData.map(r => r.category || '未分類')).size;
+    const subtitle = `分類別（小計付き）　期間: ${periodLabel}　印刷日: ${today}　件数: ${displayData.length}件（${categoryCount}分類）`;
+    const totalEx = displayData.reduce((s, r) => s + r.stockValue, 0);
+    // 総合計（税込）は分類ごとの税込小計（円未満切り捨て）の合算とし、印字値と一致させる
+    const groups = new Map();
+    displayData.forEach(r => {
+      const key = r.category || '未分類';
+      groups.set(key, (groups.get(key) || 0) + r.stockValue);
+    });
+    const totalIn = [...groups.values()].reduce((s, v) => s + Math.floor(v * (1 + TAX_RATE)), 0);
+    const summaryHTML = `<div class="summary">
+      <div class="summary-label">表示件数: ${displayData.length.toLocaleString()} 件（${categoryCount}分類）</div>
+      <div style="text-align:right;">
+        <div><span class="summary-label">在庫金額合計（税抜）: </span><span class="summary-value">¥${totalEx.toLocaleString()}</span></div>
+        <div><span class="summary-label">在庫金額合計（税込）: </span><span class="summary-value">¥${totalIn.toLocaleString()}</span></div>
+      </div>
+    </div>`;
+    const html = buildPrintDoc('在庫表（分類別）', subtitle, buildCategoryTableHTML(displayData), summaryHTML);
     openPrintWindow(html);
   };
 
@@ -437,6 +497,13 @@ ${summaryHTML}
             >
               <div className="font-bold text-slate-800">📄 一覧印刷</div>
               <div className="text-sm text-slate-500 mt-1">現在の絞り込み結果（{displayData.length}件）を印刷</div>
+            </button>
+            <button
+              onClick={handlePrintByCategory}
+              className="w-full text-left rounded-xl border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-200 p-4 transition-colors"
+            >
+              <div className="font-bold text-slate-800">📊 分類別印刷（小計付き）</div>
+              <div className="text-sm text-slate-500 mt-1">分類ごとにまとめ、税抜・税込の小計を表示して印刷</div>
             </button>
             <button
               onClick={handlePrintMinus}
