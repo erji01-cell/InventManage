@@ -26,6 +26,8 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
   const [assetResetSignal, setAssetResetSignal] = useState(0);
   const [showMinusOnly, setShowMinusOnly] = useState(false);
   const [showPrintMenu, setShowPrintMenu] = useState(false);
+  const [categoryPickTarget, setCategoryPickTarget] = useState(null); // 'detail' | 'summary'
+  const [checkedCategories, setCheckedCategories] = useState(() => new Set());
 
   // テキスト変更時: 選択を解除してテキスト検索モードへ
   const handleSearchTermChange = (term) => {
@@ -148,6 +150,20 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
 
   const displayData = showMinusOnly ? filteredStockData.filter(row => row.currentStock < 0) : filteredStockData;
   const totalStockValue = displayData.reduce((sum, row) => sum + row.stockValue, 0);
+
+  // 表示中データに含まれる分類の一覧（マスタ表示順）。分類選択チェックボックスに使用
+  const displayCategories = useMemo(() => {
+    const m = new Map();
+    displayData.forEach(r => {
+      const key = r.category || '未分類';
+      const g = m.get(key);
+      if (g) g.count += 1;
+      else m.set(key, { count: 1, order: r.categoryOrder ?? 9999 });
+    });
+    return [...m.entries()]
+      .map(([name, v]) => ({ name, ...v }))
+      .sort((a, b) => (a.order - b.order) || a.name.localeCompare(b.name, 'ja'));
+  }, [displayData]);
 
   const printStyles = `
     @page { size: A4 portrait; margin: 12mm 10mm; }
@@ -302,53 +318,55 @@ ${summaryHTML}
     openPrintWindow(html);
   };
 
-  const handlePrintByCategory = () => {
-    setShowPrintMenu(false);
+  // 分類別印刷の共通処理: rows は印刷対象（分類選択で絞り込み済み）の行
+  const printCategoryRows = (rows, target) => {
     const today = new Date().toLocaleDateString('ja-JP');
     const periodLabel = rangeFrom === rangeTo ? `${fromMonth}月度` : `${fromMonth}月〜${toMonth}月`;
-    const categoryCount = new Set(displayData.map(r => r.category || '未分類')).size;
-    const subtitle = `分類別（小計付き）　期間: ${periodLabel}　印刷日: ${today}　件数: ${displayData.length}件（${categoryCount}分類）`;
-    const totalEx = displayData.reduce((s, r) => s + r.stockValue, 0);
+    const categoryCount = new Set(rows.map(r => r.category || '未分類')).size;
+    const isDetail = target === 'detail';
+    const docTitle = isDetail ? '在庫表（分類別）' : '在庫表（分類別小計一覧）';
+    const docLabel = isDetail ? '分類別（小計付き）' : '分類別小計一覧';
+    const subtitle = `${docLabel}　期間: ${periodLabel}　印刷日: ${today}　対象: ${rows.length}件（${categoryCount}分類）`;
+    const totalEx = rows.reduce((s, r) => s + r.stockValue, 0);
     // 総合計（税込）は分類ごとの税込小計（円未満切り捨て）の合算とし、印字値と一致させる
     const groups = new Map();
-    displayData.forEach(r => {
+    rows.forEach(r => {
       const key = r.category || '未分類';
       groups.set(key, (groups.get(key) || 0) + r.stockValue);
     });
     const totalIn = [...groups.values()].reduce((s, v) => s + Math.floor(v * (1 + TAX_RATE)), 0);
     const summaryHTML = `<div class="summary">
-      <div class="summary-label">表示件数: ${displayData.length.toLocaleString()} 件（${categoryCount}分類）</div>
+      <div class="summary-label">対象: ${rows.length.toLocaleString()} 件（${categoryCount}分類）</div>
       <div style="text-align:right;">
         <div><span class="summary-label">在庫金額合計（税抜）: </span><span class="summary-value">¥${totalEx.toLocaleString()}</span></div>
         <div><span class="summary-label">在庫金額合計（税込）: </span><span class="summary-value">¥${totalIn.toLocaleString()}</span></div>
       </div>
     </div>`;
-    const html = buildPrintDoc('在庫表（分類別）', subtitle, buildCategoryTableHTML(displayData), summaryHTML);
-    openPrintWindow(html);
+    const tableHTML = isDetail ? buildCategoryTableHTML(rows) : buildCategorySummaryTableHTML(rows);
+    openPrintWindow(buildPrintDoc(docTitle, subtitle, tableHTML, summaryHTML));
   };
 
-  const handlePrintCategorySummary = () => {
+  // 分類選択モーダルを開く（全分類チェック済みで開始）
+  const openCategoryPicker = (target) => {
     setShowPrintMenu(false);
-    const today = new Date().toLocaleDateString('ja-JP');
-    const periodLabel = rangeFrom === rangeTo ? `${fromMonth}月度` : `${fromMonth}月〜${toMonth}月`;
-    const categoryCount = new Set(displayData.map(r => r.category || '未分類')).size;
-    const subtitle = `分類別小計一覧　期間: ${periodLabel}　印刷日: ${today}　対象: ${displayData.length}件（${categoryCount}分類）`;
-    const groups = new Map();
-    displayData.forEach(r => {
-      const key = r.category || '未分類';
-      groups.set(key, (groups.get(key) || 0) + r.stockValue);
+    setCheckedCategories(new Set(displayCategories.map(c => c.name)));
+    setCategoryPickTarget(target);
+  };
+
+  const toggleCategory = (name) => {
+    setCheckedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
     });
-    const totalEx = displayData.reduce((s, r) => s + r.stockValue, 0);
-    const totalIn = [...groups.values()].reduce((s, v) => s + Math.floor(v * (1 + TAX_RATE)), 0);
-    const summaryHTML = `<div class="summary">
-      <div class="summary-label">対象: ${displayData.length.toLocaleString()} 件（${categoryCount}分類）</div>
-      <div style="text-align:right;">
-        <div><span class="summary-label">在庫金額合計（税抜）: </span><span class="summary-value">¥${totalEx.toLocaleString()}</span></div>
-        <div><span class="summary-label">在庫金額合計（税込）: </span><span class="summary-value">¥${totalIn.toLocaleString()}</span></div>
-      </div>
-    </div>`;
-    const html = buildPrintDoc('在庫表（分類別小計一覧）', subtitle, buildCategorySummaryTableHTML(displayData), summaryHTML);
-    openPrintWindow(html);
+  };
+
+  const executeCategoryPrint = () => {
+    const rows = displayData.filter(r => checkedCategories.has(r.category || '未分類'));
+    const target = categoryPickTarget;
+    setCategoryPickTarget(null);
+    if (rows.length > 0) printCategoryRows(rows, target);
   };
 
   const handlePrintMinus = () => {
@@ -570,18 +588,18 @@ ${summaryHTML}
               <div className="text-sm text-slate-500 mt-1">現在の絞り込み結果（{displayData.length}件）を印刷</div>
             </button>
             <button
-              onClick={handlePrintByCategory}
+              onClick={() => openCategoryPicker('detail')}
               className="w-full text-left rounded-xl border border-slate-200 bg-slate-50 hover:bg-blue-50 hover:border-blue-200 p-4 transition-colors"
             >
               <div className="font-bold text-slate-800">📊 分類別印刷（小計付き）</div>
-              <div className="text-sm text-slate-500 mt-1">分類ごとにまとめ、税抜・税込の小計を表示して印刷</div>
+              <div className="text-sm text-slate-500 mt-1">分類を選択し、税抜・税込の小計を表示して印刷</div>
             </button>
             <button
-              onClick={handlePrintCategorySummary}
+              onClick={() => openCategoryPicker('summary')}
               className="w-full text-left rounded-xl border border-slate-200 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-200 p-4 transition-colors"
             >
               <div className="font-bold text-slate-800">🧾 分類別小計一覧の印刷</div>
-              <div className="text-sm text-slate-500 mt-1">明細なしで、分類ごとの小計（税抜・税込）だけを一覧で印刷</div>
+              <div className="text-sm text-slate-500 mt-1">明細なしで、選択した分類の小計（税抜・税込）だけを一覧で印刷</div>
             </button>
             <button
               onClick={handlePrintMinus}
@@ -596,6 +614,64 @@ ${summaryHTML}
               </div>
             </button>
             <Button variant="secondary" className="w-full mt-1" onClick={() => setShowPrintMenu(false)}>キャンセル</Button>
+          </div>
+        </div>
+      )}
+
+      {categoryPickTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-[28rem] flex flex-col gap-4">
+            <div className="flex items-center gap-2">
+              <Printer size={22} className="text-slate-600" />
+              <h2 className="text-lg font-black text-slate-800">印刷する分類を選択</h2>
+            </div>
+            <p className="text-sm text-slate-500 -mt-2">
+              {categoryPickTarget === 'detail' ? '分類別印刷（小計付き）' : '分類別小計一覧の印刷'}の対象分類を選んでください。
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCheckedCategories(new Set(displayCategories.map(c => c.name)))}
+                className="text-xs font-bold px-3 py-1 rounded-full border border-blue-300 text-blue-600 bg-white hover:bg-blue-50 transition-colors"
+              >
+                全選択
+              </button>
+              <button
+                onClick={() => setCheckedCategories(new Set())}
+                className="text-xs font-bold px-3 py-1 rounded-full border border-slate-300 text-slate-600 bg-white hover:bg-slate-100 transition-colors"
+              >
+                全解除
+              </button>
+              <span className="ml-auto text-sm font-bold text-slate-500 self-center">
+                {checkedCategories.size} / {displayCategories.length} 分類
+              </span>
+            </div>
+            <div className="max-h-72 overflow-auto rounded-lg border border-slate-200 divide-y divide-slate-100">
+              {displayCategories.map(cat => (
+                <label
+                  key={cat.name}
+                  className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-amber-50 transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checkedCategories.has(cat.name)}
+                    onChange={() => toggleCategory(cat.name)}
+                    className="h-4 w-4 accent-blue-600"
+                  />
+                  <span className="font-bold text-slate-800">{cat.name}</span>
+                  <span className="ml-auto text-sm text-slate-400">{cat.count.toLocaleString()}件</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-3 mt-1">
+              <Button variant="secondary" className="flex-1" onClick={() => setCategoryPickTarget(null)}>キャンセル</Button>
+              <Button
+                variant="print"
+                className={`flex-1 ${checkedCategories.size === 0 ? 'opacity-40 pointer-events-none' : ''}`}
+                onClick={executeCategoryPrint}
+              >
+                <Printer size={16} /> 印刷する
+              </Button>
+            </div>
           </div>
         </div>
       )}
