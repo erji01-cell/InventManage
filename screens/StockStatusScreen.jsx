@@ -62,6 +62,15 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
   const monthStart = new Date(getYearForMonth(fromMonth), fromMonth - 1, 1);
   const nextMonthStart = new Date(getYearForMonth(toMonth), toMonth, 1);
 
+  // 印刷用の期間表示（西暦年を含む）
+  const buildPeriodLabel = () => {
+    const fromYear = getYearForMonth(fromMonth);
+    const toYear = getYearForMonth(toMonth);
+    return rangeFrom === rangeTo
+      ? `西暦${fromYear}年${fromMonth}月度`
+      : `西暦${fromYear}年${fromMonth}月から西暦${toYear}年${toMonth}月まで`;
+  };
+
   const startLabel = rangeFrom === 0 ? '期首在庫' : '月初在庫';
   const endLabel = rangeTo === 11 ? '期末在庫' : '月末在庫';
 
@@ -326,7 +335,7 @@ ${summaryHTML}
   const handlePrintList = () => {
     setShowPrintMenu(false);
     const today = new Date().toLocaleDateString('ja-JP');
-    const periodLabel = rangeFrom === rangeTo ? `${fromMonth}月度` : `${fromMonth}月〜${toMonth}月`;
+    const periodLabel = buildPeriodLabel();
     const subtitle = `期間: ${periodLabel}　印刷日: ${today}　件数: ${displayData.length}件`;
     const total = displayData.reduce((s, r) => s + r.stockValue, 0);
     const summaryHTML = `<div class="summary">
@@ -340,7 +349,7 @@ ${summaryHTML}
   // 分類別印刷の共通処理: rows は印刷対象（分類選択で絞り込み済み）の行
   const printCategoryRows = (rows, target) => {
     const today = new Date().toLocaleDateString('ja-JP');
-    const periodLabel = rangeFrom === rangeTo ? `${fromMonth}月度` : `${fromMonth}月〜${toMonth}月`;
+    const periodLabel = buildPeriodLabel();
     const categoryCount = new Set(rows.map(r => r.category || '未分類')).size;
     const isDetail = target === 'detail';
     const docTitle = isDetail ? '在庫表（分類別）' : '在庫表（分類別小計一覧）';
@@ -392,7 +401,7 @@ ${summaryHTML}
     setShowPrintMenu(false);
     const minusRows = filteredStockData.filter(r => r.currentStock < 0);
     const today = new Date().toLocaleDateString('ja-JP');
-    const periodLabel = rangeFrom === rangeTo ? `${fromMonth}月度` : `${fromMonth}月〜${toMonth}月`;
+    const periodLabel = buildPeriodLabel();
     const subtitle = `在庫マイナス品目のみ　期間: ${periodLabel}　印刷日: ${today}　件数: ${minusRows.length}件`;
     const total = minusRows.reduce((s, r) => s + r.stockValue, 0);
     const summaryHTML = `<div class="summary" style="border-color:#fca5a5;background:#fef2f2;">
