@@ -67,8 +67,8 @@ export default function StockStatusScreen({ assets, movements, setView, pinnedAs
     const fromYear = getYearForMonth(fromMonth);
     const toYear = getYearForMonth(toMonth);
     return rangeFrom === rangeTo
-      ? `西暦${fromYear}年${fromMonth}月度`
-      : `西暦${fromYear}年${fromMonth}月から西暦${toYear}年${toMonth}月まで`;
+      ? `${fromYear}年${fromMonth}月度`
+      : `${fromYear}年${fromMonth}月から${toYear}年${toMonth}月まで`;
   };
 
   const startLabel = rangeFrom === 0 ? '期首在庫' : '月初在庫';
