@@ -145,8 +145,15 @@ export default function App() {
       try {
         if (isAutoBackupEnabled()) {
           await performBackup(authSession, { downloadLocal: false, skipIfUnchanged: true });
+          setBackupWarning(''); // 成功したら過去の警告を消す
         }
       } catch (err) {
+        // 認証切れはログイン画面へ戻すだけでよい。再ログイン後に authSession が
+        // 変わってこの effect が再実行され、バックアップは自動でリトライされる。
+        if (err?.code === 'AUTH_EXPIRED') {
+          handleAuthExpired();
+          return;
+        }
         console.warn('[auto-backup] failed:', err.message);
         setBackupWarning(`起動時の自動バックアップに失敗しました（${err?.message || '不明なエラー'}）。データ管理画面から手動バックアップを実行してください。`);
       }
@@ -174,8 +181,14 @@ export default function App() {
       try {
         // 変更がなければスキップ／同じ日の分は上書き（backup.js側で処理）
         await performBackup(s, { downloadLocal: false, skipIfUnchanged: true });
+        setBackupWarning(''); // 成功したら過去の警告を消す
       } catch (err) {
         backupDirty.current = true; // 失敗した分は次の周期で再試行する
+        // 認証切れはログイン画面へ（再ログイン後に次の周期で自動リトライ）
+        if (err?.code === 'AUTH_EXPIRED') {
+          handleAuthExpired();
+          return;
+        }
         console.error('変更後の自動バックアップに失敗:', err);
         setBackupWarning(`自動バックアップに失敗しました（${err?.message || '不明なエラー'}）。データ管理画面から手動バックアップを実行してください。`);
       }
