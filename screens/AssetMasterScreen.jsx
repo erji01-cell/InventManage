@@ -823,7 +823,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                   </div>
 
                   <div className="flex flex-col gap-2 border-t border-slate-200 pt-4">
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2">
                       <Button variant="history" className="w-full px-3 py-2 text-sm" onClick={() => onNavigateHistory?.(selectedAsset?.id)} disabled={!selectedAsset}>
                         <ArrowLeftRight size={16} /> 入出庫
                       </Button>
@@ -832,7 +832,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                       </Button>
                       <Button
                         variant={selectedAsset.isActive === false ? 'success' : 'danger'}
-                        className="w-full px-3 py-2 text-sm"
+                        className="min-w-28 whitespace-nowrap px-3 py-2 text-sm"
                         onClick={changeSelectedAssetStatus}
                         disabled={!selectedAsset || isSaving}
                       >
