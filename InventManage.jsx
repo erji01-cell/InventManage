@@ -405,17 +405,39 @@ export default function App() {
   };
 
   const updateMovement = async (id, data) => {
-    const [updated] = await supabaseRequest(
-      `invent_stock_movements?id=eq.${id}&select=*`,
-      {
-        method: 'PATCH',
-        headers: {
-          Prefer: 'return=representation',
+    let updated;
+    try {
+      [updated] = await supabaseRequest(
+        'rpc/invent_update_movement',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            p_id: Number(id),
+            p_child_asset_id: Number(data.child_asset_id),
+            p_movement_date: data.movement_date,
+            p_movement_type: data.movement_type,
+            p_quantity: Number(data.quantity),
+            p_actual_delivery_price: data.movement_type === 'in'
+              ? Number(data.actual_delivery_price || 0)
+              : 0,
+            p_expiration_date: data.expiration_date || null,
+            p_lot_number: data.lot_number || null,
+            p_staff_code: data.staff_code == null ? null : Number(data.staff_code),
+            p_staff_name: data.staff_name || null,
+            p_memo: data.memo || null,
+          }),
         },
-        body: JSON.stringify(data),
-      },
-      authSession
-    );
+        authSession
+      );
+    } catch (err) {
+      if (/could not find the function|schema cache/i.test(err?.message || '')) {
+        throw new Error(
+          '更新用のDB関数が未導入です。outputs/supabase_migration/update_movement_rpc.sql を' +
+          ' SupabaseのSQL Editorで実行してください（データは変更されていません）。'
+        );
+      }
+      throw err;
+    }
 
     if (!updated) {
       throw new Error('入出庫データを更新できませんでした。データが見つからないか、変更権限がない可能性があります。');
