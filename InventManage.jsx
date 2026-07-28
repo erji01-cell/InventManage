@@ -280,7 +280,7 @@ export default function App() {
     await performBackup(authSession);
 
     // 期末日までの入出庫だけを集計（過去のクローズ日も考慮）
-    const assetMapForClose = new Map(assets.map((a) => [a.id, a]));
+    const assetMapForClose = new Map(activeAssets.map((a) => [a.id, a]));
     const inboundByAsset = new Map();
     const outboundByAsset = new Map();
     movements.forEach((m) => {
@@ -299,7 +299,7 @@ export default function App() {
     });
 
     // 各資産の opening_stock を「期末日時点の在庫」で更新 + fiscal_year_closed_at をセット
-    const updates = assets.map((asset) => {
+    const updates = activeAssets.map((asset) => {
       const key = String(asset.id);
       const opening = Number(asset.openingStock || 0); // 締める年度の期首在庫
       const ending = opening
@@ -564,7 +564,7 @@ export default function App() {
     return normalized;
   };
 
-  const deleteAsset = async (assetId) => {
+  const setAssetActive = async (assetId, isActive) => {
     await supabaseRequest(
       `invent_child_assets?id=eq.${assetId}`,
       {
@@ -572,11 +572,13 @@ export default function App() {
         headers: {
           Prefer: 'return=minimal',
         },
-        body: JSON.stringify({ is_active: false }),
+        body: JSON.stringify({ is_active: isActive }),
       },
       authSession
     );
-    setAssets(prev => prev.filter(asset => asset.id !== String(assetId)));
+    setAssets(prev => prev.map(asset => (
+      String(asset.id) === String(assetId) ? { ...asset, isActive } : asset
+    )));
     scheduleChangeBackup();
   };
 
@@ -771,7 +773,12 @@ export default function App() {
     setSavedEntryForm(null);
   };
 
-  const latestFiscalYearClosedAt = assets.reduce((latest, asset) => {
+  const activeAssets = useMemo(
+    () => assets.filter((asset) => asset.isActive !== false),
+    [assets]
+  );
+
+  const latestFiscalYearClosedAt = activeAssets.reduce((latest, asset) => {
     const closedAt = asset.fiscalYearClosedAt || '';
     return closedAt > latest ? closedAt : latest;
   }, '');
@@ -789,7 +796,7 @@ export default function App() {
   // 現在庫がマイナスの資産を抽出（起動時の警告バナー用）。
   // 現在庫 = opening_stock + 年度クローズ日より後の入庫 − 出庫（在庫表と同じ計算）。
   const negativeStockAssets = useMemo(() => {
-    const assetMap = new Map(assets.map((a) => [a.id, a]));
+    const assetMap = new Map(activeAssets.map((a) => [a.id, a]));
     const inByAsset = new Map();
     const outByAsset = new Map();
     movements.forEach((m) => {
@@ -800,7 +807,7 @@ export default function App() {
       if (m.type === 'in') inByAsset.set(m.assetId, (inByAsset.get(m.assetId) || 0) + qty);
       else if (m.type === 'out') outByAsset.set(m.assetId, (outByAsset.get(m.assetId) || 0) + qty);
     });
-    return assets
+    return activeAssets
       .map((a) => ({
         id: a.id,
         name: a.name,
@@ -809,7 +816,7 @@ export default function App() {
       }))
       .filter((x) => x.currentStock < 0)
       .sort((a, b) => a.currentStock - b.currentStock); // マイナスが大きい順
-  }, [assets, movements]);
+  }, [activeAssets, movements]);
 
   // 会計年度タブ。過去年度の入出庫は遅延読み込みのため、読み込み済みとは限らない。
   // 年度の存在はスナップショット（年度更新時に必ず作られる）から判定し、
@@ -884,13 +891,13 @@ export default function App() {
   const renderView = () => {
     switch (view) {
       case 'menu': return <MenuScreen setView={navigateFromMenu} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={availableFiscalYears} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={selectedFiscalYear} setSelectedFiscalYear={setSelectedFiscalYear} negativeStockAssets={negativeStockAssets} session={authSession} />;
-      case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} categories={categories} onCreateCategory={createCategory} onCreateAsset={createAsset} onUpdateAsset={updateAsset} onUpdateParentAsset={updateParentAsset} onDeleteAsset={deleteAsset} setView={setView} onNavigateEntry={navigateToEntry} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} initialAssetId={filterAssetId} assetPickerMode={Boolean(assetPickerRequest)} assetPickerSource={assetPickerRequest} onPickAsset={pickAssetFromPicker} onCancelPick={cancelAssetPicker} />;
+      case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} categories={categories} onCreateCategory={createCategory} onCreateAsset={createAsset} onUpdateAsset={updateAsset} onUpdateParentAsset={updateParentAsset} onSetAssetActive={setAssetActive} setView={setView} onNavigateEntry={navigateToEntry} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} initialAssetId={filterAssetId} assetPickerMode={Boolean(assetPickerRequest)} assetPickerSource={assetPickerRequest} onPickAsset={pickAssetFromPicker} onCancelPick={cancelAssetPicker} />;
       case 'history': return <MovementHistoryScreen movements={movements} setView={setView} assets={assets} staff={staff} updateMovement={updateMovement} updateAsset={updateAsset} deleteMovement={deleteMovement} pinnedAssetId={filterAssetId} onNavigateAssets={navigateToAssets} onRequestAssetPick={navigateToAssetPickerFromMovement} assetSelectionResult={movementAssetSelection} onAssetSelectionApplied={() => setMovementAssetSelection(null)} fiscalRange={historyFiscalRange} fiscalSnapshots={fiscalSnapshots} />;
-      case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} onRequestAssetPick={navigateToAssetPickerFromEntry} />;
-      case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={assets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} onRequestAssetPick={navigateToAssetPickerFromEntry} />;
-      case 'stock': return <StockStatusScreen assets={assets} movements={movements} setView={setView} pinnedAssetId={filterAssetId} onNavigateHistory={navigateToHistory} onNavigateAssets={navigateToAssets} fiscalRange={historyFiscalRange} fiscalSnapshots={fiscalSnapshots} />;
+      case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={activeAssets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} onRequestAssetPick={navigateToAssetPickerFromEntry} />;
+      case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={activeAssets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} onRequestAssetPick={navigateToAssetPickerFromEntry} />;
+      case 'stock': return <StockStatusScreen assets={activeAssets} movements={movements} setView={setView} pinnedAssetId={filterAssetId} onNavigateHistory={navigateToHistory} onNavigateAssets={navigateToAssets} fiscalRange={historyFiscalRange} fiscalSnapshots={fiscalSnapshots} />;
       case 'backup': return <BackupScreen session={authSession} setView={setView} onRestored={refreshData} />;
-      case 'stocktaking': return <StocktakingScreen session={authSession} setView={setView} assets={assets} movements={movements} staff={staff} onCompleted={async () => { await refreshData(); scheduleChangeBackup(); }} />;
+      case 'stocktaking': return <StocktakingScreen session={authSession} setView={setView} assets={activeAssets} movements={movements} staff={staff} onCompleted={async () => { await refreshData(); scheduleChangeBackup(); }} />;
       default: return <MenuScreen setView={navigateFromMenu} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={availableFiscalYears} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={selectedFiscalYear} setSelectedFiscalYear={setSelectedFiscalYear} negativeStockAssets={negativeStockAssets} session={authSession} />;
     }
   };

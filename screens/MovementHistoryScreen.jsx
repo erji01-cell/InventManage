@@ -79,6 +79,11 @@ export default function MovementHistoryScreen({ movements, setView, assets, staf
       setMovementSaveError(`資産コード ${normalized} は見つかりません。`);
       return;
     }
+    const isCurrentAsset = String(matched.id) === String(selectedMovement?.movement?.assetId);
+    if (matched.isActive === false && !isCurrentAsset) {
+      setMovementSaveError(`資産コード ${normalized} は使用不可です。`);
+      return;
+    }
     setMovementSaveError('');
     setMovementEditForm(prev => ({ ...prev, assetId: matched.id }));
   };
@@ -425,6 +430,11 @@ ${summaryHTML}
     }
     // 変更後の日付も締め済み期間に入れない（対象資産の締め日で判定）
     const targetAsset = assets.find((a) => String(a.id) === String(movementEditForm.assetId));
+    const assetChanged = String(movementEditForm.assetId) !== String(selectedMovement.movement.assetId);
+    if (targetAsset?.isActive === false && assetChanged) {
+      setMovementSaveError('使用不可の資産へ変更することはできません。');
+      return;
+    }
     const targetClosedAt = targetAsset?.fiscalYearClosedAt || null;
     if (targetClosedAt && !isMovementAfterClose(movementEditForm.date, targetClosedAt)) {
       setMovementSaveError(`この資産は ${targetClosedAt} まで年度更新で締め済みです。入出庫日は ${dayAfter(targetClosedAt)} 以降で入力してください。`);
@@ -439,7 +449,6 @@ ${summaryHTML}
       return;
     }
 
-    const assetChanged = String(movementEditForm.assetId) !== String(selectedMovement.movement.assetId);
     if (assetChanged && !window.confirm('資産を変更しますか？\nこの入出庫データの対象資産が変更されます。')) {
       return;
     }
@@ -844,7 +853,10 @@ ${summaryHTML}
                         />
                         <div className="min-w-0 flex-1">
                           <AssetSearchInput
-                            assets={assets}
+                            assets={assets.filter((asset) => (
+                              asset.isActive !== false
+                              || String(asset.id) === String(selectedMovement?.movement?.assetId)
+                            ))}
                             value={movementEditForm.assetId}
                             onChange={(value) => updateMovementEditForm('assetId', value)}
                             isIn={isInbound}

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeftRight, CheckCircle2, LogIn, LogOut, PlusCircle, Printer, Search, Table2, Trash2, X } from 'lucide-react';
+import { ArrowLeftRight, Ban, CheckCircle2, LogIn, LogOut, PlusCircle, Printer, RotateCcw, Search, Table2, X } from 'lucide-react';
 
 import { Button, Card, DetailItem, DetailRow, EditField } from '../components/ui.jsx';
 import { toNullableNumber } from '../utils/inventory.js';
@@ -227,8 +227,9 @@ const createAssetEditForm = (asset) => ({
   parentGenericName: asset?.parentGenericName || '',
 });
 
-export default function AssetMasterScreen({ assets, suppliers, categories = [], onCreateCategory, onCreateAsset, onUpdateAsset, onUpdateParentAsset, onDeleteAsset, setView, onNavigateEntry, onNavigateHistory, onNavigateStock, initialAssetId = '', assetPickerMode = false, assetPickerSource = null, onPickAsset, onCancelPick }) {
+export default function AssetMasterScreen({ assets, suppliers, categories = [], onCreateCategory, onCreateAsset, onUpdateAsset, onUpdateParentAsset, onSetAssetActive, setView, onNavigateEntry, onNavigateHistory, onNavigateStock, initialAssetId = '', assetPickerMode = false, assetPickerSource = null, onPickAsset, onCancelPick }) {
   const [filter, setFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('active');
   const [listSortOrder, setListSortOrder] = useState('id');
   const [selectedAssetId, setSelectedAssetId] = useState(initialAssetId);
   const [pinnedAssetId, setPinnedAssetId] = useState(assetPickerMode ? '' : initialAssetId); // 特定資産へ遷移時、一覧をその1件だけに絞る
@@ -277,10 +278,15 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
       const pinned = assets.find(a => String(a.id) === String(pinnedAssetId));
       return pinned ? [pinned] : [];
     }
+    const statusMatched = assets.filter((asset) => {
+      if (assetPickerMode || statusFilter === 'active') return asset.isActive !== false;
+      if (statusFilter === 'inactive') return asset.isActive === false;
+      return true;
+    });
     const q = normalizeSearchText(filter);
     const matched = !q
-      ? assets
-      : assets.filter(a => assetMatchesSearch(a, q, isRomajiQuery(filter) ? romajiCanonical(filter.toLowerCase()) : ''));
+      ? statusMatched
+      : statusMatched.filter(a => assetMatchesSearch(a, q, isRomajiQuery(filter) ? romajiCanonical(filter.toLowerCase()) : ''));
     return sortAssetList(matched);
   })();
   const isListGrouped = listSortOrder === 'category_id' || listSortOrder === 'category_kana';
@@ -362,6 +368,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
   };
 
   const startCreate = () => {
+    setStatusFilter('active');
     setSelectedAssetId('');
     setIsCreating(true);
     setIsEditing(true);
@@ -455,21 +462,25 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
     }
   };
 
-  const deleteSelectedAsset = async () => {
+  const changeSelectedAssetStatus = async () => {
     if (!selectedAsset || isSaving) return;
-    const confirmed = window.confirm(`${selectedAsset.name} を削除しますか？`);
+    const nextActive = selectedAsset.isActive === false;
+    const message = nextActive
+      ? `${selectedAsset.name} を再有効化しますか？\n入出庫の資産選択に再び表示されます。`
+      : `${selectedAsset.name} を使用不可にしますか？\n過去の入出庫履歴は残りますが、新しい入出庫の資産選択には表示されなくなります。`;
+    const confirmed = window.confirm(message);
     if (!confirmed) return;
 
     setIsSaving(true);
     setSaveError('');
 
     try {
-      await onDeleteAsset(selectedAsset.id);
+      await onSetAssetActive(selectedAsset.id, nextActive);
       setSelectedAssetId('');
       setIsCreating(false);
       setIsEditing(false);
     } catch (err) {
-      setSaveError(err.message || '資産を削除できませんでした。');
+      setSaveError(err.message || (nextActive ? '資産を再有効化できませんでした。' : '資産を使用不可にできませんでした。'));
     } finally {
       setIsSaving(false);
     }
@@ -478,7 +489,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
   return (
     <>
     {showPrintDialog && (
-      <PrintDialog assets={assets} onClose={() => setShowPrintDialog(false)} />
+      <PrintDialog assets={filteredAssets} onClose={() => setShowPrintDialog(false)} />
     )}
     <Card className="max-h-[90vh] flex flex-col bg-white relative">
       <div className="absolute left-5 right-5 top-0 h-1 rounded-b-full bg-purple-500 opacity-80" />
@@ -526,7 +537,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
         </div>
       </div>
 
-      <div className="mb-5 flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 shadow-sm">
+      <div className="mb-5 flex flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 shadow-sm">
         {pinnedAssetId && (() => {
           const pinned = assets.find(a => String(a.id) === String(pinnedAssetId));
           if (!pinned) return null;
@@ -537,7 +548,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
             </div>
           );
         })()}
-        <div className="flex-1 relative">
+        <div className="relative min-w-[280px] flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-400" size={18} />
           <input
             type="text"
@@ -547,6 +558,32 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
             onChange={(e) => { setFilter(e.target.value); setPinnedAssetId(''); }}
           />
         </div>
+        {!assetPickerMode && (
+          <div className="flex shrink-0 rounded-md border border-slate-200 bg-white p-1" aria-label="資産状態の表示切替">
+            {[
+              { value: 'active', label: '使用中' },
+              { value: 'inactive', label: '使用不可' },
+              { value: 'all', label: 'すべて' },
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  setStatusFilter(option.value);
+                  setPinnedAssetId('');
+                  setSelectedAssetId('');
+                }}
+                className={`min-w-16 rounded px-3 py-1.5 text-sm font-bold transition-colors ${
+                  statusFilter === option.value
+                    ? 'bg-purple-600 text-white shadow-sm'
+                    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        )}
         <select
           value={listSortOrder}
           onChange={(e) => setListSortOrder(e.target.value)}
@@ -591,7 +628,13 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                       setSelectedAssetId(asset.id);
                     }}
                     className={`cursor-pointer border-b border-slate-100 transition-colors ${
-                      isSelected ? 'bg-purple-50 shadow-[inset_4px_0_0_#9333ea]' : 'hover:bg-purple-50/60'
+                      isSelected
+                        ? asset.isActive === false
+                          ? 'bg-slate-100 shadow-[inset_4px_0_0_#64748b]'
+                          : 'bg-purple-50 shadow-[inset_4px_0_0_#9333ea]'
+                        : asset.isActive === false
+                          ? 'bg-slate-50 text-slate-400 hover:bg-slate-100'
+                          : 'hover:bg-purple-50/60'
                     }`}
                   >
                     <td className="p-3 font-mono text-slate-500 break-words">{asset.id}</td>
@@ -599,7 +642,12 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                     <td className="p-3 whitespace-normal break-words">
                       <span className="rounded bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600">{asset.parentCategory}</span>
                     </td>
-                    <td className="p-3 font-medium text-blue-700 whitespace-normal break-words">{asset.name}</td>
+                    <td className={`p-3 font-medium whitespace-normal break-words ${asset.isActive === false ? 'text-slate-500' : 'text-blue-700'}`}>
+                      <span>{asset.name}</span>
+                      {asset.isActive === false && (
+                        <span className="ml-2 inline-flex rounded border border-slate-300 bg-white px-1.5 py-0.5 text-[10px] font-bold text-slate-500">使用不可</span>
+                      )}
+                    </td>
                   </tr>
                   </React.Fragment>
                 );
@@ -768,6 +816,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                   </div>
 
                   <div className="space-y-2 border-t border-slate-200 pt-4">
+                    <DetailRow label="状態" value={selectedAsset.isActive === false ? '使用不可' : '使用中'} />
                     <DetailRow label="分類" value={selectedAsset.parentCategory || '-'} />
                     <DetailRow label="大分類名" value={selectedAsset.parentGenericName || '-'} />
                     <DetailRow label="摘要" value={selectedAsset.memo || '-'} />
@@ -781,8 +830,14 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                       <Button variant="stock" className="w-full px-3 py-2 text-sm" onClick={() => onNavigateStock?.(selectedAsset?.id)} disabled={!selectedAsset}>
                         <Table2 size={16} /> 在庫表
                       </Button>
-                      <Button variant="secondary" className="w-full px-3 py-2 text-sm" onClick={deleteSelectedAsset} disabled={!selectedAsset || isSaving}>
-                        <Trash2 size={16} /> 削除
+                      <Button
+                        variant={selectedAsset.isActive === false ? 'success' : 'danger'}
+                        className="w-full px-3 py-2 text-sm"
+                        onClick={changeSelectedAssetStatus}
+                        disabled={!selectedAsset || isSaving}
+                      >
+                        {selectedAsset.isActive === false ? <RotateCcw size={16} /> : <Ban size={16} />}
+                        {selectedAsset.isActive === false ? '再有効化' : '使用不可'}
                       </Button>
                     </div>
                   </div>
