@@ -270,16 +270,19 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
         <div className="mx-auto grid w-full max-w-4xl grid-cols-1 gap-6 md:grid-cols-3">
           <MenuButton icon={<PlusCircle size={24} />} title="入庫画面" tone="emerald" onClick={() => setView('inbound')} />
           <MenuButton icon={<ClipboardList size={24} />} title="入出庫データ" tone="blue" onClick={() => (onNavigateHistory ? onNavigateHistory() : setView('history'))} />
-          <MenuButton icon={<Table size={24} />} title="在庫表" tone="amber" onClick={() => (onNavigateStock ? onNavigateStock() : setView('stock'))} />
+          <div className="flex min-h-[158px] flex-col gap-1.5">
+            <SmallMenuButton icon={<Table size={18} />} title="在庫表" tone="amber" showAccent onClick={() => (onNavigateStock ? onNavigateStock() : setView('stock'))} />
+            <SmallMenuButton
+              icon={<ShoppingCart size={18} />}
+              title={`発注一覧${pendingOrderCount > 0 ? `（${pendingOrderCount}）` : ''}`}
+              tone="amber"
+              showAccent
+              onClick={() => setView('orders')}
+            />
+          </div>
           <MenuButton icon={<MinusCircle size={24} />} title="出庫画面" tone="rose" onClick={() => setView('outbound')} />
           <MenuButton icon={<Package size={24} />} title="資産マスタ" tone="purple" onClick={() => setView('assets')} />
-          <MenuButton
-            icon={<ShoppingCart size={24} />}
-            title={`発注一覧${pendingOrderCount > 0 ? `（${pendingOrderCount}）` : ''}`}
-            tone="amber"
-            onClick={() => setView('orders')}
-          />
-          <div className="flex flex-col gap-1.5 md:col-span-3 md:flex-row">
+          <div className="flex min-h-[158px] flex-col gap-1.5">
             <SmallMenuButton icon={<ClipboardCheck size={18} />} title="棚卸し" tone="teal" onClick={() => openPasswordModal('stocktaking')} />
             <SmallMenuButton icon={<RefreshCcw size={18} />} title="年度更新" tone="slate" onClick={() => openPasswordModal('yearEnd')} />
             <SmallMenuButton icon={<Database size={18} />} title="データ管理" tone="backup" onClick={() => openPasswordModal('backup')} />
@@ -556,14 +559,15 @@ function MenuButton({ icon, title, tone, onClick }) {
   );
 }
 
-function SmallMenuButton({ icon, title, tone, onClick }) {
+function SmallMenuButton({ icon, title, tone, showAccent = false, onClick }) {
   const style = menuTones[tone] || menuTones.slate;
 
   return (
     <button
       onClick={onClick}
-      className={`group flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-1.5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] ${style.button}`}
+      className={`group relative flex flex-1 items-center justify-center gap-2 overflow-hidden rounded-xl border px-3 py-1.5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] ${style.button}`}
     >
+      {showAccent && <div className={`absolute left-5 right-5 top-0 h-1 rounded-b-full opacity-80 ${style.accent}`} />}
       <div className={`rounded-full p-1.5 shadow-sm ring-4 transition-transform group-hover:scale-110 ${style.icon}`}>
         {icon}
       </div>
