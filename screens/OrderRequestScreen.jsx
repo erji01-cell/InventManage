@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, MailWarning, Plus, Printer, RotateCcw, Send, ShoppingCart, Trash2, X } from 'lucide-react';
 
 import { Button, Card } from '../components/ui.jsx';
+import StaffSelect from '../components/StaffSelect.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
 
 function toLocalDateKey(value) {
@@ -28,6 +29,7 @@ function formatTime(value) {
 
 export default function OrderRequestScreen({
   assets,
+  staff = [],
   orders,
   setView,
   onCreate,
@@ -36,18 +38,22 @@ export default function OrderRequestScreen({
   onRetryEmail,
 }) {
   const [assetId, setAssetId] = useState('');
+  const [staffId, setStaffId] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [memo, setMemo] = useState('');
   const [draftItems, setDraftItems] = useState([]);
   const [filter, setFilter] = useState('requested');
   const [printDate, setPrintDate] = useState('');
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [printError, setPrintError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [busyOrderId, setBusyOrderId] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const printContentRef = useRef(null);
 
   const selectedAsset = assets.find((asset) => asset.id === assetId);
+  const selectedStaff = staff.find((member) => String(member.id) === String(staffId));
   const filteredOrders = useMemo(() => {
     const rows = filter === 'requested'
       ? orders.filter((order) => order.status === 'requested')
@@ -94,6 +100,10 @@ export default function OrderRequestScreen({
   const addDraftItem = () => {
     setError('');
     setMessage('');
+    if (!selectedStaff) {
+      setError('担当者を選択してください。');
+      return;
+    }
     if (!selectedAsset) {
       setError('発注する資産を選択してください。');
       return;
@@ -104,10 +114,17 @@ export default function OrderRequestScreen({
       return;
     }
 
+    const draftKey = `${selectedAsset.id}:${selectedStaff.id}`;
     setDraftItems((prev) => {
-      const existingIndex = prev.findIndex((item) => item.asset.id === selectedAsset.id);
+      const existingIndex = prev.findIndex((item) => item.key === draftKey);
       if (existingIndex < 0) {
-        return [...prev, { asset: selectedAsset, quantity: orderQuantity, memo: memo.trim() }];
+        return [...prev, {
+          key: draftKey,
+          asset: selectedAsset,
+          quantity: orderQuantity,
+          memo: memo.trim(),
+          requestedBy: selectedStaff.name,
+        }];
       }
       return prev.map((item, index) => index === existingIndex
         ? {
@@ -123,8 +140,8 @@ export default function OrderRequestScreen({
     setMessage(`${selectedAsset.name}を発注リストに追加しました。`);
   };
 
-  const removeDraftItem = (assetIdToRemove) => {
-    setDraftItems((prev) => prev.filter((item) => item.asset.id !== assetIdToRemove));
+  const removeDraftItem = (draftKey) => {
+    setDraftItems((prev) => prev.filter((item) => item.key !== draftKey));
     setMessage('');
     setError('');
   };
@@ -203,6 +220,7 @@ export default function OrderRequestScreen({
   const openPrintModal = () => {
     setError('');
     setMessage('');
+    setPrintError('');
     if (printDateOptions.length === 0) {
       setError('印刷できる発注データがありません。');
       return;
@@ -212,10 +230,73 @@ export default function OrderRequestScreen({
 
   const printOrdersByDate = () => {
     if (!printDate || printRows.length === 0) {
-      setError('印刷する登録日の発注データがありません。');
+      setPrintError('印刷する登録日の発注データがありません。');
       return;
     }
-    window.print();
+    const content = printContentRef.current;
+    if (!content) {
+      setPrintError('印刷内容を作成できませんでした。');
+      return;
+    }
+
+    setPrintError('');
+    const printFrame = document.createElement('iframe');
+    printFrame.title = '発注一覧印刷';
+    printFrame.style.position = 'fixed';
+    printFrame.style.right = '0';
+    printFrame.style.bottom = '0';
+    printFrame.style.width = '1px';
+    printFrame.style.height = '1px';
+    printFrame.style.border = '0';
+    printFrame.style.opacity = '0';
+    document.body.appendChild(printFrame);
+
+    const frameWindow = printFrame.contentWindow;
+    const frameDocument = printFrame.contentDocument;
+    if (!frameWindow || !frameDocument) {
+      printFrame.remove();
+      setPrintError('印刷画面を準備できませんでした。');
+      return;
+    }
+
+    const styleMarkup = [...document.querySelectorAll('link[rel="stylesheet"], style')]
+      .map((node) => (node.tagName === 'LINK'
+        ? `<link rel="stylesheet" href="${node.href}">`
+        : node.outerHTML))
+      .join('');
+    frameDocument.open();
+    frameDocument.write(`<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><title>発注一覧</title>${styleMarkup}
+      <style>
+        @page { size: A4 landscape; margin: 12mm; }
+        body { margin: 0; color: #1e293b; font-family: "Yu Gothic", "Meiryo", sans-serif; }
+        table { min-width: 0 !important; width: 100% !important; font-size: 9pt !important; }
+        th, td { padding: 6px 7px !important; }
+      </style></head><body>${content.innerHTML}</body></html>`);
+    frameDocument.close();
+
+    let printStarted = false;
+    const cleanup = () => {
+      window.setTimeout(() => printFrame.remove(), 500);
+    };
+    frameWindow.addEventListener('beforeprint', () => { printStarted = true; }, { once: true });
+    frameWindow.addEventListener('afterprint', cleanup, { once: true });
+
+    window.setTimeout(() => {
+      try {
+        frameWindow.focus();
+        frameWindow.print();
+      } catch {
+        cleanup();
+        setPrintError('このブラウザでは印刷機能を開始できませんでした。ChromeまたはEdgeで開いて印刷してください。');
+        return;
+      }
+      window.setTimeout(() => {
+        if (!printStarted) {
+          cleanup();
+          setPrintError('このブラウザでは印刷ダイアログを表示できません。ChromeまたはEdgeでこのシステムを開いて印刷してください。');
+        }
+      }, 800);
+    }, 150);
   };
 
   return (
@@ -232,7 +313,17 @@ export default function OrderRequestScreen({
 
       <div className="space-y-6 p-6">
         <section className="rounded-md border border-amber-200 bg-amber-50/50 p-4">
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_130px_minmax(220px,0.7fr)_auto] lg:items-end">
+          <div className="grid gap-4 lg:grid-cols-[190px_minmax(240px,1fr)_120px_minmax(180px,0.65fr)_auto] lg:items-end">
+            <label className="block">
+              <span className="mb-1 block text-xs font-bold text-slate-500">担当者</span>
+              <StaffSelect
+                staff={staff}
+                value={staffId}
+                onChange={setStaffId}
+                className="h-[42px] w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-bold outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                placeholder="担当者を選択"
+              />
+            </label>
             <label className="block">
               <span className="mb-1 block text-xs font-bold text-slate-500">発注する資産</span>
               <AssetSearchInput assets={assets} value={assetId} onChange={setAssetId} isIn showListSignal={0} />
@@ -287,19 +378,20 @@ export default function OrderRequestScreen({
               </Button>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[680px] text-sm">
+              <table className="w-full min-w-[800px] text-sm">
                 <thead className="border-b border-slate-200 bg-slate-50 text-xs text-slate-500">
                   <tr>
                     <th className="px-4 py-2 text-left">発注先</th>
                     <th className="px-4 py-2 text-left">資産</th>
                     <th className="px-4 py-2 text-right">発注個数</th>
                     <th className="px-4 py-2 text-left">摘要</th>
+                    <th className="px-4 py-2 text-left">担当者</th>
                     <th className="w-14 px-3 py-2"><span className="sr-only">削除</span></th>
                   </tr>
                 </thead>
                 <tbody>
                   {draftItems.map((item) => (
-                    <tr key={item.asset.id} className="border-b border-slate-100 last:border-0">
+                    <tr key={item.key} className="border-b border-slate-100 last:border-0">
                       <td className="px-4 py-3 font-bold text-slate-700">{item.asset.supplier || '発注先未設定'}</td>
                       <td className="px-4 py-3">
                         <div className="font-bold text-slate-900">{item.asset.name}</div>
@@ -309,10 +401,11 @@ export default function OrderRequestScreen({
                         {item.quantity.toLocaleString()} {item.asset.purchaseUnit}
                       </td>
                       <td className="max-w-64 px-4 py-3 text-slate-600">{item.memo || '-'}</td>
+                      <td className="whitespace-nowrap px-4 py-3 font-bold text-slate-700">{item.requestedBy}</td>
                       <td className="px-3 py-2 text-right">
                         <button
                           type="button"
-                          onClick={() => removeDraftItem(item.asset.id)}
+                          onClick={() => removeDraftItem(item.key)}
                           className="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
                           title="発注リストから削除"
                           aria-label={`${item.asset.name}を発注リストから削除`}
@@ -396,7 +489,7 @@ export default function OrderRequestScreen({
                           </td>
                           <td className="max-w-64 px-4 py-3 text-slate-600">{order.memo || '-'}</td>
                           <td className="whitespace-nowrap px-4 py-3 text-slate-600">
-                            <div className="font-bold">{formatDate(order.requestedAt)}</div>
+                            <div className="font-bold text-blue-700">{formatDate(order.requestedAt)}</div>
                             <div className="text-xs text-slate-400">{formatTime(order.requestedAt)}</div>
                           </td>
                           <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-500">
@@ -481,11 +574,11 @@ export default function OrderRequestScreen({
               </label>
             </div>
 
-            <div className="order-print-scroll overflow-auto p-6">
+            <div ref={printContentRef} className="order-print-scroll overflow-auto p-6">
               <div className="mb-4">
                 <h1 className="text-2xl font-black text-slate-900">発注一覧</h1>
                 <p className="mt-1 text-sm text-slate-500">
-                  登録日: {printDate ? printDate.replaceAll('-', '/') : '-'}　状態: {printStatusLabel}　件数: {printRows.length}件
+                  登録日: <span className="font-bold text-blue-700">{printDate ? printDate.replaceAll('-', '/') : '-'}</span>　状態: {printStatusLabel}　件数: {printRows.length}件
                 </p>
               </div>
               <table className="w-full min-w-[900px] table-fixed border-collapse text-sm">
@@ -522,34 +615,13 @@ export default function OrderRequestScreen({
             </div>
 
             <div className="order-print-controls flex justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4">
+              {printError && <p className="mr-auto max-w-2xl text-sm font-bold text-red-600">{printError}</p>}
               <Button variant="secondary" onClick={() => setShowPrintModal(false)}><X size={17} /> 閉じる</Button>
               <Button variant="print" onClick={printOrdersByDate} disabled={printRows.length === 0}><Printer size={17} /> 印刷する</Button>
             </div>
           </div>
         </div>
       )}
-
-      <style>{`
-        @media print {
-          @page { size: A4 landscape; margin: 12mm; }
-          body * { visibility: hidden !important; }
-          .order-print-area, .order-print-area * { visibility: visible !important; }
-          .order-print-area {
-            position: absolute !important;
-            inset: 0 !important;
-            width: 100% !important;
-            max-width: none !important;
-            max-height: none !important;
-            overflow: visible !important;
-            border: 0 !important;
-            box-shadow: none !important;
-          }
-          .order-print-controls { display: none !important; }
-          .order-print-scroll { overflow: visible !important; padding: 0 !important; }
-          .order-print-area table { min-width: 0 !important; font-size: 9pt !important; }
-          .order-print-area th, .order-print-area td { padding: 6px 7px !important; }
-        }
-      `}</style>
     </Card>
   );
 }

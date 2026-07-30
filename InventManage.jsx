@@ -697,7 +697,7 @@ export default function App() {
       {
         method: 'POST',
         headers: { Prefer: 'return=representation' },
-        body: JSON.stringify(orderItems.map(({ asset, quantity, memo }) => ({
+        body: JSON.stringify(orderItems.map(({ asset, quantity, memo, requestedBy }) => ({
           child_asset_id: Number(asset.id),
           supplier_id: asset.supplierId ? Number(asset.supplierId) : null,
           asset_name: asset.name,
@@ -705,7 +705,7 @@ export default function App() {
           quantity,
           purchase_unit: asset.purchaseUnit || '',
           memo: memo || null,
-          requested_by: authSession?.user?.email || 'ログインユーザー',
+          requested_by: requestedBy || authSession?.user?.email || 'ログインユーザー',
         }))),
       },
       authSession
@@ -1007,7 +1007,7 @@ export default function App() {
       case 'stock': return <StockStatusScreen assets={activeAssets} movements={movements} setView={setView} pinnedAssetId={filterAssetId} onNavigateHistory={navigateToHistory} onNavigateAssets={navigateToAssets} fiscalRange={historyFiscalRange} fiscalSnapshots={fiscalSnapshots} />;
       case 'backup': return <BackupScreen session={authSession} setView={setView} onRestored={refreshData} />;
       case 'stocktaking': return <StocktakingScreen session={authSession} setView={setView} assets={activeAssets} movements={movements} staff={staff} onCompleted={async () => { await refreshData(); scheduleChangeBackup(); }} />;
-      case 'orders': return <OrderRequestScreen assets={activeAssets} orders={orderRequests} setView={setView} onCreate={createOrderRequest} onUpdateStatus={updateOrderStatus} onDelete={deleteOrderRequest} onRetryEmail={retryOrderEmail} />;
+      case 'orders': return <OrderRequestScreen assets={activeAssets} staff={staff} orders={orderRequests} setView={setView} onCreate={createOrderRequest} onUpdateStatus={updateOrderStatus} onDelete={deleteOrderRequest} onRetryEmail={retryOrderEmail} />;
       default: return <MenuScreen setView={navigateFromMenu} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={availableFiscalYears} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={selectedFiscalYear} setSelectedFiscalYear={setSelectedFiscalYear} negativeStockAssets={negativeStockAssets} pendingOrderCount={orderRequests.filter((order) => order.status === 'requested').length} session={authSession} />;
     }
   };
