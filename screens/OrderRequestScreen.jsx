@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Bell, BellRing, Check, MailWarning, RotateCcw, Send, ShoppingCart, X } from 'lucide-react';
+import { Check, MailWarning, RotateCcw, Send, ShoppingCart, X } from 'lucide-react';
 
 import { Button, Card } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
@@ -22,8 +22,6 @@ export default function OrderRequestScreen({
   onCreate,
   onUpdateStatus,
   onRetryEmail,
-  notificationPermission,
-  onEnableNotifications,
 }) {
   const [assetId, setAssetId] = useState('');
   const [quantity, setQuantity] = useState('1');
@@ -120,17 +118,6 @@ export default function OrderRequestScreen({
             発注一覧
           </h1>
         </div>
-        {notificationPermission !== 'granted' && (
-          <Button variant="secondary" onClick={onEnableNotifications}>
-            <Bell size={18} />
-            PC通知を有効にする
-          </Button>
-        )}
-        {notificationPermission === 'granted' && (
-          <span className="flex items-center gap-2 text-sm font-bold text-emerald-700">
-            <BellRing size={18} /> PC通知は有効です
-          </span>
-        )}
       </header>
 
       <div className="space-y-6 p-6">

@@ -1,8 +1,8 @@
 # 発注・通知機能のSupabase設定
 
-## 1. テーブルとRealtime
+## 1. 発注テーブル
 
-SupabaseのSQL Editorで `create_order_requests.sql` を実行します。発注テーブル、RLS、Realtime公開設定が作成されます。
+SupabaseのSQL Editorで `create_order_requests.sql` を実行します。発注テーブルとRLS設定が作成されます。
 
 ## 2. メール送信設定
 
@@ -19,15 +19,14 @@ Resendでは本番送信前に送信元ドメインの認証が必要です。�
 Supabase CLIでログイン・プロジェクト接続済みの状態で実行します。
 
 ```powershell
-supabase functions deploy send-order-notification
+supabase functions deploy send-order-notification --no-verify-jwt
 ```
 
-ブラウザから呼ぶ関数なのでJWT検証は有効のままにします。アプリ側でもJWTを検証し、ログイン中の利用者だけがメールを送れます。
+Edge Function内でSupabase Authへ問い合わせ、ログイン中の利用者であることを確認します。
 
 ## 通知の動作
 
-- アプリ起動中: `invent_order_requests`の変更をSupabase Realtimeで受信し、画面内バナーと許可済みのPC通知を表示
-- アプリ起動時: 前回確認後に追加された未完了発注を表示
-- アプリの開閉に関係なく: 発注登録直後にEdge Functionからメールを送信
+- 発注登録直後にEdge Functionからメールを送信
+- 通知先側でアプリが開いているかどうかには影響されません
 
 メール送信だけ失敗した場合も発注は保存されます。発注一覧の「再送」から再実行できます。
