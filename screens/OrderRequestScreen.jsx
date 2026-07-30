@@ -1,18 +1,38 @@
-import React, { useMemo, useState } from 'react';
-import { Check, MailWarning, Plus, RotateCcw, Send, ShoppingCart, Trash2, X } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Check, MailWarning, Plus, Printer, RotateCcw, Send, ShoppingCart, Trash2, X } from 'lucide-react';
 
 import { Button, Card } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
 
-function formatDateTime(value) {
+function toLocalDateKey(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatDate(value) {
+  const key = toLocalDateKey(value);
+  return key ? key.replaceAll('-', '/') : '-';
+}
+
+function formatTime(value) {
   if (!value) return '-';
-  return new Date(value).toLocaleString('ja-JP', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
 }
 
 export default function OrderRequestScreen({
@@ -28,6 +48,7 @@ export default function OrderRequestScreen({
   const [memo, setMemo] = useState('');
   const [draftItems, setDraftItems] = useState([]);
   const [filter, setFilter] = useState('requested');
+  const [printDate, setPrintDate] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [busyOrderId, setBusyOrderId] = useState('');
   const [message, setMessage] = useState('');
@@ -50,6 +71,23 @@ export default function OrderRequestScreen({
     });
     return [...map.entries()].sort(([a], [b]) => a.localeCompare(b, 'ja'));
   }, [filteredOrders]);
+
+  const printDateOptions = useMemo(() => {
+    const counts = new Map();
+    filteredOrders.forEach((order) => {
+      const dateKey = toLocalDateKey(order.requestedAt);
+      if (dateKey) counts.set(dateKey, (counts.get(dateKey) || 0) + 1);
+    });
+    return [...counts.entries()]
+      .sort(([a], [b]) => b.localeCompare(a))
+      .map(([value, count]) => ({ value, count }));
+  }, [filteredOrders]);
+
+  useEffect(() => {
+    if (!printDateOptions.some((option) => option.value === printDate)) {
+      setPrintDate(printDateOptions[0]?.value || '');
+    }
+  }, [printDate, printDateOptions]);
 
   const addDraftItem = () => {
     setError('');
@@ -139,6 +177,63 @@ export default function OrderRequestScreen({
     } finally {
       setBusyOrderId('');
     }
+  };
+
+  const printOrdersByDate = () => {
+    setError('');
+    setMessage('');
+    const rows = filteredOrders
+      .filter((order) => toLocalDateKey(order.requestedAt) === printDate)
+      .sort((a, b) => {
+        const supplierCompare = (a.supplierName || '発注先未設定').localeCompare(b.supplierName || '発注先未設定', 'ja');
+        return supplierCompare || a.assetName.localeCompare(b.assetName, 'ja');
+      });
+    if (!printDate || rows.length === 0) {
+      setError('印刷する登録日の発注データがありません。');
+      return;
+    }
+
+    const statusLabel = filter === 'requested' ? '未完了' : '完了・取消';
+    const printedAt = new Date().toLocaleString('ja-JP');
+    const tableRows = rows.map((order) => {
+      const orderStatus = order.status === 'completed' ? '完了' : order.status === 'cancelled' ? '取消' : '未完了';
+      return `<tr>
+        <td>${escapeHtml(order.supplierName || '発注先未設定')}</td>
+        <td>${escapeHtml(order.assetName)}<div class="sub">ID: ${escapeHtml(order.assetId)}</div></td>
+        <td class="number">${Number(order.quantity).toLocaleString('ja-JP')} ${escapeHtml(order.purchaseUnit || '')}</td>
+        <td>${escapeHtml(order.memo || '-')}</td>
+        <td>${escapeHtml(order.requestedBy || '-')}</td>
+        <td>${orderStatus}</td>
+      </tr>`;
+    }).join('');
+    const html = `<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><title>発注一覧 ${escapeHtml(printDate)}</title>
+<style>
+  @page { size: A4 landscape; margin: 12mm; }
+  body { font-family: "Yu Gothic", "Meiryo", sans-serif; color: #1e293b; margin: 0; }
+  h1 { margin: 0 0 6px; font-size: 20pt; }
+  .meta { margin-bottom: 16px; color: #64748b; font-size: 9pt; }
+  table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 9pt; }
+  th { background: #fef3c7; color: #78350f; text-align: left; }
+  th, td { border: 1px solid #cbd5e1; padding: 7px 8px; vertical-align: top; overflow-wrap: anywhere; }
+  th:nth-child(1) { width: 15%; } th:nth-child(2) { width: 27%; } th:nth-child(3) { width: 11%; }
+  th:nth-child(4) { width: 23%; } th:nth-child(5) { width: 17%; } th:nth-child(6) { width: 7%; }
+  .number { text-align: right; font-weight: bold; white-space: nowrap; }
+  .sub { margin-top: 2px; color: #64748b; font-size: 8pt; }
+</style></head><body>
+  <h1>発注一覧</h1>
+  <div class="meta">登録日: ${escapeHtml(printDate.replaceAll('-', '/'))}　状態: ${statusLabel}　件数: ${rows.length}件　印刷日時: ${escapeHtml(printedAt)}</div>
+  <table><thead><tr><th>発注先</th><th>資産</th><th>発注個数</th><th>摘要</th><th>登録者</th><th>状態</th></tr></thead>
+  <tbody>${tableRows}</tbody></table>
+  <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close();}<\/script>
+</body></html>`;
+    const printWindow = window.open('', '_blank', 'width=1100,height=800');
+    if (!printWindow) {
+      setError('印刷画面を開けませんでした。ブラウザのポップアップを許可してください。');
+      return;
+    }
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
 
   return (
@@ -259,7 +354,7 @@ export default function OrderRequestScreen({
         )}
 
         <section>
-          <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-1">
               <button
                 onClick={() => setFilter('requested')}
@@ -274,7 +369,27 @@ export default function OrderRequestScreen({
                 完了・取消
               </button>
             </div>
-            <span className="text-xs font-bold text-slate-400">取引先ごとに表示</span>
+            <div className="flex flex-wrap items-end justify-end gap-2">
+              <label className="block">
+                <span className="mb-1 block text-xs font-bold text-slate-500">印刷する登録日</span>
+                <select
+                  value={printDate}
+                  onChange={(event) => setPrintDate(event.target.value)}
+                  className="h-10 min-w-48 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                  disabled={printDateOptions.length === 0}
+                >
+                  {printDateOptions.length === 0 && <option value="">登録データなし</option>}
+                  {printDateOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.value.replaceAll('-', '/')}（{option.count}件）
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Button variant="print" className="h-10 whitespace-nowrap px-4" onClick={printOrdersByDate} disabled={!printDate}>
+                <Printer size={17} /> 登録日別印刷
+              </Button>
+            </div>
           </div>
 
           {groups.length === 0 && (
@@ -291,13 +406,14 @@ export default function OrderRequestScreen({
                   <span className="text-xs font-bold text-slate-500">{supplierOrders.length}件</span>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[800px] text-sm">
+                  <table className="w-full min-w-[920px] text-sm">
                     <thead className="border-b border-slate-200 bg-white text-xs text-slate-500">
                       <tr>
                         <th className="px-4 py-2 text-left">資産</th>
                         <th className="px-4 py-2 text-right">発注個数</th>
                         <th className="px-4 py-2 text-left">摘要</th>
-                        <th className="px-4 py-2 text-left">登録者・日時</th>
+                        <th className="px-4 py-2 text-left">登録日</th>
+                        <th className="px-4 py-2 text-left">登録者</th>
                         <th className="px-4 py-2 text-right">操作</th>
                       </tr>
                     </thead>
@@ -312,9 +428,12 @@ export default function OrderRequestScreen({
                             {order.quantity.toLocaleString()} {order.purchaseUnit}
                           </td>
                           <td className="max-w-64 px-4 py-3 text-slate-600">{order.memo || '-'}</td>
+                          <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                            <div className="font-bold">{formatDate(order.requestedAt)}</div>
+                            <div className="text-xs text-slate-400">{formatTime(order.requestedAt)}</div>
+                          </td>
                           <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-500">
                             <div>{order.requestedBy || '-'}</div>
-                            <div>{formatDateTime(order.requestedAt)}</div>
                             {!order.emailSentAt && (
                               <span className="mt-1 inline-flex items-center gap-1 font-bold text-red-600"><MailWarning size={13} />メール未送信</span>
                             )}
