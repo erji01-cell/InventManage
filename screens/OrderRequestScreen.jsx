@@ -38,6 +38,7 @@ export default function OrderRequestScreen({
   onRetryEmail,
 }) {
   const [assetId, setAssetId] = useState('');
+  const [assetCodeInput, setAssetCodeInput] = useState('');
   const [staffId, setStaffId] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [memo, setMemo] = useState('');
@@ -52,7 +53,7 @@ export default function OrderRequestScreen({
   const [error, setError] = useState('');
   const printContentRef = useRef(null);
 
-  const selectedAsset = assets.find((asset) => asset.id === assetId);
+  const selectedAsset = assets.find((asset) => String(asset.id) === String(assetId));
   const selectedStaff = staff.find((member) => String(member.id) === String(staffId));
   const filteredOrders = useMemo(() => {
     const rows = filter === 'requested'
@@ -88,6 +89,10 @@ export default function OrderRequestScreen({
     }
   }, [printDate, printDateOptions]);
 
+  useEffect(() => {
+    setAssetCodeInput(assetId ? String(assetId) : '');
+  }, [assetId]);
+
   const printRows = useMemo(() => filteredOrders
     .filter((order) => toLocalDateKey(order.requestedAt) === printDate)
     .sort((a, b) => {
@@ -96,6 +101,25 @@ export default function OrderRequestScreen({
     }), [filteredOrders, printDate]);
 
   const printStatusLabel = filter === 'requested' ? '未完了' : '完了・取消';
+
+  const selectAssetByCode = () => {
+    const normalized = String(assetCodeInput).trim();
+    if (!normalized) {
+      setAssetId('');
+      return;
+    }
+
+    const matched = assets.find((asset) => String(asset.id) === normalized);
+    if (!matched) {
+      setAssetId('');
+      setError(`資産コード ${normalized} は見つかりません。`);
+      return;
+    }
+
+    setError('');
+    setMessage('');
+    setAssetId(matched.id);
+  };
 
   const addDraftItem = () => {
     setError('');
@@ -313,7 +337,7 @@ export default function OrderRequestScreen({
 
       <div className="space-y-6 p-6">
         <section className="rounded-md border border-amber-200 bg-amber-50/50 p-4">
-          <div className="grid gap-4 lg:grid-cols-[190px_minmax(240px,1fr)_120px_minmax(180px,0.65fr)_auto] lg:items-end">
+          <div className="grid gap-4 lg:grid-cols-[190px_minmax(320px,1fr)_120px_minmax(180px,0.65fr)_auto] lg:items-end">
             <label className="block">
               <span className="mb-1 block text-xs font-bold text-slate-500">担当者</span>
               <StaffSelect
@@ -326,7 +350,32 @@ export default function OrderRequestScreen({
             </label>
             <label className="block">
               <span className="mb-1 block text-xs font-bold text-slate-500">発注する資産</span>
-              <AssetSearchInput assets={assets} value={assetId} onChange={setAssetId} isIn showListSignal={0} />
+              <div className="flex items-center gap-3">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={assetCodeInput}
+                  onChange={(event) => {
+                    const digitsOnly = event.target.value
+                      .replace(/[０-９]/g, (character) => String.fromCharCode(character.charCodeAt(0) - 0xFEE0))
+                      .replace(/[^0-9]/g, '');
+                    setAssetCodeInput(digitsOnly);
+                  }}
+                  onBlur={() => {
+                    if (assetCodeInput !== String(assetId || '')) selectAssetByCode();
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      selectAssetByCode();
+                    }
+                  }}
+                  placeholder="コード"
+                  aria-label="資産コード"
+                  className="h-[42px] w-20 shrink-0 rounded-md border border-amber-200 bg-amber-50 px-2 text-center font-bold outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                />
+                <AssetSearchInput assets={assets} value={assetId} onChange={setAssetId} isIn showListSignal={0} />
+              </div>
             </label>
             <label className="block">
               <span className="mb-1 block text-xs font-bold text-slate-500">発注個数</span>
