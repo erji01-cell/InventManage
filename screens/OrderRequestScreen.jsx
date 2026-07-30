@@ -26,21 +26,13 @@ function formatTime(value) {
   return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 }
 
-function escapeHtml(value) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#039;');
-}
-
 export default function OrderRequestScreen({
   assets,
   orders,
   setView,
   onCreate,
   onUpdateStatus,
+  onDelete,
   onRetryEmail,
 }) {
   const [assetId, setAssetId] = useState('');
@@ -49,6 +41,7 @@ export default function OrderRequestScreen({
   const [draftItems, setDraftItems] = useState([]);
   const [filter, setFilter] = useState('requested');
   const [printDate, setPrintDate] = useState('');
+  const [showPrintModal, setShowPrintModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [busyOrderId, setBusyOrderId] = useState('');
   const [message, setMessage] = useState('');
@@ -88,6 +81,15 @@ export default function OrderRequestScreen({
       setPrintDate(printDateOptions[0]?.value || '');
     }
   }, [printDate, printDateOptions]);
+
+  const printRows = useMemo(() => filteredOrders
+    .filter((order) => toLocalDateKey(order.requestedAt) === printDate)
+    .sort((a, b) => {
+      const supplierCompare = (a.supplierName || '発注先未設定').localeCompare(b.supplierName || '発注先未設定', 'ja');
+      return supplierCompare || a.assetName.localeCompare(b.assetName, 'ja');
+    }), [filteredOrders, printDate]);
+
+  const printStatusLabel = filter === 'requested' ? '未完了' : '完了・取消';
 
   const addDraftItem = () => {
     setError('');
@@ -179,61 +181,41 @@ export default function OrderRequestScreen({
     }
   };
 
-  const printOrdersByDate = () => {
+  const deleteOrder = async (order) => {
+    const confirmed = window.confirm(
+      `「${order.assetName}」の発注を本当に削除しますか？\n削除したデータは元に戻せません。`
+    );
+    if (!confirmed) return;
+
+    setBusyOrderId(order.id);
     setError('');
     setMessage('');
-    const rows = filteredOrders
-      .filter((order) => toLocalDateKey(order.requestedAt) === printDate)
-      .sort((a, b) => {
-        const supplierCompare = (a.supplierName || '発注先未設定').localeCompare(b.supplierName || '発注先未設定', 'ja');
-        return supplierCompare || a.assetName.localeCompare(b.assetName, 'ja');
-      });
-    if (!printDate || rows.length === 0) {
+    try {
+      await onDelete(order.id);
+      setMessage('発注データを削除しました。');
+    } catch (err) {
+      setError(err?.message || '発注データを削除できませんでした。');
+    } finally {
+      setBusyOrderId('');
+    }
+  };
+
+  const openPrintModal = () => {
+    setError('');
+    setMessage('');
+    if (printDateOptions.length === 0) {
+      setError('印刷できる発注データがありません。');
+      return;
+    }
+    setShowPrintModal(true);
+  };
+
+  const printOrdersByDate = () => {
+    if (!printDate || printRows.length === 0) {
       setError('印刷する登録日の発注データがありません。');
       return;
     }
-
-    const statusLabel = filter === 'requested' ? '未完了' : '完了・取消';
-    const printedAt = new Date().toLocaleString('ja-JP');
-    const tableRows = rows.map((order) => {
-      const orderStatus = order.status === 'completed' ? '完了' : order.status === 'cancelled' ? '取消' : '未完了';
-      return `<tr>
-        <td>${escapeHtml(order.supplierName || '発注先未設定')}</td>
-        <td>${escapeHtml(order.assetName)}<div class="sub">ID: ${escapeHtml(order.assetId)}</div></td>
-        <td class="number">${Number(order.quantity).toLocaleString('ja-JP')} ${escapeHtml(order.purchaseUnit || '')}</td>
-        <td>${escapeHtml(order.memo || '-')}</td>
-        <td>${escapeHtml(order.requestedBy || '-')}</td>
-        <td>${orderStatus}</td>
-      </tr>`;
-    }).join('');
-    const html = `<!DOCTYPE html>
-<html lang="ja"><head><meta charset="UTF-8"><title>発注一覧 ${escapeHtml(printDate)}</title>
-<style>
-  @page { size: A4 landscape; margin: 12mm; }
-  body { font-family: "Yu Gothic", "Meiryo", sans-serif; color: #1e293b; margin: 0; }
-  h1 { margin: 0 0 6px; font-size: 20pt; }
-  .meta { margin-bottom: 16px; color: #64748b; font-size: 9pt; }
-  table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 9pt; }
-  th { background: #fef3c7; color: #78350f; text-align: left; }
-  th, td { border: 1px solid #cbd5e1; padding: 7px 8px; vertical-align: top; overflow-wrap: anywhere; }
-  th:nth-child(1) { width: 15%; } th:nth-child(2) { width: 27%; } th:nth-child(3) { width: 11%; }
-  th:nth-child(4) { width: 23%; } th:nth-child(5) { width: 17%; } th:nth-child(6) { width: 7%; }
-  .number { text-align: right; font-weight: bold; white-space: nowrap; }
-  .sub { margin-top: 2px; color: #64748b; font-size: 8pt; }
-</style></head><body>
-  <h1>発注一覧</h1>
-  <div class="meta">登録日: ${escapeHtml(printDate.replaceAll('-', '/'))}　状態: ${statusLabel}　件数: ${rows.length}件　印刷日時: ${escapeHtml(printedAt)}</div>
-  <table><thead><tr><th>発注先</th><th>資産</th><th>発注個数</th><th>摘要</th><th>登録者</th><th>状態</th></tr></thead>
-  <tbody>${tableRows}</tbody></table>
-  <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close();}<\/script>
-</body></html>`;
-    const printWindow = window.open('', '_blank', 'width=1100,height=800');
-    if (!printWindow) {
-      setError('印刷画面を開けませんでした。ブラウザのポップアップを許可してください。');
-      return;
-    }
-    printWindow.document.write(html);
-    printWindow.document.close();
+    window.print();
   };
 
   return (
@@ -369,24 +351,9 @@ export default function OrderRequestScreen({
                 完了・取消
               </button>
             </div>
-            <div className="flex flex-wrap items-end justify-end gap-2">
-              <label className="block">
-                <span className="mb-1 block text-xs font-bold text-slate-500">印刷する登録日</span>
-                <select
-                  value={printDate}
-                  onChange={(event) => setPrintDate(event.target.value)}
-                  className="h-10 min-w-48 rounded-md border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
-                  disabled={printDateOptions.length === 0}
-                >
-                  {printDateOptions.length === 0 && <option value="">登録データなし</option>}
-                  {printDateOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.value.replaceAll('-', '/')}（{option.count}件）
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <Button variant="print" className="h-10 whitespace-nowrap px-4" onClick={printOrdersByDate} disabled={!printDate}>
+            <div className="flex items-center justify-end gap-3">
+              <span className="text-xs font-bold text-slate-400">取引先ごとに表示</span>
+              <Button variant="print" className="h-10 whitespace-nowrap px-4" onClick={openPrintModal} disabled={printDateOptions.length === 0}>
                 <Printer size={17} /> 登録日別印刷
               </Button>
             </div>
@@ -450,8 +417,8 @@ export default function OrderRequestScreen({
                                   <Button variant="success" className="px-3 py-1.5 text-xs" onClick={() => changeStatus(order, 'completed')} disabled={busyOrderId === order.id}>
                                     <Check size={14} /> 完了
                                   </Button>
-                                  <Button variant="danger" className="px-3 py-1.5 text-xs" onClick={() => changeStatus(order, 'cancelled')} disabled={busyOrderId === order.id}>
-                                    <X size={14} /> 取消
+                                  <Button variant="danger" className="px-3 py-1.5 text-xs" onClick={() => deleteOrder(order)} disabled={busyOrderId === order.id}>
+                                    <Trash2 size={14} /> 削除
                                   </Button>
                                 </>
                               ) : (
@@ -477,6 +444,112 @@ export default function OrderRequestScreen({
           </Button>
         </div>
       </div>
+
+      {showPrintModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/45 p-4">
+          <div className="order-print-area flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-2xl">
+            <div className="order-print-controls flex items-center justify-between border-b border-slate-200 px-6 py-4">
+              <div>
+                <p className="text-[10px] font-black tracking-[0.18em] text-amber-600">PRINT ORDERS</p>
+                <h2 className="mt-1 text-xl font-black text-slate-900">登録日別印刷</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPrintModal(false)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50"
+                title="閉じる"
+                aria-label="印刷画面を閉じる"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="order-print-controls border-b border-slate-200 bg-slate-50 px-6 py-4">
+              <label className="block max-w-sm">
+                <span className="mb-2 block text-xs font-bold text-slate-500">印刷する登録日</span>
+                <select
+                  value={printDate}
+                  onChange={(event) => setPrintDate(event.target.value)}
+                  className="h-11 w-full rounded-md border border-amber-300 bg-white px-3 text-sm font-bold text-slate-800 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+                >
+                  {printDateOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.value.replaceAll('-', '/')}（{option.count}件）
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            <div className="order-print-scroll overflow-auto p-6">
+              <div className="mb-4">
+                <h1 className="text-2xl font-black text-slate-900">発注一覧</h1>
+                <p className="mt-1 text-sm text-slate-500">
+                  登録日: {printDate ? printDate.replaceAll('-', '/') : '-'}　状態: {printStatusLabel}　件数: {printRows.length}件
+                </p>
+              </div>
+              <table className="w-full min-w-[900px] table-fixed border-collapse text-sm">
+                <thead>
+                  <tr className="bg-amber-100 text-amber-900">
+                    <th className="w-[15%] border border-slate-300 px-3 py-2 text-left">発注先</th>
+                    <th className="w-[27%] border border-slate-300 px-3 py-2 text-left">資産</th>
+                    <th className="w-[11%] border border-slate-300 px-3 py-2 text-right">発注個数</th>
+                    <th className="w-[23%] border border-slate-300 px-3 py-2 text-left">摘要</th>
+                    <th className="w-[17%] border border-slate-300 px-3 py-2 text-left">登録者</th>
+                    <th className="w-[7%] border border-slate-300 px-3 py-2 text-left">状態</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {printRows.map((order) => (
+                    <tr key={order.id}>
+                      <td className="border border-slate-300 px-3 py-2 align-top">{order.supplierName || '発注先未設定'}</td>
+                      <td className="border border-slate-300 px-3 py-2 align-top">
+                        <div className="font-bold">{order.assetName}</div>
+                        <div className="mt-0.5 text-xs text-slate-500">ID: {order.assetId}</div>
+                      </td>
+                      <td className="whitespace-nowrap border border-slate-300 px-3 py-2 text-right align-top font-bold">
+                        {Number(order.quantity).toLocaleString('ja-JP')} {order.purchaseUnit || ''}
+                      </td>
+                      <td className="border border-slate-300 px-3 py-2 align-top">{order.memo || '-'}</td>
+                      <td className="border border-slate-300 px-3 py-2 align-top text-xs">{order.requestedBy || '-'}</td>
+                      <td className="border border-slate-300 px-3 py-2 align-top">
+                        {order.status === 'completed' ? '完了' : order.status === 'cancelled' ? '取消' : '未完了'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="order-print-controls flex justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4">
+              <Button variant="secondary" onClick={() => setShowPrintModal(false)}><X size={17} /> 閉じる</Button>
+              <Button variant="print" onClick={printOrdersByDate} disabled={printRows.length === 0}><Printer size={17} /> 印刷する</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @media print {
+          @page { size: A4 landscape; margin: 12mm; }
+          body * { visibility: hidden !important; }
+          .order-print-area, .order-print-area * { visibility: visible !important; }
+          .order-print-area {
+            position: absolute !important;
+            inset: 0 !important;
+            width: 100% !important;
+            max-width: none !important;
+            max-height: none !important;
+            overflow: visible !important;
+            border: 0 !important;
+            box-shadow: none !important;
+          }
+          .order-print-controls { display: none !important; }
+          .order-print-scroll { overflow: visible !important; padding: 0 !important; }
+          .order-print-area table { min-width: 0 !important; font-size: 9pt !important; }
+          .order-print-area th, .order-print-area td { padding: 6px 7px !important; }
+        }
+      `}</style>
     </Card>
   );
 }

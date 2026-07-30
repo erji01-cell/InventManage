@@ -42,6 +42,12 @@ create policy "invent_order_requests_authenticated_update"
   using (true)
   with check (auth.uid() is not null);
 
+drop policy if exists "invent_order_requests_authenticated_delete" on public.invent_order_requests;
+create policy "invent_order_requests_authenticated_delete"
+  on public.invent_order_requests for delete
+  to authenticated
+  using (auth.uid() is not null);
+
 -- 旧版SQLでRealtime対象に追加済みの場合は解除する。
 do $$
 begin
