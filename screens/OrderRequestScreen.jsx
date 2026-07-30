@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Check, MailWarning, RotateCcw, Send, ShoppingCart, X } from 'lucide-react';
+import { Check, MailWarning, Plus, RotateCcw, Send, ShoppingCart, Trash2, X } from 'lucide-react';
 
 import { Button, Card } from '../components/ui.jsx';
 import AssetSearchInput from './AssetSearchInput.jsx';
@@ -26,6 +26,7 @@ export default function OrderRequestScreen({
   const [assetId, setAssetId] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [memo, setMemo] = useState('');
+  const [draftItems, setDraftItems] = useState([]);
   const [filter, setFilter] = useState('requested');
   const [isSaving, setIsSaving] = useState(false);
   const [busyOrderId, setBusyOrderId] = useState('');
@@ -50,7 +51,7 @@ export default function OrderRequestScreen({
     return [...map.entries()].sort(([a], [b]) => a.localeCompare(b, 'ja'));
   }, [filteredOrders]);
 
-  const handleCreate = async () => {
+  const addDraftItem = () => {
     setError('');
     setMessage('');
     if (!selectedAsset) {
@@ -63,18 +64,50 @@ export default function OrderRequestScreen({
       return;
     }
 
+    setDraftItems((prev) => {
+      const existingIndex = prev.findIndex((item) => item.asset.id === selectedAsset.id);
+      if (existingIndex < 0) {
+        return [...prev, { asset: selectedAsset, quantity: orderQuantity, memo: memo.trim() }];
+      }
+      return prev.map((item, index) => index === existingIndex
+        ? {
+          ...item,
+          quantity: item.quantity + orderQuantity,
+          memo: memo.trim() || item.memo,
+        }
+        : item);
+    });
+    setAssetId('');
+    setQuantity('1');
+    setMemo('');
+    setMessage(`${selectedAsset.name}を発注リストに追加しました。`);
+  };
+
+  const removeDraftItem = (assetIdToRemove) => {
+    setDraftItems((prev) => prev.filter((item) => item.asset.id !== assetIdToRemove));
+    setMessage('');
+    setError('');
+  };
+
+  const handleCreate = async () => {
+    setError('');
+    setMessage('');
+    if (draftItems.length === 0) {
+      setError('発注リストに商品を追加してください。');
+      return;
+    }
+
     setIsSaving(true);
     try {
-      const result = await onCreate({ asset: selectedAsset, quantity: orderQuantity, memo });
-      setAssetId('');
-      setQuantity('1');
-      setMemo('');
+      const itemCount = draftItems.length;
+      const result = await onCreate(draftItems);
+      setDraftItems([]);
       setMessage(result?.emailWarning
-        ? `発注を登録しました。${result.emailWarning}`
-        : '発注を登録し、メール通知を送信しました。');
+        ? `${itemCount}商品を登録しました。${result.emailWarning}`
+        : `${itemCount}商品を登録し、メール通知を1通送信しました。`);
       setFilter('requested');
     } catch (err) {
-      setError(err?.message || '発注を登録できませんでした。');
+      setError(err?.message || '発注をまとめて登録できませんでした。');
     } finally {
       setIsSaving(false);
     }
@@ -150,9 +183,9 @@ export default function OrderRequestScreen({
                 className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
               />
             </label>
-            <Button variant="stock" className="h-[42px] whitespace-nowrap px-5" onClick={handleCreate} disabled={isSaving}>
-              <Send size={18} />
-              {isSaving ? '登録中...' : '発注を登録'}
+            <Button variant="stock" className="h-[42px] whitespace-nowrap px-5" onClick={addDraftItem} disabled={isSaving}>
+              <Plus size={18} />
+              リストに追加
             </Button>
           </div>
           {selectedAsset && (
@@ -163,6 +196,61 @@ export default function OrderRequestScreen({
             </p>
           )}
         </section>
+
+        {draftItems.length > 0 && (
+          <section className="overflow-hidden rounded-md border border-amber-200 bg-white">
+            <div className="flex flex-col gap-3 border-b border-amber-100 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="font-black text-slate-800">今回の発注リスト</h2>
+                <p className="mt-0.5 text-xs font-bold text-slate-500">{draftItems.length}商品を1通のメールにまとめます</p>
+              </div>
+              <Button variant="stock" className="whitespace-nowrap px-5" onClick={handleCreate} disabled={isSaving}>
+                <Send size={18} />
+                {isSaving ? '登録・送信中...' : 'まとめて登録・メール送信'}
+              </Button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[680px] text-sm">
+                <thead className="border-b border-slate-200 bg-slate-50 text-xs text-slate-500">
+                  <tr>
+                    <th className="px-4 py-2 text-left">発注先</th>
+                    <th className="px-4 py-2 text-left">資産</th>
+                    <th className="px-4 py-2 text-right">発注個数</th>
+                    <th className="px-4 py-2 text-left">摘要</th>
+                    <th className="w-14 px-3 py-2"><span className="sr-only">削除</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {draftItems.map((item) => (
+                    <tr key={item.asset.id} className="border-b border-slate-100 last:border-0">
+                      <td className="px-4 py-3 font-bold text-slate-700">{item.asset.supplier || '発注先未設定'}</td>
+                      <td className="px-4 py-3">
+                        <div className="font-bold text-slate-900">{item.asset.name}</div>
+                        <div className="text-xs text-slate-400">ID: {item.asset.id}</div>
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-right text-base font-black text-amber-700">
+                        {item.quantity.toLocaleString()} {item.asset.purchaseUnit}
+                      </td>
+                      <td className="max-w-64 px-4 py-3 text-slate-600">{item.memo || '-'}</td>
+                      <td className="px-3 py-2 text-right">
+                        <button
+                          type="button"
+                          onClick={() => removeDraftItem(item.asset.id)}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                          title="発注リストから削除"
+                          aria-label={`${item.asset.name}を発注リストから削除`}
+                          disabled={isSaving}
+                        >
+                          <Trash2 size={17} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        )}
 
         {(message || error) && (
           <div className={`rounded-md border px-4 py-3 text-sm font-bold ${error ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>

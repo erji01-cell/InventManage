@@ -676,20 +676,28 @@ export default function App() {
     scheduleChangeBackup();
   };
 
-  const sendOrderEmailAndMark = async (order) => {
-    const result = await sendOrderNotificationEmail(authSession, order);
-    const updated = { ...order, emailSentAt: result.emailSentAt || new Date().toISOString() };
-    setOrderRequests((prev) => upsertOrder(prev, updated));
+  const sendOrderEmailAndMark = async (orders) => {
+    const orderList = Array.isArray(orders) ? orders : [orders];
+    const result = await sendOrderNotificationEmail(authSession, orderList);
+    const sentIds = new Set(orderList.map((order) => order.id));
+    const emailSentAt = result.emailSentAt || new Date().toISOString();
+    setOrderRequests((prev) => prev.map((order) => (
+      sentIds.has(order.id) ? { ...order, emailSentAt } : order
+    )));
     return result;
   };
 
-  const createOrderRequest = async ({ asset, quantity, memo }) => {
-    const [created] = await supabaseRequest(
+  const createOrderRequest = async (items) => {
+    const orderItems = Array.isArray(items) ? items : [items];
+    if (orderItems.length === 0) throw new Error('発注する商品がありません。');
+    if (orderItems.length > 100) throw new Error('一度に登録できる発注は100商品までです。');
+
+    const createdRows = await supabaseRequest(
       'invent_order_requests?select=*',
       {
         method: 'POST',
         headers: { Prefer: 'return=representation' },
-        body: JSON.stringify({
+        body: JSON.stringify(orderItems.map(({ asset, quantity, memo }) => ({
           child_asset_id: Number(asset.id),
           supplier_id: asset.supplierId ? Number(asset.supplierId) : null,
           asset_name: asset.name,
@@ -698,22 +706,22 @@ export default function App() {
           purchase_unit: asset.purchaseUnit || '',
           memo: memo || null,
           requested_by: authSession?.user?.email || 'ログインユーザー',
-        }),
+        }))),
       },
       authSession
     );
-    if (!created) throw new Error('発注を登録できませんでした。');
+    if (!createdRows?.length) throw new Error('発注を登録できませんでした。');
 
-    const order = normalizeOrderRequest(created);
-    setOrderRequests((prev) => upsertOrder(prev, order));
+    const createdOrders = createdRows.map(normalizeOrderRequest);
+    setOrderRequests((prev) => createdOrders.reduce(upsertOrder, prev));
     scheduleChangeBackup();
 
     try {
-      const emailResult = await sendOrderEmailAndMark(order);
-      return { order, emailWarning: emailResult.warning || '' };
+      const emailResult = await sendOrderEmailAndMark(createdOrders);
+      return { orders: createdOrders, emailWarning: emailResult.warning || '' };
     } catch (emailError) {
       return {
-        order,
+        orders: createdOrders,
         emailWarning: `メール通知は未送信です（${emailError?.message || '送信エラー'}）。一覧から再送できます。`,
       };
     }
