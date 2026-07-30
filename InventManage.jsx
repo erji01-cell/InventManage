@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, Bell, X } from 'lucide-react';
 
 import { Button } from './components/ui.jsx';
 import { clearStoredSession, fetchMovementsForFiscalYear, getStoredSession, loadInventoryData, signInWithPassword, signOut, storeSession, supabaseRequest } from './lib/supabase.js';
@@ -13,6 +13,25 @@ import MovementHistoryScreen from './screens/MovementHistoryScreen.jsx';
 import StockStatusScreen from './screens/StockStatusScreen.jsx';
 import StocktakingScreen from './screens/StocktakingScreen.jsx';
 import { performBackup, isAutoBackupEnabled } from './lib/backup.js';
+import {
+  getDesktopNotificationPermission,
+  getUnseenOrders,
+  markOrdersSeen,
+  normalizeOrderRequest,
+  requestDesktopNotificationPermission,
+  sendOrderNotificationEmail,
+  showDesktopOrderNotification,
+  subscribeToOrderRequests,
+} from './lib/orderNotifications.js';
+import OrderRequestScreen from './screens/OrderRequestScreen.jsx';
+
+function upsertOrder(orders, order) {
+  const index = orders.findIndex((item) => item.id === order.id);
+  if (index < 0) return [order, ...orders];
+  const next = [...orders];
+  next[index] = order;
+  return next;
+}
 
 export default function App() {
   const [view, setView] = useState('menu');
@@ -23,6 +42,10 @@ export default function App() {
   const [suppliers, setSuppliers] = useState([]);
   const [categories, setCategories] = useState([]);
   const [fiscalSnapshots, setFiscalSnapshots] = useState([]);
+  const [orderRequests, setOrderRequests] = useState([]);
+  const [orderAlert, setOrderAlert] = useState(null);
+  const [notificationPermission, setNotificationPermission] = useState(() => getDesktopNotificationPermission());
+  const [ordersLoaded, setOrdersLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(() => Boolean(getStoredSession()));
   const [error, setError] = useState('');
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(false); // 棚卸し/年度更新/バックアップの共通解放フラグ
@@ -50,6 +73,7 @@ export default function App() {
       setSuppliers(data.suppliers);
       setCategories(data.categories || []);
       setFiscalSnapshots(data.fiscalSnapshots || []);
+      setOrderRequests(data.orderRequests || []);
       setLoadedPastYears(new Set()); // フルリロードで過去年度分は消えるため再取得させる
     } catch (err) {
       if (err?.code === 'AUTH_EXPIRED') {
@@ -74,6 +98,9 @@ export default function App() {
       setSuppliers([]);
       setCategories([]);
       setFiscalSnapshots([]);
+      setOrderRequests([]);
+      setOrderAlert(null);
+      setOrdersLoaded(false);
       setIsLoading(false);
       return () => {
         isMounted = false;
@@ -90,6 +117,8 @@ export default function App() {
         setSuppliers(data.suppliers);
         setCategories(data.categories || []);
         setFiscalSnapshots(data.fiscalSnapshots || []);
+        setOrderRequests(data.orderRequests || []);
+        setOrdersLoaded(true);
         setLoadedPastYears(new Set());
       })
       .catch((err) => {
@@ -111,6 +140,60 @@ export default function App() {
       isMounted = false;
     };
   }, [authSession]);
+
+  useEffect(() => {
+    if (!authSession) return;
+    return subscribeToOrderRequests(
+      authSession,
+      (payload) => {
+        if (payload.eventType === 'DELETE') {
+          const deletedId = String(payload.old?.id || '');
+          setOrderRequests((prev) => prev.filter((order) => order.id !== deletedId));
+          return;
+        }
+
+        const order = normalizeOrderRequest(payload.new);
+        if (!order) return;
+        setOrderRequests((prev) => upsertOrder(prev, order));
+        if (payload.eventType === 'INSERT') {
+          setOrderAlert({ count: 1, latest: order });
+          showDesktopOrderNotification(order);
+        }
+      },
+      (status, realtimeError) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn('[order-realtime] 接続できませんでした:', realtimeError?.message || status);
+        }
+      }
+    );
+  }, [authSession]);
+
+  const startupOrderCheckRef = useRef(false);
+  useEffect(() => {
+    startupOrderCheckRef.current = false;
+  }, [authSession]);
+
+  useEffect(() => {
+    if (!authSession || !ordersLoaded || startupOrderCheckRef.current) return;
+    startupOrderCheckRef.current = true;
+    const unseen = getUnseenOrders(authSession, orderRequests);
+    if (unseen.length === 0) return;
+    const latest = [...unseen].sort((a, b) => b.requestedAt.localeCompare(a.requestedAt))[0];
+    setOrderAlert({ count: unseen.length, latest });
+    showDesktopOrderNotification(latest, `未確認の発注が${unseen.length}件あります`);
+  }, [authSession, orderRequests, ordersLoaded]);
+
+  useEffect(() => {
+    if (!authSession || !ordersLoaded || view !== 'orders') return;
+    markOrdersSeen(authSession, orderRequests);
+    setOrderAlert(null);
+  }, [authSession, orderRequests, ordersLoaded, view]);
+
+  const enableOrderNotifications = async () => {
+    const permission = await requestDesktopNotificationPermission();
+    setNotificationPermission(permission);
+    return permission;
+  };
 
   // ウィンドウにフォーカスが戻ったらデータを再読み込み（複数PC運用での鮮度対策）。
   // 直近のロードから1分以内なら何もしない。失敗しても画面は変えず次回に任せる。
@@ -659,6 +742,74 @@ export default function App() {
     scheduleChangeBackup();
   };
 
+  const sendOrderEmailAndMark = async (order) => {
+    const result = await sendOrderNotificationEmail(authSession, order);
+    const updated = { ...order, emailSentAt: result.emailSentAt || new Date().toISOString() };
+    setOrderRequests((prev) => upsertOrder(prev, updated));
+    return result;
+  };
+
+  const createOrderRequest = async ({ asset, quantity, memo }) => {
+    const [created] = await supabaseRequest(
+      'invent_order_requests?select=*',
+      {
+        method: 'POST',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({
+          child_asset_id: Number(asset.id),
+          supplier_id: asset.supplierId ? Number(asset.supplierId) : null,
+          asset_name: asset.name,
+          supplier_name: asset.supplier || '発注先未設定',
+          quantity,
+          purchase_unit: asset.purchaseUnit || '',
+          memo: memo || null,
+          requested_by: authSession?.user?.email || 'ログインユーザー',
+        }),
+      },
+      authSession
+    );
+    if (!created) throw new Error('発注を登録できませんでした。');
+
+    const order = normalizeOrderRequest(created);
+    setOrderRequests((prev) => upsertOrder(prev, order));
+    scheduleChangeBackup();
+
+    try {
+      const emailResult = await sendOrderEmailAndMark(order);
+      return { order, emailWarning: emailResult.warning || '' };
+    } catch (emailError) {
+      return {
+        order,
+        emailWarning: `メール通知は未送信です（${emailError?.message || '送信エラー'}）。一覧から再送できます。`,
+      };
+    }
+  };
+
+  const updateOrderStatus = async (orderId, status) => {
+    const isClosed = status !== 'requested';
+    const [updated] = await supabaseRequest(
+      `invent_order_requests?id=eq.${encodeURIComponent(orderId)}&select=*`,
+      {
+        method: 'PATCH',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({
+          status,
+          completed_by: isClosed ? (authSession?.user?.email || 'ログインユーザー') : null,
+          completed_at: isClosed ? new Date().toISOString() : null,
+        }),
+      },
+      authSession
+    );
+    if (!updated) throw new Error('発注状態を更新できませんでした。');
+    setOrderRequests((prev) => upsertOrder(prev, normalizeOrderRequest(updated)));
+    scheduleChangeBackup();
+  };
+
+  const retryOrderEmail = async (order) => {
+    const result = await sendOrderEmailAndMark(order);
+    if (result.warning) console.warn('[order-email]', result.warning);
+  };
+
   const [entryAssetId, setEntryAssetId] = useState(null);
   const [filterAssetId, setFilterAssetId] = useState('');
   const [savedEntryForm, setSavedEntryForm] = useState(null);
@@ -890,7 +1041,7 @@ export default function App() {
 
   const renderView = () => {
     switch (view) {
-      case 'menu': return <MenuScreen setView={navigateFromMenu} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={availableFiscalYears} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={selectedFiscalYear} setSelectedFiscalYear={setSelectedFiscalYear} negativeStockAssets={negativeStockAssets} session={authSession} />;
+      case 'menu': return <MenuScreen setView={navigateFromMenu} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={availableFiscalYears} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={selectedFiscalYear} setSelectedFiscalYear={setSelectedFiscalYear} negativeStockAssets={negativeStockAssets} pendingOrderCount={orderRequests.filter((order) => order.status === 'requested').length} session={authSession} />;
       case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} categories={categories} onCreateCategory={createCategory} onCreateAsset={createAsset} onUpdateAsset={updateAsset} onUpdateParentAsset={updateParentAsset} onSetAssetActive={setAssetActive} setView={setView} onNavigateEntry={navigateToEntry} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} initialAssetId={filterAssetId} assetPickerMode={Boolean(assetPickerRequest)} assetPickerSource={assetPickerRequest} onPickAsset={pickAssetFromPicker} onCancelPick={cancelAssetPicker} />;
       case 'history': return <MovementHistoryScreen movements={movements} setView={setView} assets={assets} staff={staff} updateMovement={updateMovement} updateAsset={updateAsset} deleteMovement={deleteMovement} pinnedAssetId={filterAssetId} onNavigateAssets={navigateToAssets} onRequestAssetPick={navigateToAssetPickerFromMovement} assetSelectionResult={movementAssetSelection} onAssetSelectionApplied={() => setMovementAssetSelection(null)} fiscalRange={historyFiscalRange} fiscalSnapshots={fiscalSnapshots} />;
       case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={activeAssets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} onRequestAssetPick={navigateToAssetPickerFromEntry} />;
@@ -898,7 +1049,8 @@ export default function App() {
       case 'stock': return <StockStatusScreen assets={activeAssets} movements={movements} setView={setView} pinnedAssetId={filterAssetId} onNavigateHistory={navigateToHistory} onNavigateAssets={navigateToAssets} fiscalRange={historyFiscalRange} fiscalSnapshots={fiscalSnapshots} />;
       case 'backup': return <BackupScreen session={authSession} setView={setView} onRestored={refreshData} />;
       case 'stocktaking': return <StocktakingScreen session={authSession} setView={setView} assets={activeAssets} movements={movements} staff={staff} onCompleted={async () => { await refreshData(); scheduleChangeBackup(); }} />;
-      default: return <MenuScreen setView={navigateFromMenu} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={availableFiscalYears} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={selectedFiscalYear} setSelectedFiscalYear={setSelectedFiscalYear} negativeStockAssets={negativeStockAssets} session={authSession} />;
+      case 'orders': return <OrderRequestScreen assets={activeAssets} orders={orderRequests} setView={setView} onCreate={createOrderRequest} onUpdateStatus={updateOrderStatus} onRetryEmail={retryOrderEmail} notificationPermission={notificationPermission} onEnableNotifications={enableOrderNotifications} />;
+      default: return <MenuScreen setView={navigateFromMenu} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={availableFiscalYears} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={selectedFiscalYear} setSelectedFiscalYear={setSelectedFiscalYear} negativeStockAssets={negativeStockAssets} pendingOrderCount={orderRequests.filter((order) => order.status === 'requested').length} session={authSession} />;
     }
   };
 
@@ -931,6 +1083,24 @@ export default function App() {
             <AlertTriangle size={20} className="shrink-0 text-amber-500" />
             <span className="flex-grow text-sm font-bold text-amber-800">{backupWarning}</span>
             <button onClick={() => setBackupWarning('')} className="shrink-0 p-1 text-amber-400 hover:text-amber-700">
+              <X size={18} />
+            </button>
+          </div>
+        )}
+        {orderAlert && view !== 'orders' && (
+          <div className="mb-4 flex flex-col gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 shadow-sm sm:flex-row sm:items-center">
+            <Bell size={20} className="shrink-0 text-amber-600" />
+            <div className="min-w-0 flex-grow">
+              <div className="font-black text-amber-900">未確認の発注が{orderAlert.count}件あります</div>
+              <div className="truncate text-sm font-bold text-amber-700">
+                {orderAlert.latest?.supplierName} / {orderAlert.latest?.assetName} {orderAlert.latest?.quantity?.toLocaleString()}{orderAlert.latest?.purchaseUnit || ''}
+              </div>
+            </div>
+            {notificationPermission === 'default' && (
+              <Button variant="secondary" className="whitespace-nowrap" onClick={enableOrderNotifications}>PC通知を有効化</Button>
+            )}
+            <Button variant="stock" className="whitespace-nowrap" onClick={() => setView('orders')}>発注一覧を開く</Button>
+            <button onClick={() => setOrderAlert(null)} className="shrink-0 p-1 text-amber-500 hover:text-amber-800" title="通知を閉じる">
               <X size={18} />
             </button>
           </div>

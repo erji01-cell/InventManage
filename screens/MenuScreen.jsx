@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { AlertTriangle, ClipboardCheck, ClipboardList, Database, LogOut, MinusCircle, Package, PlusCircle, RefreshCcw, Table } from 'lucide-react';
+import { AlertTriangle, ClipboardCheck, ClipboardList, Database, LogOut, MinusCircle, Package, PlusCircle, RefreshCcw, ShoppingCart, Table } from 'lucide-react';
 
 import { Button, Card } from '../components/ui.jsx';
 import { performBackup } from '../lib/backup.js';
@@ -24,7 +24,7 @@ function getFiscalDisplay(latestFiscalYearClosedAt) {
   };
 }
 
-export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpdate, onFetchLastStocktaking, isAdminUnlocked, setIsAdminUnlocked, onNavigateHistory, onNavigateStock, latestFiscalYearClosedAt, availableFiscalYears = [], currentFiscalStartYear, selectedFiscalYear, setSelectedFiscalYear, negativeStockAssets = [], session }) {
+export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpdate, onFetchLastStocktaking, isAdminUnlocked, setIsAdminUnlocked, onNavigateHistory, onNavigateStock, latestFiscalYearClosedAt, availableFiscalYears = [], currentFiscalStartYear, selectedFiscalYear, setSelectedFiscalYear, negativeStockAssets = [], pendingOrderCount = 0, session }) {
   const [showNegativeList, setShowNegativeList] = useState(false);
   const [quickBackupBusy, setQuickBackupBusy] = useState(false);
   const [quickBackupMessage, setQuickBackupMessage] = useState('');
@@ -273,7 +273,13 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
           <MenuButton icon={<Table size={24} />} title="在庫表" tone="amber" onClick={() => (onNavigateStock ? onNavigateStock() : setView('stock'))} />
           <MenuButton icon={<MinusCircle size={24} />} title="出庫画面" tone="rose" onClick={() => setView('outbound')} />
           <MenuButton icon={<Package size={24} />} title="資産マスタ" tone="purple" onClick={() => setView('assets')} />
-          <div className="flex flex-col gap-1.5">
+          <MenuButton
+            icon={<ShoppingCart size={24} />}
+            title={`発注一覧${pendingOrderCount > 0 ? `（${pendingOrderCount}）` : ''}`}
+            tone="amber"
+            onClick={() => setView('orders')}
+          />
+          <div className="flex flex-col gap-1.5 md:col-span-3 md:flex-row">
             <SmallMenuButton icon={<ClipboardCheck size={18} />} title="棚卸し" tone="teal" onClick={() => openPasswordModal('stocktaking')} />
             <SmallMenuButton icon={<RefreshCcw size={18} />} title="年度更新" tone="slate" onClick={() => openPasswordModal('yearEnd')} />
             <SmallMenuButton icon={<Database size={18} />} title="データ管理" tone="backup" onClick={() => openPasswordModal('backup')} />
