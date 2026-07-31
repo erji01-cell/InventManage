@@ -13,6 +13,19 @@ import MovementHistoryScreen from './screens/MovementHistoryScreen.jsx';
 import StockStatusScreen from './screens/StockStatusScreen.jsx';
 import StocktakingScreen from './screens/StocktakingScreen.jsx';
 import { performBackup, isAutoBackupEnabled } from './lib/backup.js';
+import {
+  normalizeOrderRequest,
+  sendOrderNotificationEmail,
+} from './lib/orderNotifications.js';
+import OrderRequestScreen from './screens/OrderRequestScreen.jsx';
+
+function upsertOrder(orders, order) {
+  const index = orders.findIndex((item) => item.id === order.id);
+  if (index < 0) return [order, ...orders];
+  const next = [...orders];
+  next[index] = order;
+  return next;
+}
 
 export default function App() {
   const [view, setView] = useState('menu');
@@ -23,6 +36,7 @@ export default function App() {
   const [suppliers, setSuppliers] = useState([]);
   const [categories, setCategories] = useState([]);
   const [fiscalSnapshots, setFiscalSnapshots] = useState([]);
+  const [orderRequests, setOrderRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(() => Boolean(getStoredSession()));
   const [error, setError] = useState('');
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(false); // 棚卸し/年度更新/バックアップの共通解放フラグ
@@ -50,6 +64,7 @@ export default function App() {
       setSuppliers(data.suppliers);
       setCategories(data.categories || []);
       setFiscalSnapshots(data.fiscalSnapshots || []);
+      setOrderRequests(data.orderRequests || []);
       setLoadedPastYears(new Set()); // フルリロードで過去年度分は消えるため再取得させる
     } catch (err) {
       if (err?.code === 'AUTH_EXPIRED') {
@@ -74,6 +89,7 @@ export default function App() {
       setSuppliers([]);
       setCategories([]);
       setFiscalSnapshots([]);
+      setOrderRequests([]);
       setIsLoading(false);
       return () => {
         isMounted = false;
@@ -90,6 +106,7 @@ export default function App() {
         setSuppliers(data.suppliers);
         setCategories(data.categories || []);
         setFiscalSnapshots(data.fiscalSnapshots || []);
+        setOrderRequests(data.orderRequests || []);
         setLoadedPastYears(new Set());
       })
       .catch((err) => {
@@ -659,6 +676,121 @@ export default function App() {
     scheduleChangeBackup();
   };
 
+  const sendOrderEmailAndMark = async (orders) => {
+    const orderList = Array.isArray(orders) ? orders : [orders];
+    const result = await sendOrderNotificationEmail(authSession, orderList);
+    const sentIds = new Set(orderList.map((order) => order.id));
+    const emailSentAt = result.emailSentAt || new Date().toISOString();
+    setOrderRequests((prev) => prev.map((order) => (
+      sentIds.has(order.id) ? { ...order, emailSentAt } : order
+    )));
+    return result;
+  };
+
+  const createOrderRequest = async (items) => {
+    const orderItems = Array.isArray(items) ? items : [items];
+    if (orderItems.length === 0) throw new Error('発注する商品がありません。');
+    if (orderItems.length > 100) throw new Error('一度に登録できる発注は100商品までです。');
+
+    const createdRows = await supabaseRequest(
+      'invent_order_requests?select=*',
+      {
+        method: 'POST',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify(orderItems.map(({ asset, quantity, memo, requestedBy }) => ({
+          child_asset_id: Number(asset.id),
+          supplier_id: asset.supplierId ? Number(asset.supplierId) : null,
+          asset_name: asset.name,
+          supplier_name: asset.supplier || '発注先未設定',
+          quantity,
+          purchase_unit: asset.purchaseUnit || '',
+          memo: memo || null,
+          requested_by: requestedBy || authSession?.user?.email || 'ログインユーザー',
+        }))),
+      },
+      authSession
+    );
+    if (!createdRows?.length) throw new Error('発注を登録できませんでした。');
+
+    const createdOrders = createdRows.map(normalizeOrderRequest);
+    setOrderRequests((prev) => createdOrders.reduce(upsertOrder, prev));
+    scheduleChangeBackup();
+
+    try {
+      const emailResult = await sendOrderEmailAndMark(createdOrders);
+      return { orders: createdOrders, emailWarning: emailResult.warning || '' };
+    } catch (emailError) {
+      return {
+        orders: createdOrders,
+        emailWarning: `メール通知は未送信です（${emailError?.message || '送信エラー'}）。一覧から再送できます。`,
+      };
+    }
+  };
+
+  const updateOrderStatus = async (orderId, status) => {
+    const currentOrder = orderRequests.find((order) => order.id === String(orderId));
+    const changedAt = new Date().toISOString();
+    const changedBy = authSession?.user?.email || 'ログインユーザー';
+    const statusUpdate = { status };
+
+    if (status === 'requested') {
+      Object.assign(statusUpdate, {
+        completed_by: null,
+        completed_at: null,
+        delivered_by: null,
+        delivered_at: null,
+      });
+    } else if (status === 'completed') {
+      Object.assign(statusUpdate, {
+        completed_by: currentOrder?.completedBy || changedBy,
+        completed_at: currentOrder?.completedAt || changedAt,
+        delivered_by: null,
+        delivered_at: null,
+      });
+    } else if (status === 'delivered') {
+      Object.assign(statusUpdate, {
+        completed_by: currentOrder?.completedBy || changedBy,
+        completed_at: currentOrder?.completedAt || changedAt,
+        delivered_by: changedBy,
+        delivered_at: changedAt,
+      });
+    }
+
+    const [updated] = await supabaseRequest(
+      `invent_order_requests?id=eq.${encodeURIComponent(orderId)}&select=*`,
+      {
+        method: 'PATCH',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify(statusUpdate),
+      },
+      authSession
+    );
+    if (!updated) throw new Error('発注状態を更新できませんでした。');
+    setOrderRequests((prev) => upsertOrder(prev, normalizeOrderRequest(updated)));
+    scheduleChangeBackup();
+  };
+
+  const deleteOrderRequest = async (orderId) => {
+    const deletedRows = await supabaseRequest(
+      `invent_order_requests?id=eq.${encodeURIComponent(orderId)}&select=id`,
+      {
+        method: 'DELETE',
+        headers: { Prefer: 'return=representation' },
+      },
+      authSession
+    );
+    if (!deletedRows?.length) {
+      throw new Error('発注データを削除できませんでした。Supabaseの削除権限を確認してください。');
+    }
+    setOrderRequests((prev) => prev.filter((order) => order.id !== orderId));
+    scheduleChangeBackup();
+  };
+
+  const retryOrderEmail = async (order) => {
+    const result = await sendOrderEmailAndMark(order);
+    if (result.warning) console.warn('[order-email]', result.warning);
+  };
+
   const [entryAssetId, setEntryAssetId] = useState(null);
   const [filterAssetId, setFilterAssetId] = useState('');
   const [savedEntryForm, setSavedEntryForm] = useState(null);
@@ -890,7 +1022,7 @@ export default function App() {
 
   const renderView = () => {
     switch (view) {
-      case 'menu': return <MenuScreen setView={navigateFromMenu} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={availableFiscalYears} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={selectedFiscalYear} setSelectedFiscalYear={setSelectedFiscalYear} negativeStockAssets={negativeStockAssets} session={authSession} />;
+      case 'menu': return <MenuScreen setView={navigateFromMenu} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={availableFiscalYears} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={selectedFiscalYear} setSelectedFiscalYear={setSelectedFiscalYear} negativeStockAssets={negativeStockAssets} pendingOrderCount={orderRequests.filter((order) => order.status === 'requested').length} session={authSession} />;
       case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} categories={categories} onCreateCategory={createCategory} onCreateAsset={createAsset} onUpdateAsset={updateAsset} onUpdateParentAsset={updateParentAsset} onSetAssetActive={setAssetActive} setView={setView} onNavigateEntry={navigateToEntry} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} initialAssetId={filterAssetId} assetPickerMode={Boolean(assetPickerRequest)} assetPickerSource={assetPickerRequest} onPickAsset={pickAssetFromPicker} onCancelPick={cancelAssetPicker} />;
       case 'history': return <MovementHistoryScreen movements={movements} setView={setView} assets={assets} staff={staff} updateMovement={updateMovement} updateAsset={updateAsset} deleteMovement={deleteMovement} pinnedAssetId={filterAssetId} onNavigateAssets={navigateToAssets} onRequestAssetPick={navigateToAssetPickerFromMovement} assetSelectionResult={movementAssetSelection} onAssetSelectionApplied={() => setMovementAssetSelection(null)} fiscalRange={historyFiscalRange} fiscalSnapshots={fiscalSnapshots} />;
       case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={activeAssets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} onRequestAssetPick={navigateToAssetPickerFromEntry} />;
@@ -898,7 +1030,8 @@ export default function App() {
       case 'stock': return <StockStatusScreen assets={activeAssets} movements={movements} setView={setView} pinnedAssetId={filterAssetId} onNavigateHistory={navigateToHistory} onNavigateAssets={navigateToAssets} fiscalRange={historyFiscalRange} fiscalSnapshots={fiscalSnapshots} />;
       case 'backup': return <BackupScreen session={authSession} setView={setView} onRestored={refreshData} />;
       case 'stocktaking': return <StocktakingScreen session={authSession} setView={setView} assets={activeAssets} movements={movements} staff={staff} onCompleted={async () => { await refreshData(); scheduleChangeBackup(); }} />;
-      default: return <MenuScreen setView={navigateFromMenu} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={availableFiscalYears} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={selectedFiscalYear} setSelectedFiscalYear={setSelectedFiscalYear} negativeStockAssets={negativeStockAssets} session={authSession} />;
+      case 'orders': return <OrderRequestScreen assets={activeAssets} staff={staff} orders={orderRequests} setView={setView} onCreate={createOrderRequest} onUpdateStatus={updateOrderStatus} onDelete={deleteOrderRequest} onRetryEmail={retryOrderEmail} />;
+      default: return <MenuScreen setView={navigateFromMenu} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={availableFiscalYears} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={selectedFiscalYear} setSelectedFiscalYear={setSelectedFiscalYear} negativeStockAssets={negativeStockAssets} pendingOrderCount={orderRequests.filter((order) => order.status === 'requested').length} session={authSession} />;
     }
   };
 
