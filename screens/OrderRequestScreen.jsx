@@ -712,10 +712,10 @@ export default function OrderRequestScreen({
                                 </>
                               ) : order.status === 'completed' ? (
                                 <>
-                                  <Button variant="success" className="px-2.5 py-1.5 text-xs" onClick={() => changeStatus(order, 'delivered')} disabled={busyOrderId === order.id}>
+                                  <Button variant="success" className="w-32 justify-center px-2.5 py-1.5 text-xs" onClick={() => changeStatus(order, 'delivered')} disabled={busyOrderId === order.id}>
                                     <PackageCheck size={14} /> 納品完了
                                   </Button>
-                                  <Button variant="secondary" className="px-2.5 py-1.5 text-xs" onClick={() => changeStatus(order, 'requested')} disabled={busyOrderId === order.id}>
+                                  <Button variant="secondary" className="w-32 justify-center px-2.5 py-1.5 text-xs" onClick={() => changeStatus(order, 'requested')} disabled={busyOrderId === order.id}>
                                     <RotateCcw size={14} /> 発注未に戻す
                                   </Button>
                                 </>
