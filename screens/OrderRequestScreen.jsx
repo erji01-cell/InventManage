@@ -644,7 +644,7 @@ export default function OrderRequestScreen({
                               className="group flex w-full items-start justify-between gap-2 rounded-md px-2 py-1.5 text-left hover:bg-amber-50 hover:text-amber-800"
                               title="摘要を編集"
                             >
-                              <span className={order.memo ? 'break-words' : 'text-slate-400'}>{order.memo || '摘要を入力'}</span>
+                              <span className={order.memo ? 'break-words text-blue-700' : 'text-slate-400'}>{order.memo || '摘要を入力'}</span>
                               <Pencil size={14} className="mt-0.5 shrink-0 text-slate-300 group-hover:text-amber-600" />
                             </button>
                           </td>
