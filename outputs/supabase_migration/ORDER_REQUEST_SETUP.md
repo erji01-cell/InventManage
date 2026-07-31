@@ -4,6 +4,8 @@
 
 SupabaseのSQL Editorで `create_order_requests.sql` を実行します。発注テーブルとRLS設定が作成されます。
 
+発注テーブルをすでに作成済みの場合は、`add_order_delivery_status.sql` を実行して「納品完了」状態を追加します。
+
 ## 2. メール送信設定
 
 ResendでAPIキーを作成し、Supabase Edge FunctionsのSecretsへ次の3項目を設定します。

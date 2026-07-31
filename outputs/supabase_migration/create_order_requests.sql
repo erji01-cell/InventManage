@@ -10,9 +10,11 @@ create table if not exists public.invent_order_requests (
   memo text,
   requested_by text not null,
   requested_at timestamptz not null default now(),
-  status text not null default 'requested' check (status in ('requested', 'completed', 'cancelled')),
+  status text not null default 'requested' check (status in ('requested', 'completed', 'delivered', 'cancelled')),
   completed_by text,
   completed_at timestamptz,
+  delivered_by text,
+  delivered_at timestamptz,
   email_sent_at timestamptz
 );
 

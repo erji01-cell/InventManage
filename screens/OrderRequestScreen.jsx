@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, MailWarning, Plus, Printer, RotateCcw, Send, ShoppingCart, Trash2, X } from 'lucide-react';
+import { Check, MailWarning, PackageCheck, Plus, Printer, RotateCcw, Send, ShoppingCart, Trash2, X } from 'lucide-react';
 
 import { Button, Card } from '../components/ui.jsx';
 import StaffSelect from '../components/StaffSelect.jsx';
@@ -25,6 +25,23 @@ function formatTime(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '-';
   return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+}
+
+const ORDER_STATUS = {
+  requested: { label: '未完了', className: 'border-amber-200 bg-amber-50 text-amber-700' },
+  completed: { label: '発注完了', className: 'border-blue-200 bg-blue-50 text-blue-700' },
+  delivered: { label: '納品完了', className: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
+  cancelled: { label: '取消', className: 'border-red-200 bg-red-50 text-red-700' },
+};
+
+function getOrderStatus(order) {
+  return ORDER_STATUS[order.status] || ORDER_STATUS.requested;
+}
+
+function getOrderStatusAt(order) {
+  if (order.status === 'delivered') return order.deliveredAt;
+  if (order.status === 'completed') return order.completedAt;
+  return '';
 }
 
 export default function OrderRequestScreen({
@@ -60,9 +77,9 @@ export default function OrderRequestScreen({
   const selectedAsset = assets.find((asset) => String(asset.id) === String(assetId));
   const selectedStaff = staff.find((member) => String(member.id) === String(staffId));
   const filteredOrders = useMemo(() => {
-    const rows = filter === 'requested'
-      ? orders.filter((order) => order.status === 'requested')
-      : orders.filter((order) => order.status !== 'requested');
+    const rows = filter === 'delivered'
+      ? orders.filter((order) => order.status === 'delivered' || order.status === 'cancelled')
+      : orders.filter((order) => order.status === filter);
     return [...rows].sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
   }, [filter, orders]);
 
@@ -109,7 +126,11 @@ export default function OrderRequestScreen({
       return supplierCompare || a.assetName.localeCompare(b.assetName, 'ja');
     }), [filteredOrders, printDate]);
 
-  const printStatusLabel = filter === 'requested' ? '未完了' : '完了・取消';
+  const printStatusLabel = filter === 'requested'
+    ? '未完了'
+    : filter === 'completed'
+      ? '発注完了'
+      : '納品完了・取消';
 
   const selectAssetByCode = ({ focusQuantity = false } = {}) => {
     const normalized = String(assetCodeInput).trim();
@@ -214,7 +235,13 @@ export default function OrderRequestScreen({
     setMessage('');
     try {
       await onUpdateStatus(order.id, status);
-      setMessage(status === 'completed' ? '発注を完了にしました。' : status === 'cancelled' ? '発注を取り消しました。' : '未完了に戻しました。');
+      const statusMessages = {
+        requested: '未完了に戻しました。',
+        completed: order.status === 'delivered' ? '発注完了に戻しました。' : '発注完了にしました。',
+        delivered: '納品完了にしました。',
+        cancelled: '発注を取り消しました。',
+      };
+      setMessage(statusMessages[status] || '発注状態を更新しました。');
     } catch (err) {
       setError(err?.message || '発注状態を更新できませんでした。');
     } finally {
@@ -307,7 +334,7 @@ export default function OrderRequestScreen({
       <style>
         @page { size: A4 portrait; margin: 12mm; }
         body { margin: 0; color: #1e293b; font-family: "Yu Gothic", "Meiryo", sans-serif; }
-        table { min-width: 0 !important; width: 100% !important; font-size: 9pt !important; }
+        table { min-width: 0 !important; width: 96% !important; font-size: 9pt !important; }
         th, td { padding: 6px 7px !important; }
       </style></head><body>${content.innerHTML}</body></html>`);
     frameDocument.close();
@@ -508,7 +535,7 @@ export default function OrderRequestScreen({
 
         <section>
           <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-            <div className="inline-flex rounded-md border border-slate-200 bg-slate-50 p-1">
+            <div className="inline-flex flex-wrap rounded-md border border-slate-200 bg-slate-50 p-1">
               <button
                 onClick={() => setFilter('requested')}
                 className={`rounded px-4 py-2 text-sm font-bold ${filter === 'requested' ? 'bg-white text-amber-700 shadow-sm' : 'text-slate-500'}`}
@@ -516,10 +543,16 @@ export default function OrderRequestScreen({
                 未完了 {orders.filter((order) => order.status === 'requested').length}
               </button>
               <button
-                onClick={() => setFilter('closed')}
-                className={`rounded px-4 py-2 text-sm font-bold ${filter === 'closed' ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-500'}`}
+                onClick={() => setFilter('completed')}
+                className={`rounded px-4 py-2 text-sm font-bold ${filter === 'completed' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500'}`}
               >
-                完了・取消
+                発注完了 {orders.filter((order) => order.status === 'completed').length}
+              </button>
+              <button
+                onClick={() => setFilter('delivered')}
+                className={`rounded px-4 py-2 text-sm font-bold ${filter === 'delivered' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}
+              >
+                納品完了・取消 {orders.filter((order) => order.status === 'delivered' || order.status === 'cancelled').length}
               </button>
             </div>
             <div className="flex items-center justify-end gap-3">
@@ -532,7 +565,11 @@ export default function OrderRequestScreen({
 
           {groups.length === 0 && (
             <div className="py-16 text-center text-sm font-bold text-slate-400">
-              {filter === 'requested' ? '未完了の発注はありません。' : '完了・取消の発注はありません。'}
+              {filter === 'requested'
+                ? '未完了の発注はありません。'
+                : filter === 'completed'
+                  ? '発注完了のデータはありません。'
+                  : '納品完了・取消のデータはありません。'}
             </div>
           )}
 
@@ -544,7 +581,7 @@ export default function OrderRequestScreen({
                   <span className="text-xs font-bold text-slate-500">{supplierOrders.length}件</span>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[920px] text-sm">
+                  <table className="w-full min-w-[1080px] text-sm">
                     <thead className="border-b border-slate-200 bg-white text-xs text-slate-500">
                       <tr>
                         <th className="px-4 py-2 text-left">資産</th>
@@ -552,6 +589,7 @@ export default function OrderRequestScreen({
                         <th className="px-4 py-2 text-left">摘要</th>
                         <th className="px-4 py-2 text-left">登録日</th>
                         <th className="px-4 py-2 text-left">登録者</th>
+                        <th className="px-4 py-2 text-left">状態</th>
                         <th className="px-4 py-2 text-right">操作</th>
                       </tr>
                     </thead>
@@ -576,6 +614,16 @@ export default function OrderRequestScreen({
                               <span className="mt-1 inline-flex items-center gap-1 font-bold text-red-600"><MailWarning size={13} />メール未送信</span>
                             )}
                           </td>
+                          <td className="whitespace-nowrap px-4 py-3">
+                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-black ${getOrderStatus(order).className}`}>
+                              {getOrderStatus(order).label}
+                            </span>
+                            {getOrderStatusAt(order) && (
+                              <div className="mt-1 text-xs text-slate-400">
+                                {formatDate(getOrderStatusAt(order))} {formatTime(getOrderStatusAt(order))}
+                              </div>
+                            )}
+                          </td>
                           <td className="px-4 py-3">
                             <div className="flex justify-end gap-2">
                               {!order.emailSentAt && (
@@ -585,13 +633,26 @@ export default function OrderRequestScreen({
                               )}
                               {order.status === 'requested' ? (
                                 <>
-                                  <Button variant="success" className="px-3 py-1.5 text-xs" onClick={() => changeStatus(order, 'completed')} disabled={busyOrderId === order.id}>
-                                    <Check size={14} /> 完了
+                                  <Button variant="primary" className="px-3 py-1.5 text-xs" onClick={() => changeStatus(order, 'completed')} disabled={busyOrderId === order.id}>
+                                    <Check size={14} /> 発注完了
                                   </Button>
                                   <Button variant="danger" className="px-3 py-1.5 text-xs" onClick={() => deleteOrder(order)} disabled={busyOrderId === order.id}>
                                     <Trash2 size={14} /> 削除
                                   </Button>
                                 </>
+                              ) : order.status === 'completed' ? (
+                                <>
+                                  <Button variant="success" className="px-3 py-1.5 text-xs" onClick={() => changeStatus(order, 'delivered')} disabled={busyOrderId === order.id}>
+                                    <PackageCheck size={14} /> 納品完了
+                                  </Button>
+                                  <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => changeStatus(order, 'requested')} disabled={busyOrderId === order.id}>
+                                    <RotateCcw size={14} /> 未完了に戻す
+                                  </Button>
+                                </>
+                              ) : order.status === 'delivered' ? (
+                                <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => changeStatus(order, 'completed')} disabled={busyOrderId === order.id}>
+                                  <RotateCcw size={14} /> 発注完了に戻す
+                                </Button>
                               ) : (
                                 <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => changeStatus(order, 'requested')} disabled={busyOrderId === order.id}>
                                   <RotateCcw size={14} /> 未完了に戻す
@@ -665,9 +726,9 @@ export default function OrderRequestScreen({
                     <th className="w-[15%] border border-slate-300 px-3 py-2 text-left">発注先</th>
                     <th className="w-[27%] border border-slate-300 px-3 py-2 text-left">資産</th>
                     <th className="w-[11%] border border-slate-300 px-3 py-2 text-right">発注個数</th>
-                    <th className="w-[23%] border border-slate-300 px-3 py-2 text-left">摘要</th>
+                    <th className="w-[18%] border border-slate-300 px-3 py-2 text-left">摘要</th>
                     <th className="w-[17%] border border-slate-300 px-3 py-2 text-left">登録者</th>
-                    <th className="w-[7%] border border-slate-300 px-3 py-2 text-left">状態</th>
+                    <th className="w-[10%] border border-slate-300 px-3 py-2 text-left">状態</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -684,7 +745,7 @@ export default function OrderRequestScreen({
                       <td className="border border-slate-300 px-3 py-2 align-top">{order.memo || '-'}</td>
                       <td className="border border-slate-300 px-3 py-2 align-top text-xs">{order.requestedBy || '-'}</td>
                       <td className="border border-slate-300 px-3 py-2 align-top">
-                        {order.status === 'completed' ? '完了' : order.status === 'cancelled' ? '取消' : '未完了'}
+                        {getOrderStatus(order).label}
                       </td>
                     </tr>
                   ))}

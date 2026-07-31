@@ -728,17 +728,40 @@ export default function App() {
   };
 
   const updateOrderStatus = async (orderId, status) => {
-    const isClosed = status !== 'requested';
+    const currentOrder = orderRequests.find((order) => order.id === String(orderId));
+    const changedAt = new Date().toISOString();
+    const changedBy = authSession?.user?.email || 'ログインユーザー';
+    const statusUpdate = { status };
+
+    if (status === 'requested') {
+      Object.assign(statusUpdate, {
+        completed_by: null,
+        completed_at: null,
+        delivered_by: null,
+        delivered_at: null,
+      });
+    } else if (status === 'completed') {
+      Object.assign(statusUpdate, {
+        completed_by: currentOrder?.completedBy || changedBy,
+        completed_at: currentOrder?.completedAt || changedAt,
+        delivered_by: null,
+        delivered_at: null,
+      });
+    } else if (status === 'delivered') {
+      Object.assign(statusUpdate, {
+        completed_by: currentOrder?.completedBy || changedBy,
+        completed_at: currentOrder?.completedAt || changedAt,
+        delivered_by: changedBy,
+        delivered_at: changedAt,
+      });
+    }
+
     const [updated] = await supabaseRequest(
       `invent_order_requests?id=eq.${encodeURIComponent(orderId)}&select=*`,
       {
         method: 'PATCH',
         headers: { Prefer: 'return=representation' },
-        body: JSON.stringify({
-          status,
-          completed_by: isClosed ? (authSession?.user?.email || 'ログインユーザー') : null,
-          completed_at: isClosed ? new Date().toISOString() : null,
-        }),
+        body: JSON.stringify(statusUpdate),
       },
       authSession
     );

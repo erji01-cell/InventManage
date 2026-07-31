@@ -14,7 +14,8 @@ export function normalizeOrderRequest(row) {
     status: row.status || 'requested',
     completedBy: row.completed_by || '',
     completedAt: row.completed_at || '',
+    deliveredBy: row.delivered_by || '',
+    deliveredAt: row.delivered_at || '',
     emailSentAt: row.email_sent_at || '',
   };
 }
-
