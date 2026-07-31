@@ -358,6 +358,18 @@ export default function OrderRequestScreen({
       return;
     }
 
+    const printableContent = content.cloneNode(true);
+    const printableTable = printableContent.querySelector('table');
+    if (printableTable) {
+      printableTable.setAttribute('border', '1');
+      printableTable.setAttribute('cellspacing', '0');
+      printableTable.style.border = '1px solid #334155';
+      printableTable.style.borderCollapse = 'collapse';
+      printableTable.querySelectorAll('th, td').forEach((cell) => {
+        cell.style.border = '1px solid #334155';
+      });
+    }
+
     const styleMarkup = [...document.querySelectorAll('link[rel="stylesheet"], style')]
       .map((node) => (node.tagName === 'LINK'
         ? `<link rel="stylesheet" href="${node.href}">`
@@ -375,16 +387,16 @@ export default function OrderRequestScreen({
           table-layout: fixed !important;
           border-collapse: collapse !important;
           border-spacing: 0 !important;
-          border: 0.3mm solid #64748b !important;
+          border: 1px solid #334155 !important;
           font-size: 9pt !important;
         }
         thead { display: table-header-group; }
         tr { break-inside: avoid; page-break-inside: avoid; }
         th, td {
-          border: 0.3mm solid #64748b !important;
+          border: 1px solid #334155 !important;
           padding: 6px 7px !important;
         }
-      </style></head><body>${content.innerHTML}</body></html>`);
+      </style></head><body>${printableContent.innerHTML}</body></html>`);
     frameDocument.close();
 
     let printStarted = false;
