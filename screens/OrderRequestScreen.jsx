@@ -28,7 +28,7 @@ function formatTime(value) {
 }
 
 const ORDER_STATUS = {
-  requested: { label: '未完了', className: 'border-amber-200 bg-amber-50 text-amber-700' },
+  requested: { label: '発注未完了', className: 'border-amber-200 bg-amber-50 text-amber-700' },
   completed: { label: '発注完了', className: 'border-blue-200 bg-blue-50 text-blue-700' },
   delivered: { label: '納品完了', className: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
   cancelled: { label: '取消', className: 'border-red-200 bg-red-50 text-red-700' },
@@ -127,7 +127,7 @@ export default function OrderRequestScreen({
     }), [filteredOrders, printDate]);
 
   const printStatusLabel = filter === 'requested'
-    ? '未完了'
+    ? '発注未完了'
     : filter === 'completed'
       ? '発注完了'
       : '納品完了・取消';
@@ -236,7 +236,7 @@ export default function OrderRequestScreen({
     try {
       await onUpdateStatus(order.id, status);
       const statusMessages = {
-        requested: '未完了に戻しました。',
+        requested: '発注未完了に戻しました。',
         completed: order.status === 'delivered' ? '発注完了に戻しました。' : '発注完了にしました。',
         delivered: '納品完了にしました。',
         cancelled: '発注を取り消しました。',
@@ -540,7 +540,7 @@ export default function OrderRequestScreen({
                 onClick={() => setFilter('requested')}
                 className={`rounded px-4 py-2 text-sm font-bold ${filter === 'requested' ? 'bg-white text-amber-700 shadow-sm' : 'text-slate-500'}`}
               >
-                未完了 {orders.filter((order) => order.status === 'requested').length}
+                発注未完了 {orders.filter((order) => order.status === 'requested').length}
               </button>
               <button
                 onClick={() => setFilter('completed')}
@@ -566,7 +566,7 @@ export default function OrderRequestScreen({
           {groups.length === 0 && (
             <div className="py-16 text-center text-sm font-bold text-slate-400">
               {filter === 'requested'
-                ? '未完了の発注はありません。'
+                ? '発注未完了のデータはありません。'
                 : filter === 'completed'
                   ? '発注完了のデータはありません。'
                   : '納品完了・取消のデータはありません。'}
@@ -646,7 +646,7 @@ export default function OrderRequestScreen({
                                     <PackageCheck size={14} /> 納品完了
                                   </Button>
                                   <Button variant="secondary" className="px-2.5 py-1.5 text-xs" onClick={() => changeStatus(order, 'requested')} disabled={busyOrderId === order.id}>
-                                    <RotateCcw size={14} /> 未完了に戻す
+                                    <RotateCcw size={14} /> 発注未完了に戻す
                                   </Button>
                                 </>
                               ) : order.status === 'delivered' ? (
@@ -655,7 +655,7 @@ export default function OrderRequestScreen({
                                 </Button>
                               ) : (
                                 <Button variant="secondary" className="px-2.5 py-1.5 text-xs" onClick={() => changeStatus(order, 'requested')} disabled={busyOrderId === order.id}>
-                                  <RotateCcw size={14} /> 未完了に戻す
+                                  <RotateCcw size={14} /> 発注未完了に戻す
                                 </Button>
                               )}
                             </div>
