@@ -19,7 +19,7 @@ function getFiscalDisplay(latestFiscalYearClosedAt) {
 
   const endYear = startYear + 1;
   return {
-    versionLabel: `ver${endYear}.07.01`,
+    versionLabel: 'ver.2026.08.01',
     periodLabel: `${startYear}年7月～${endYear}年6月`,
   };
 }
