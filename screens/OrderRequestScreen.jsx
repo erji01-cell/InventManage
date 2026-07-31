@@ -646,7 +646,7 @@ export default function OrderRequestScreen({
                                     <PackageCheck size={14} /> 納品完了
                                   </Button>
                                   <Button variant="secondary" className="px-2.5 py-1.5 text-xs" onClick={() => changeStatus(order, 'requested')} disabled={busyOrderId === order.id}>
-                                    <RotateCcw size={14} /> 発注未完了に戻す
+                                    <RotateCcw size={14} /> 発注未に戻す
                                   </Button>
                                 </>
                               ) : order.status === 'delivered' ? (
@@ -655,7 +655,7 @@ export default function OrderRequestScreen({
                                 </Button>
                               ) : (
                                 <Button variant="secondary" className="px-2.5 py-1.5 text-xs" onClick={() => changeStatus(order, 'requested')} disabled={busyOrderId === order.id}>
-                                  <RotateCcw size={14} /> 発注未完了に戻す
+                                  <RotateCcw size={14} /> 発注未に戻す
                                 </Button>
                               )}
                             </div>
