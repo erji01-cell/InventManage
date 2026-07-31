@@ -52,6 +52,10 @@ export default function OrderRequestScreen({
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const printContentRef = useRef(null);
+  const staffSelectRef = useRef(null);
+  const assetCodeInputRef = useRef(null);
+  const quantityInputRef = useRef(null);
+  const addButtonRef = useRef(null);
 
   const selectedAsset = assets.find((asset) => String(asset.id) === String(assetId));
   const selectedStaff = staff.find((member) => String(member.id) === String(staffId));
@@ -93,6 +97,11 @@ export default function OrderRequestScreen({
     setAssetCodeInput(assetId ? String(assetId) : '');
   }, [assetId]);
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => staffSelectRef.current?.focus(), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   const printRows = useMemo(() => filteredOrders
     .filter((order) => toLocalDateKey(order.requestedAt) === printDate)
     .sort((a, b) => {
@@ -102,7 +111,7 @@ export default function OrderRequestScreen({
 
   const printStatusLabel = filter === 'requested' ? '未完了' : '完了・取消';
 
-  const selectAssetByCode = () => {
+  const selectAssetByCode = ({ focusQuantity = false } = {}) => {
     const normalized = String(assetCodeInput).trim();
     if (!normalized) {
       setAssetId('');
@@ -119,6 +128,9 @@ export default function OrderRequestScreen({
     setError('');
     setMessage('');
     setAssetId(matched.id);
+    if (focusQuantity) {
+      window.setTimeout(() => quantityInputRef.current?.focus(), 0);
+    }
   };
 
   const addDraftItem = () => {
@@ -158,10 +170,12 @@ export default function OrderRequestScreen({
         }
         : item);
     });
+    setStaffId('');
     setAssetId('');
     setQuantity('1');
     setMemo('');
     setMessage(`${selectedAsset.name}を発注リストに追加しました。`);
+    window.setTimeout(() => staffSelectRef.current?.focus(), 0);
   };
 
   const removeDraftItem = (draftKey) => {
@@ -291,7 +305,7 @@ export default function OrderRequestScreen({
     frameDocument.open();
     frameDocument.write(`<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><title>発注一覧</title>${styleMarkup}
       <style>
-        @page { size: A4 landscape; margin: 12mm; }
+        @page { size: A4 portrait; margin: 12mm; }
         body { margin: 0; color: #1e293b; font-family: "Yu Gothic", "Meiryo", sans-serif; }
         table { min-width: 0 !important; width: 100% !important; font-size: 9pt !important; }
         th, td { padding: 6px 7px !important; }
@@ -337,13 +351,18 @@ export default function OrderRequestScreen({
 
       <div className="space-y-6 p-6">
         <section className="rounded-md border border-amber-200 bg-amber-50/50 p-4">
-          <div className="grid gap-4 lg:grid-cols-[190px_minmax(320px,1fr)_120px_minmax(180px,0.65fr)_auto] lg:items-end">
+          <div className="grid gap-4 lg:grid-cols-[190px_minmax(0,1fr)] lg:items-end">
             <label className="block">
               <span className="mb-1 block text-xs font-bold text-slate-500">担当者</span>
               <StaffSelect
+                ref={staffSelectRef}
                 staff={staff}
                 value={staffId}
                 onChange={setStaffId}
+                onEnter={(event) => {
+                  event.preventDefault();
+                  assetCodeInputRef.current?.focus();
+                }}
                 className="h-[42px] w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-bold outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
                 placeholder="担当者を選択"
               />
@@ -352,6 +371,7 @@ export default function OrderRequestScreen({
               <span className="mb-1 block text-xs font-bold text-slate-500">発注する資産</span>
               <div className="flex items-center gap-3">
                 <input
+                  ref={assetCodeInputRef}
                   type="text"
                   inputMode="numeric"
                   value={assetCodeInput}
@@ -367,7 +387,7 @@ export default function OrderRequestScreen({
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') {
                       event.preventDefault();
-                      selectAssetByCode();
+                      selectAssetByCode({ focusQuantity: true });
                     }
                   }}
                   placeholder="コード"
@@ -377,15 +397,24 @@ export default function OrderRequestScreen({
                 <AssetSearchInput assets={assets} value={assetId} onChange={setAssetId} isIn showListSignal={0} />
               </div>
             </label>
+          </div>
+          <div className="mt-4 grid gap-4 lg:grid-cols-[120px_minmax(0,1fr)_auto] lg:items-end">
             <label className="block">
               <span className="mb-1 block text-xs font-bold text-slate-500">発注個数</span>
               <div className="flex items-center gap-2">
                 <input
+                  ref={quantityInputRef}
                   type="number"
                   min="1"
                   step="1"
                   value={quantity}
                   onChange={(event) => setQuantity(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      addButtonRef.current?.focus();
+                    }
+                  }}
                   className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-right font-bold outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
                 />
                 <span className="min-w-8 text-sm font-bold text-slate-600">{selectedAsset?.purchaseUnit || '個'}</span>
@@ -400,7 +429,7 @@ export default function OrderRequestScreen({
                 className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
               />
             </label>
-            <Button variant="stock" className="h-[42px] whitespace-nowrap px-5" onClick={addDraftItem} disabled={isSaving}>
+            <Button ref={addButtonRef} variant="stock" className="h-[42px] whitespace-nowrap px-5" onClick={addDraftItem} disabled={isSaving}>
               <Plus size={18} />
               リストに追加
             </Button>
