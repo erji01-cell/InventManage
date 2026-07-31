@@ -580,8 +580,8 @@ export default function OrderRequestScreen({
                   <h2 className="font-black text-slate-800">{supplierName}</h2>
                   <span className="text-xs font-bold text-slate-500">{supplierOrders.length}件</span>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[1080px] text-sm">
+                <div className="overflow-hidden">
+                  <table className="w-full table-fixed text-sm">
                     <thead className="border-b border-slate-200 bg-white text-xs text-slate-500">
                       <tr>
                         <th className="px-4 py-2 text-left">資産</th>
@@ -589,8 +589,8 @@ export default function OrderRequestScreen({
                         <th className="px-4 py-2 text-left">摘要</th>
                         <th className="px-4 py-2 text-left">登録日</th>
                         <th className="px-4 py-2 text-left">登録者</th>
-                        <th className="px-4 py-2 text-left">状態</th>
-                        <th className="px-4 py-2 text-right">操作</th>
+                        <th className="w-[110px] px-2 py-2 text-left">状態</th>
+                        <th className="w-[200px] px-2 py-2 text-right">操作</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -614,8 +614,8 @@ export default function OrderRequestScreen({
                               <span className="mt-1 inline-flex items-center gap-1 font-bold text-red-600"><MailWarning size={13} />メール未送信</span>
                             )}
                           </td>
-                          <td className="whitespace-nowrap px-4 py-3">
-                            <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-black ${getOrderStatus(order).className}`}>
+                          <td className="whitespace-nowrap px-2 py-3">
+                            <span className={`inline-flex rounded-full border px-2 py-1 text-xs font-black ${getOrderStatus(order).className}`}>
                               {getOrderStatus(order).label}
                             </span>
                             {getOrderStatusAt(order) && (
@@ -624,37 +624,37 @@ export default function OrderRequestScreen({
                               </div>
                             )}
                           </td>
-                          <td className="px-4 py-3">
-                            <div className="flex justify-end gap-2">
+                          <td className="px-2 py-3">
+                            <div className="flex flex-wrap justify-end gap-1.5">
                               {!order.emailSentAt && (
-                                <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => retryEmail(order)} disabled={busyOrderId === order.id}>
+                                <Button variant="secondary" className="px-2.5 py-1.5 text-xs" onClick={() => retryEmail(order)} disabled={busyOrderId === order.id}>
                                   <Send size={14} /> 再送
                                 </Button>
                               )}
                               {order.status === 'requested' ? (
                                 <>
-                                  <Button variant="primary" className="px-3 py-1.5 text-xs" onClick={() => changeStatus(order, 'completed')} disabled={busyOrderId === order.id}>
+                                  <Button variant="primary" className="px-2.5 py-1.5 text-xs" onClick={() => changeStatus(order, 'completed')} disabled={busyOrderId === order.id}>
                                     <Check size={14} /> 発注完了
                                   </Button>
-                                  <Button variant="danger" className="px-3 py-1.5 text-xs" onClick={() => deleteOrder(order)} disabled={busyOrderId === order.id}>
+                                  <Button variant="danger" className="px-2.5 py-1.5 text-xs" onClick={() => deleteOrder(order)} disabled={busyOrderId === order.id}>
                                     <Trash2 size={14} /> 削除
                                   </Button>
                                 </>
                               ) : order.status === 'completed' ? (
                                 <>
-                                  <Button variant="success" className="px-3 py-1.5 text-xs" onClick={() => changeStatus(order, 'delivered')} disabled={busyOrderId === order.id}>
+                                  <Button variant="success" className="px-2.5 py-1.5 text-xs" onClick={() => changeStatus(order, 'delivered')} disabled={busyOrderId === order.id}>
                                     <PackageCheck size={14} /> 納品完了
                                   </Button>
-                                  <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => changeStatus(order, 'requested')} disabled={busyOrderId === order.id}>
+                                  <Button variant="secondary" className="px-2.5 py-1.5 text-xs" onClick={() => changeStatus(order, 'requested')} disabled={busyOrderId === order.id}>
                                     <RotateCcw size={14} /> 未完了に戻す
                                   </Button>
                                 </>
                               ) : order.status === 'delivered' ? (
-                                <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => changeStatus(order, 'completed')} disabled={busyOrderId === order.id}>
+                                <Button variant="secondary" className="px-2.5 py-1.5 text-xs" onClick={() => changeStatus(order, 'completed')} disabled={busyOrderId === order.id}>
                                   <RotateCcw size={14} /> 発注完了に戻す
                                 </Button>
                               ) : (
-                                <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => changeStatus(order, 'requested')} disabled={busyOrderId === order.id}>
+                                <Button variant="secondary" className="px-2.5 py-1.5 text-xs" onClick={() => changeStatus(order, 'requested')} disabled={busyOrderId === order.id}>
                                   <RotateCcw size={14} /> 未完了に戻す
                                 </Button>
                               )}
