@@ -368,8 +368,22 @@ export default function OrderRequestScreen({
       <style>
         @page { size: A4 portrait; margin: 12mm; }
         body { margin: 0; color: #1e293b; font-family: "Yu Gothic", "Meiryo", sans-serif; }
-        table { min-width: 0 !important; width: 96% !important; font-size: 9pt !important; }
-        th, td { padding: 6px 7px !important; }
+        * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        table {
+          min-width: 0 !important;
+          width: 96% !important;
+          table-layout: fixed !important;
+          border-collapse: collapse !important;
+          border-spacing: 0 !important;
+          border: 0.3mm solid #64748b !important;
+          font-size: 9pt !important;
+        }
+        thead { display: table-header-group; }
+        tr { break-inside: avoid; page-break-inside: avoid; }
+        th, td {
+          border: 0.3mm solid #64748b !important;
+          padding: 6px 7px !important;
+        }
       </style></head><body>${content.innerHTML}</body></html>`);
     frameDocument.close();
 
