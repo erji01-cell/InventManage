@@ -770,6 +770,21 @@ export default function App() {
     scheduleChangeBackup();
   };
 
+  const updateOrderMemo = async (orderId, memo) => {
+    const [updated] = await supabaseRequest(
+      `invent_order_requests?id=eq.${encodeURIComponent(orderId)}&select=*`,
+      {
+        method: 'PATCH',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({ memo: memo || null }),
+      },
+      authSession
+    );
+    if (!updated) throw new Error('摘要を更新できませんでした。');
+    setOrderRequests((prev) => upsertOrder(prev, normalizeOrderRequest(updated)));
+    scheduleChangeBackup();
+  };
+
   const deleteOrderRequest = async (orderId) => {
     const deletedRows = await supabaseRequest(
       `invent_order_requests?id=eq.${encodeURIComponent(orderId)}&select=id`,
@@ -1030,7 +1045,7 @@ export default function App() {
       case 'stock': return <StockStatusScreen assets={activeAssets} movements={movements} setView={setView} pinnedAssetId={filterAssetId} onNavigateHistory={navigateToHistory} onNavigateAssets={navigateToAssets} fiscalRange={historyFiscalRange} fiscalSnapshots={fiscalSnapshots} />;
       case 'backup': return <BackupScreen session={authSession} setView={setView} onRestored={refreshData} />;
       case 'stocktaking': return <StocktakingScreen session={authSession} setView={setView} assets={activeAssets} movements={movements} staff={staff} onCompleted={async () => { await refreshData(); scheduleChangeBackup(); }} />;
-      case 'orders': return <OrderRequestScreen assets={activeAssets} staff={staff} orders={orderRequests} setView={setView} onCreate={createOrderRequest} onUpdateStatus={updateOrderStatus} onDelete={deleteOrderRequest} onRetryEmail={retryOrderEmail} />;
+      case 'orders': return <OrderRequestScreen assets={activeAssets} staff={staff} orders={orderRequests} setView={setView} onCreate={createOrderRequest} onUpdateStatus={updateOrderStatus} onUpdateMemo={updateOrderMemo} onDelete={deleteOrderRequest} onRetryEmail={retryOrderEmail} />;
       default: return <MenuScreen setView={navigateFromMenu} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={availableFiscalYears} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={selectedFiscalYear} setSelectedFiscalYear={setSelectedFiscalYear} negativeStockAssets={negativeStockAssets} pendingOrderCount={orderRequests.filter((order) => order.status === 'requested').length} session={authSession} />;
     }
   };

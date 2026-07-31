@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, MailWarning, PackageCheck, Plus, Printer, RotateCcw, Send, ShoppingCart, Trash2, X } from 'lucide-react';
+import { Check, MailWarning, PackageCheck, Pencil, Plus, Printer, RotateCcw, Save, Send, ShoppingCart, Trash2, X } from 'lucide-react';
 
 import { Button, Card } from '../components/ui.jsx';
 import StaffSelect from '../components/StaffSelect.jsx';
@@ -51,6 +51,7 @@ export default function OrderRequestScreen({
   setView,
   onCreate,
   onUpdateStatus,
+  onUpdateMemo,
   onDelete,
   onRetryEmail,
 }) {
@@ -66,6 +67,9 @@ export default function OrderRequestScreen({
   const [printError, setPrintError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [busyOrderId, setBusyOrderId] = useState('');
+  const [editingMemoOrder, setEditingMemoOrder] = useState(null);
+  const [editingMemo, setEditingMemo] = useState('');
+  const [isMemoSaving, setIsMemoSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const printContentRef = useRef(null);
@@ -246,6 +250,36 @@ export default function OrderRequestScreen({
       setError(err?.message || '発注状態を更新できませんでした。');
     } finally {
       setBusyOrderId('');
+    }
+  };
+
+  const openMemoEditor = (order) => {
+    setEditingMemoOrder(order);
+    setEditingMemo(order.memo || '');
+    setError('');
+    setMessage('');
+  };
+
+  const closeMemoEditor = () => {
+    if (isMemoSaving) return;
+    setEditingMemoOrder(null);
+    setEditingMemo('');
+  };
+
+  const saveMemo = async () => {
+    if (!editingMemoOrder) return;
+    setIsMemoSaving(true);
+    setError('');
+    setMessage('');
+    try {
+      await onUpdateMemo(editingMemoOrder.id, editingMemo.trim());
+      setEditingMemoOrder(null);
+      setEditingMemo('');
+      setMessage('摘要を更新しました。');
+    } catch (err) {
+      setError(err?.message || '摘要を更新できませんでした。');
+    } finally {
+      setIsMemoSaving(false);
     }
   };
 
@@ -603,7 +637,17 @@ export default function OrderRequestScreen({
                           <td className="whitespace-nowrap px-4 py-3 text-right text-base font-black text-amber-700">
                             {order.quantity.toLocaleString()} {order.purchaseUnit}
                           </td>
-                          <td className="max-w-64 px-4 py-3 text-slate-600">{order.memo || '-'}</td>
+                          <td className="max-w-64 px-2 py-2 text-slate-600">
+                            <button
+                              type="button"
+                              onClick={() => openMemoEditor(order)}
+                              className="group flex w-full items-start justify-between gap-2 rounded-md px-2 py-1.5 text-left hover:bg-amber-50 hover:text-amber-800"
+                              title="摘要を編集"
+                            >
+                              <span className={order.memo ? 'break-words' : 'text-slate-400'}>{order.memo || '摘要を入力'}</span>
+                              <Pencil size={14} className="mt-0.5 shrink-0 text-slate-300 group-hover:text-amber-600" />
+                            </button>
+                          </td>
                           <td className="whitespace-nowrap px-4 py-3 text-slate-600">
                             <div className="font-bold text-blue-700">{formatDate(order.requestedAt)}</div>
                             <div className="text-xs text-slate-400">{formatTime(order.requestedAt)}</div>
@@ -676,6 +720,53 @@ export default function OrderRequestScreen({
           </Button>
         </div>
       </div>
+
+      {editingMemoOrder && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/45 p-4">
+          <div className="w-full max-w-xl overflow-hidden rounded-md border border-slate-200 bg-white shadow-2xl" role="dialog" aria-modal="true" aria-labelledby="order-memo-title">
+            <div className="flex items-start justify-between border-b border-slate-200 px-6 py-4">
+              <div className="min-w-0">
+                <p className="text-[10px] font-black tracking-[0.18em] text-amber-600">ORDER MEMO</p>
+                <h2 id="order-memo-title" className="mt-1 text-xl font-black text-slate-900">摘要を編集</h2>
+                <p className="mt-1 truncate text-sm text-slate-500">{editingMemoOrder.assetName}</p>
+              </div>
+              <button
+                type="button"
+                onClick={closeMemoEditor}
+                disabled={isMemoSaving}
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+                aria-label="摘要編集を閉じる"
+                title="閉じる"
+              >
+                <X size={19} />
+              </button>
+            </div>
+            <div className="px-6 py-5">
+              <label className="block">
+                <span className="mb-2 block text-xs font-bold text-slate-500">摘要</span>
+                <textarea
+                  value={editingMemo}
+                  onChange={(event) => setEditingMemo(event.target.value)}
+                  rows={6}
+                  maxLength={1000}
+                  autoFocus
+                  className="w-full resize-y rounded-md border border-slate-200 px-3 py-3 text-sm leading-6 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                  placeholder="例：8/1 先方より連絡あり。8/10頃納品予定"
+                />
+                <span className="mt-1 block text-right text-xs text-slate-400">{editingMemo.length}/1000</span>
+              </label>
+            </div>
+            <div className="flex justify-end gap-3 border-t border-slate-200 bg-slate-50 px-6 py-4">
+              <Button variant="secondary" onClick={closeMemoEditor} disabled={isMemoSaving}>
+                <X size={17} /> 閉じる
+              </Button>
+              <Button variant="success" onClick={saveMemo} disabled={isMemoSaving}>
+                <Save size={17} /> {isMemoSaving ? '保存中...' : '保存'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showPrintModal && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/45 p-4">
