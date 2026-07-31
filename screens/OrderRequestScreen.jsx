@@ -81,9 +81,7 @@ export default function OrderRequestScreen({
   const selectedAsset = assets.find((asset) => String(asset.id) === String(assetId));
   const selectedStaff = staff.find((member) => String(member.id) === String(staffId));
   const filteredOrders = useMemo(() => {
-    const rows = filter === 'delivered'
-      ? orders.filter((order) => order.status === 'delivered' || order.status === 'cancelled')
-      : orders.filter((order) => order.status === filter);
+    const rows = orders.filter((order) => order.status === filter);
     return [...rows].sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
   }, [filter, orders]);
 
@@ -134,7 +132,7 @@ export default function OrderRequestScreen({
     ? '発注未完了'
     : filter === 'completed'
       ? '発注完了'
-      : '納品完了・取消';
+      : '納品完了';
 
   const selectAssetByCode = ({ focusQuantity = false } = {}) => {
     const normalized = String(assetCodeInput).trim();
@@ -612,7 +610,7 @@ export default function OrderRequestScreen({
                 onClick={() => setFilter('delivered')}
                 className={`rounded px-4 py-2 text-sm font-bold ${filter === 'delivered' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}
               >
-                納品完了・取消 {orders.filter((order) => order.status === 'delivered' || order.status === 'cancelled').length}
+                納品完了 {orders.filter((order) => order.status === 'delivered').length}
               </button>
             </div>
             <div className="flex items-center justify-end gap-3">
@@ -629,7 +627,7 @@ export default function OrderRequestScreen({
                 ? '発注未完了のデータはありません。'
                 : filter === 'completed'
                   ? '発注完了のデータはありません。'
-                  : '納品完了・取消のデータはありません。'}
+                  : '納品完了のデータはありません。'}
             </div>
           )}
 
