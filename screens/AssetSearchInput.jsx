@@ -20,6 +20,7 @@ function assetMatches(asset, query, romajiSearch) {
     asset.parentCategory,
     asset.parentGenericName,
     asset.supplier,
+    asset.memo, // 摘要
   ];
   const normalizedFields = fields.map(normalizeSearchText);
   if (normalizedFields.some((field) => field.includes(query))) return true;
@@ -94,7 +95,7 @@ export default function AssetSearchInput({
           ref={inputRef}
           type="text"
           lang="ja"
-          placeholder="品名・メーカーで検索..."
+          placeholder="品名・メーカー・摘要で検索..."
           className={`w-full p-2 pr-16 border rounded-md outline-none focus:ring-2 transition-all ${
             isIn ? 'focus:ring-emerald-500' : 'focus:ring-rose-500'
           }`}
