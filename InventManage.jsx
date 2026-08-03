@@ -616,28 +616,40 @@ export default function App() {
       throw new Error('資産を更新できませんでした。データが見つからないか、変更権限がない可能性があります。');
     }
 
-    setAssets(prev => prev.map(asset => {
-      if (asset.id !== String(updated.id)) return asset;
+    setAssets(prev => {
+      // 品目を付け替えた場合、分類・品目名も移動先のものに揃える。
+      // 移動先は既存資産から選ぶため、同じ品目の資産が必ず1件以上ある。
+      const parentSource = prev.find(item => item.parentId === updated.parent_id);
 
-      const supplier = suppliers.find(item => Number(item.id) === Number(updated.supplier_id));
+      return prev.map(asset => {
+        if (asset.id !== String(updated.id)) return asset;
 
-      return {
-        ...asset,
-        maker: updated.maker,
-        name: updated.brand_name,
-        kanaName: updated.kana_name || '',
-        packSize: toNumber(updated.pack_size || 1),
-        deliveryPrice: toNumber(updated.delivery_price),
-        usageUnitPrice: toNumber(updated.usage_unit_price),
-        usageUnit: updated.usage_unit,
-        purchaseUnit: updated.purchase_unit || '',
-        supplierId: updated.supplier_id ? String(updated.supplier_id) : '',
-        supplier: supplier?.name || '',
-        janCode: updated.jan_code || '',
-        fiscalYearClosedAt: updated.fiscal_year_closed_at || null,
-        memo: updated.child_memo || '',
-      };
-    }));
+        const supplier = suppliers.find(item => Number(item.id) === Number(updated.supplier_id));
+
+        return {
+          ...asset,
+          parentId: updated.parent_id,
+          category: parentSource?.category ?? asset.category,
+          categoryId: parentSource?.categoryId ?? asset.categoryId,
+          categoryOrder: parentSource?.categoryOrder ?? asset.categoryOrder,
+          parentCategory: parentSource?.parentCategory ?? asset.parentCategory,
+          parentGenericName: parentSource?.parentGenericName ?? asset.parentGenericName,
+          maker: updated.maker,
+          name: updated.brand_name,
+          kanaName: updated.kana_name || '',
+          packSize: toNumber(updated.pack_size || 1),
+          deliveryPrice: toNumber(updated.delivery_price),
+          usageUnitPrice: toNumber(updated.usage_unit_price),
+          usageUnit: updated.usage_unit,
+          purchaseUnit: updated.purchase_unit || '',
+          supplierId: updated.supplier_id ? String(updated.supplier_id) : '',
+          supplier: supplier?.name || '',
+          janCode: updated.jan_code || '',
+          fiscalYearClosedAt: updated.fiscal_year_closed_at || null,
+          memo: updated.child_memo || '',
+        };
+      });
+    });
     scheduleChangeBackup();
   };
 

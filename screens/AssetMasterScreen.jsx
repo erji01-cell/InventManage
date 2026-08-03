@@ -225,7 +225,13 @@ const createAssetEditForm = (asset) => ({
   parentId: asset?.parentId || '',
   categoryId: asset?.categoryId || '',
   parentGenericName: asset?.parentGenericName || '',
+  // 編集時の品目の扱い。'rename' = 今の品目名を直す（同じ品目の全資産に反映）、
+  // 'relink' = この資産だけを別の品目に付け替える
+  parentMode: 'rename',
 });
+
+// 品目を付け替えるモードを表すプルダウンの値（品目IDと衝突しない固定値）
+const PARENT_RENAME_OPTION = '__rename__';
 
 export default function AssetMasterScreen({ assets, suppliers, categories = [], onCreateCategory, onCreateAsset, onUpdateAsset, onUpdateParentAsset, onSetAssetActive, setView, onNavigateEntry, onNavigateHistory, onNavigateStock, initialAssetId = '', assetPickerMode = false, assetPickerSource = null, onPickAsset, onCancelPick }) {
   const [filter, setFilter] = useState('');
@@ -340,6 +346,39 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
     setEditForm(prev => ({ ...prev, parentId: '', [key]: value }));
   };
 
+  // 編集時の品目プルダウン。「この品目名を編集する」を選ぶと元の品目に戻し、
+  // 別の品目を選ぶとその品目の分類・品目名を引き継いで付け替えモードにする。
+  const updateParentMode = (value) => {
+    if (value === PARENT_RENAME_OPTION) {
+      setEditForm(prev => ({
+        ...prev,
+        parentMode: 'rename',
+        parentId: selectedAsset?.parentId || '',
+        categoryId: selectedAsset?.categoryId || '',
+        parentGenericName: selectedAsset?.parentGenericName || '',
+      }));
+      return;
+    }
+    const parent = parentOptions.find(option => option.id === value);
+    setEditForm(prev => ({
+      ...prev,
+      parentMode: 'relink',
+      parentId: value,
+      categoryId: parent?.categoryId || prev.categoryId,
+      parentGenericName: parent?.genericName || '',
+    }));
+  };
+
+  // 付け替えモード中は分類・品目名が付け替え先のものになるため入力させない
+  const isRelinking = !isCreating && editForm.parentMode === 'relink';
+
+  // 選択中の資産と同じ品目にぶら下がっている資産の件数（自分を含む）
+  const siblingCount = useMemo(() => (
+    selectedAsset?.parentId
+      ? assets.filter(asset => asset.parentId === selectedAsset.parentId).length
+      : 0
+  ), [assets, selectedAsset?.parentId]);
+
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
@@ -410,6 +449,25 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
       return;
     }
 
+    // 品目名・分類は親資産の属性なので、同じ品目の資産すべてに反映される。
+    // 2件以上ぶら下がっている場合は影響範囲を示して確認する。
+    const nextGenericName = editForm.parentGenericName.trim() || null;
+    const prevGenericName = selectedAsset?.parentGenericName?.trim() || null;
+    const parentFieldsChanged = !isCreating && !isRelinking && (
+      nextGenericName !== prevGenericName ||
+      Number(editForm.categoryId) !== Number(selectedAsset?.categoryId)
+    );
+
+    if (parentFieldsChanged && siblingCount > 1) {
+      const confirmed = window.confirm(
+        `この品目には他に ${siblingCount - 1} 件の資産が紐づいています。\n` +
+        `品目名・分類の変更は、それら ${siblingCount - 1} 件にも反映されます。\n\n` +
+        'この資産だけを変更したい場合は、キャンセルして\n' +
+        '「品目」から別の品目を選び直してください。\n\n続行しますか？'
+      );
+      if (!confirmed) return;
+    }
+
     setIsSaving(true);
     setSaveError('');
 
@@ -435,12 +493,16 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
         return;
       }
 
-      const categoryName = categories.find(c => c.id === Number(editForm.categoryId))?.name || '';
-      await onUpdateParentAsset(selectedAsset.parentId, {
-        category: categoryName,
-        category_id: Number(editForm.categoryId),
-        generic_name: editForm.parentGenericName.trim() || null,
-      });
+      // 品目名・分類に変更があるときだけ親資産を更新する。
+      // 毎回更新すると、他の人が変更した品目名を古い値で上書きしてしまう。
+      if (parentFieldsChanged) {
+        const categoryName = categories.find(c => c.id === Number(editForm.categoryId))?.name || '';
+        await onUpdateParentAsset(selectedAsset.parentId, {
+          category: categoryName,
+          category_id: Number(editForm.categoryId),
+          generic_name: nextGenericName,
+        });
+      }
 
       await onUpdateAsset(selectedAsset.id, {
         maker: editForm.maker.trim(),
@@ -453,6 +515,10 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
         supplier_id: supplierId,
         jan_code: editForm.janCode.trim() || null,
         child_memo: editForm.memo.trim() || null,
+        // 付け替えモードのときだけ、この資産の所属品目を移す（他の資産には影響しない）
+        ...(isRelinking && editForm.parentId && editForm.parentId !== selectedAsset.parentId
+          ? { parent_id: editForm.parentId }
+          : {}),
       });
       setIsEditing(false);
     } catch (err) {
@@ -727,6 +793,23 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                   <div className="rounded-lg border border-purple-200 bg-purple-50 p-3">
                     <p className="mb-3 text-xs font-bold text-purple-700">分類・品目名</p>
                     <div className="space-y-3">
+                      {!isCreating && (
+                        <EditField
+                          label="品目"
+                          type="select"
+                          value={isRelinking ? editForm.parentId : PARENT_RENAME_OPTION}
+                          onChange={updateParentMode}
+                          options={[
+                            { value: PARENT_RENAME_OPTION, label: 'この品目名を編集する' },
+                            ...parentOptions
+                              .filter(parent => parent.id !== selectedAsset?.parentId)
+                              .map(parent => ({
+                                value: parent.id,
+                                label: `この資産を移す → ${parent.genericName || parent.id} / ${parent.category || '-'}`,
+                              })),
+                          ]}
+                        />
+                      )}
                       <EditField
                         label="分類"
                         type="select"
@@ -736,8 +819,9 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                           { value: '', label: '選択してください' },
                           ...categories.map(cat => ({ value: String(cat.id), label: cat.name })),
                         ]}
+                        disabled={isRelinking}
                       />
-                      {!showNewCategory ? (
+                      {isRelinking ? null : !showNewCategory ? (
                         <button type="button" onClick={() => setShowNewCategory(true)} className="text-xs font-bold text-purple-600 hover:underline">
                           ＋ 新しい分類を追加
                         </button>
@@ -779,11 +863,17 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                         label="品目名（任意）"
                         value={editForm.parentGenericName}
                         onChange={(value) => updateNewParentField('parentGenericName', value)}
-                        disabled={isCreating && Boolean(editForm.parentId)}
+                        disabled={isRelinking || (isCreating && Boolean(editForm.parentId))}
                       />
                     </div>
                     <p className="mt-2 text-xs text-purple-700">
-                      {isCreating ? '既存の品目名を選ぶと、その親IDに子資産として追加されます。' : '同じ品目名に紐づく他の資産にも反映されます。'}
+                      {isCreating
+                        ? '既存の品目名を選ぶと、その親IDに子資産として追加されます。'
+                        : isRelinking
+                          ? 'この資産だけが選んだ品目に移ります。分類は移動先のものになり、他の資産は変わりません。'
+                          : siblingCount > 1
+                            ? `この品目には他に ${siblingCount - 1} 件の資産が紐づいています。品目名・分類を変えると、それら ${siblingCount - 1} 件にも反映されます。`
+                            : 'この品目に紐づく資産はこの1件だけです。'}
                     </p>
                   </div>
 
