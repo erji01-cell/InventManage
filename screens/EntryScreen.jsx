@@ -343,7 +343,7 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
             <div className="grid grid-cols-2 gap-x-5 gap-y-2">
               <InfoLine label="メーカー" value={selectedAsset?.maker || '-'} />
               <InfoLine label="分類" value={selectedAsset?.parentCategory || '-'} />
-              <InfoLine label="品名" value={selectedAsset?.name || '-'} className="col-span-2" strong />
+              <InfoLine label="資産名" value={selectedAsset?.name || '-'} className="col-span-2" strong />
               <InfoLine label="取引先" value={selectedAsset?.supplier || '-'} />
               <InfoLine label="現在庫" value={`${selectedAsset ? currentStock.toLocaleString() : '-'} ${selectedAsset?.usageUnit || ''}`} valueClassName={`font-bold ${currentStock <= 0 ? 'text-rose-600' : 'text-slate-700'}`} />
               <InfoLine label="購入" value={`¥${(selectedAsset?.deliveryPrice || 0).toLocaleString()} / ${selectedAsset?.purchaseUnit || '-'}`} />

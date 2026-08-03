@@ -231,7 +231,7 @@ ${summaryHTML}
 </body></html>`;
 
   const tableHeaderHTML = () => {
-    const headers = ['ID','メーカー','品名',startLabel,'入庫数','出庫数',endLabel,'単位','受払単価','在庫金額'];
+    const headers = ['ID','メーカー','資産名',startLabel,'入庫数','出庫数',endLabel,'単位','受払単価','在庫金額'];
     const widths =  ['7%', '12%', '26%', '7%', '7%', '7%', '7%', '5%', '10%', '12%'];
     return headers.map((h, i) => `<th style="width:${widths[i]}" class="${i >= 3 ? 'text-right' : ''}">${h}</th>`).join('');
   };
@@ -439,7 +439,7 @@ ${summaryHTML}
               </span>
             )}
           </div>
-          <p className="mt-2 text-sm text-slate-500">月度を選択し、品名・メーカー・IDで絞り込めます。</p>
+          <p className="mt-2 text-sm text-slate-500">月度を選択し、資産名・メーカー・IDで絞り込めます。</p>
           {isPastYear && !pastYearHasAnySnapshot && (
             <p className="mt-1 text-xs font-bold text-amber-600">
               ※ この年度のスナップショットがないため、期首在庫0として概算表示しています。
@@ -600,7 +600,7 @@ ${summaryHTML}
             <tr>
               <th className="border-b border-slate-200 px-3 py-2 w-20">ID</th>
               <th className="border-b border-slate-200 px-3 py-2 w-36">メーカー</th>
-              <th className="border-b border-slate-200 px-3 py-2 min-w-[320px]">品名</th>
+              <th className="border-b border-slate-200 px-3 py-2 min-w-[320px]">資産名</th>
               <th className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-right w-20">{startLabel}</th>
               <th className="border-b border-slate-200 bg-emerald-50/70 px-3 py-2 text-right w-20">入庫数</th>
               <th className="border-b border-slate-200 bg-rose-50/70 px-3 py-2 text-right w-20">出庫数</th>

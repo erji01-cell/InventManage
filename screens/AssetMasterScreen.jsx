@@ -9,7 +9,7 @@ const COLUMN_DEFS = [
   { key: 'id',             label: 'ID',       defaultOn: true  },
   { key: 'parentCategory', label: '分類',      defaultOn: false },
   { key: 'maker',          label: 'メーカー',  defaultOn: true  },
-  { key: 'name',           label: '品名',      defaultOn: true  },
+  { key: 'name',           label: '資産名',      defaultOn: true  },
   { key: 'kanaName',       label: 'かな名',    defaultOn: false },
   { key: 'packSize',       label: '規格',      defaultOn: true  },
   { key: 'purchaseUnit',   label: '購入単位',  defaultOn: false },
@@ -26,7 +26,7 @@ const SORT_OPTIONS = [
   { value: 'category_id',  label: '分類ごと → ID順' },
   { value: 'category_kana',label: '分類ごと → アイウエオ順' },
   { value: 'maker',        label: 'メーカー順' },
-  { value: 'kana',         label: '品名アイウエオ順' },
+  { value: 'kana',         label: '資産名アイウエオ順' },
 ];
 
 function normalizeSearchText(value) {
@@ -391,7 +391,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
     const supplierId = toNullableNumber(editForm.supplierId);
 
     if (!editForm.maker.trim() || !editForm.name.trim() || !editForm.usageUnit.trim()) {
-      setSaveError('メーカー、品名、受払単位は必須です。');
+      setSaveError('メーカー、資産名、受払単位は必須です。');
       return;
     }
 
@@ -552,7 +552,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-purple-400" size={18} />
           <input
             type="text"
-            placeholder="ID・品名・メーカー・分類で検索..."
+            placeholder="ID・資産名・メーカー・分類で検索..."
             className="w-full rounded-md border border-purple-200 bg-purple-50 py-2.5 pl-10 pr-4 text-sm font-medium shadow-inner outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
             value={filter}
             onChange={(e) => { setFilter(e.target.value); setPinnedAssetId(''); }}
@@ -593,7 +593,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
           <option value="id">ID順</option>
           <option value="category_id">分類ごと → ID順</option>
           <option value="category_kana">分類ごと → アイウエオ順</option>
-          <option value="kana">品名アイウエオ順</option>
+          <option value="kana">資産名アイウエオ順</option>
         </select>
         <Button variant="secondary" onClick={() => { setFilter(''); setPinnedAssetId(''); }}>リセット</Button>
       </div>
@@ -606,7 +606,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                 <th className="p-3 w-16">ID</th>
                 <th className="p-3 w-32">メーカー</th>
                 <th className="p-3 w-24">分類</th>
-                <th className="p-3">品名</th>
+                <th className="p-3">資産名</th>
               </tr>
             </thead>
             <tbody>
@@ -721,7 +721,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                   </div>
 
                   <EditField label="メーカー" value={editForm.maker} onChange={(value) => updateEditForm('maker', value)} />
-                  <EditField label="品名" value={editForm.name} onChange={(value) => updateEditForm('name', value)} />
+                  <EditField label="資産名" value={editForm.name} onChange={(value) => updateEditForm('name', value)} />
                   <EditField label="読み仮名" value={editForm.kanaName} onChange={(value) => updateEditForm('kanaName', value)} />
 
                   <div className="rounded-lg border border-purple-200 bg-purple-50 p-3">

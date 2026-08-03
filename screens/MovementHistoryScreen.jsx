@@ -18,7 +18,7 @@ const SORT_OPTIONS = [
   { key: 'assetCode',     label: '資産コード',       defaultDir: 'asc' },
   { key: 'category_id',   label: '分類→ID順',       defaultDir: 'asc' },
   { key: 'category_kana', label: '分類→アイウエオ順', defaultDir: 'asc' },
-  { key: 'name',          label: '品名',             defaultDir: 'asc' },
+  { key: 'name',          label: '資産名',             defaultDir: 'asc' },
   { key: 'date',          label: '入出庫日',         defaultDir: 'desc' },
   { key: 'staff',         label: '担当者名',         defaultDir: 'asc' },
   { key: 'entry',         label: '入力順',           defaultDir: 'asc' },
@@ -343,7 +343,7 @@ ${summaryHTML}
 </body></html>`;
 
   const buildTableHTML = (rows) => {
-    const headers = ['No','日付','分類','ID','メーカー','品名','入庫','出庫','差引残','受払単位','実購入価格','使用期限'];
+    const headers = ['No','日付','分類','ID','メーカー','資産名','入庫','出庫','差引残','受払単位','実購入価格','使用期限'];
     const widths =  ['5%', '10%', '8%', '6%', '10%', '19%', '6%', '6%', '7%', '5%', '10%', '8%'];
     const ths = headers.map((h, i) => `<th style="width:${widths[i]}">${h}</th>`).join('');
     const tds = rows.map(({ m, asset, rs }) => {
@@ -411,11 +411,11 @@ ${summaryHTML}
     const actualDeliveryPrice = Number(movementEditForm.actualDeliveryPrice || 0);
     const assetIdNum = Number(movementEditForm.assetId);
     if (!movementEditForm.assetId || !Number.isFinite(assetIdNum) || assetIdNum <= 0) {
-      setMovementSaveError('品名を選択してください。');
+      setMovementSaveError('資産名を選択してください。');
       return;
     }
     if (!assets.find((a) => String(a.id) === String(movementEditForm.assetId))) {
-      setMovementSaveError('選択された品名が見つかりません。');
+      setMovementSaveError('選択された資産名が見つかりません。');
       return;
     }
     if (!movementEditForm.date) {
@@ -712,7 +712,7 @@ ${summaryHTML}
               <th className="px-3 py-2 border-b border-slate-200 w-[83px]">分類</th>
               <th className="px-3 py-2 border-b border-slate-200 w-12">ID</th>
               <th className="px-3 py-2 border-b border-slate-200 w-24">メーカー</th>
-              <th className="px-3 py-2 border-b border-slate-200 min-w-[280px]">品名</th>
+              <th className="px-3 py-2 border-b border-slate-200 min-w-[280px]">資産名</th>
               <th className="px-2 py-2 border-b border-slate-200 text-right w-14">入庫</th>
               <th className="px-2 py-2 border-b border-slate-200 text-right w-14">出庫</th>
               <th className="px-2 py-2 border-b border-slate-200 text-right w-16 bg-blue-50/70">差引残</th>

@@ -221,7 +221,7 @@ InventManage/
 │   │   └─ TAX_RATE 定数（消費税率10%・円未満切り捨て）
 │   ├── MovementHistoryScreen.jsx # 入出庫履歴（assetById Map + useMemo）
 │   ├── EntryScreen.jsx           # 入出庫登録（実購入価格は0円可・マイナス不可）
-│   ├── AssetSearchInput.jsx      # 資産検索（品名・メーカー・摘要・ローマ字）
+│   ├── AssetSearchInput.jsx      # 資産検索（資産名・メーカー・摘要・ローマ字）
 │   ├── OrderRequestScreen.jsx    # 発注一覧（groupBy で表示単位切替＋連動印刷）
 │   └── ...
 │

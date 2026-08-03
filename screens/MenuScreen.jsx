@@ -243,7 +243,7 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
                   <table className="w-full text-sm">
                     <thead className="sticky top-0 bg-red-100/70 text-red-800">
                       <tr>
-                        <th className="px-3 py-2 text-left font-bold">品名</th>
+                        <th className="px-3 py-2 text-left font-bold">資産名</th>
                         <th className="px-3 py-2 text-right font-bold">現在庫</th>
                       </tr>
                     </thead>
@@ -261,7 +261,7 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
                     </tbody>
                   </table>
                 </div>
-                <p className="mt-2 text-xs text-red-600">品名をクリックすると入出庫データを確認できます。</p>
+                <p className="mt-2 text-xs text-red-600">資産名をクリックすると入出庫データを確認できます。</p>
               </>
             )}
           </div>

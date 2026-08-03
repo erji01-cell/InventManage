@@ -424,7 +424,7 @@ export default function StocktakingScreen({ session, setView, assets, movements,
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="資産コード・品名・メーカーで検索"
+            placeholder="資産コード・資産名・メーカーで検索"
             className="flex-1 min-w-64 p-2 border rounded"
           />
           <label className="flex items-center gap-2 text-sm font-bold cursor-pointer">
@@ -437,7 +437,7 @@ export default function StocktakingScreen({ session, setView, assets, movements,
               <option value="id">コード順</option>
               <option value="category_id">分類ごと → コード順</option>
               <option value="category_kana">分類ごと → アイウエオ順</option>
-              <option value="kana">品名アイウエオ順</option>
+              <option value="kana">資産名アイウエオ順</option>
             </select>
           </label>
           <label className="flex items-center gap-2 text-sm font-bold cursor-pointer">
@@ -456,7 +456,7 @@ export default function StocktakingScreen({ session, setView, assets, movements,
             <thead className="bg-slate-100 sticky top-0">
               <tr>
                 <th className="p-2 text-left">コード</th>
-                <th className="p-2 text-left">品名</th>
+                <th className="p-2 text-left">資産名</th>
                 <th className="p-2 text-right">システム在庫</th>
                 <th className="p-2 text-center">実数</th>
                 <th className="p-2 text-right">差異</th>
@@ -572,7 +572,7 @@ export default function StocktakingScreen({ session, setView, assets, movements,
           <thead className="bg-slate-100 sticky top-0">
             <tr>
               <th className="p-2 text-left">コード</th>
-              <th className="p-2 text-left">品名</th>
+              <th className="p-2 text-left">資産名</th>
               <th className="p-2 text-right">システム</th>
               <th className="p-2 text-right">実数</th>
               <th className="p-2 text-right">差異</th>
