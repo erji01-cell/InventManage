@@ -62,6 +62,7 @@ export default function OrderRequestScreen({
   const [memo, setMemo] = useState('');
   const [draftItems, setDraftItems] = useState([]);
   const [filter, setFilter] = useState('requested');
+  const [groupBy, setGroupBy] = useState('supplier');
   const [printDate, setPrintDate] = useState('');
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [printError, setPrintError] = useState('');
@@ -86,14 +87,38 @@ export default function OrderRequestScreen({
   }, [filter, orders]);
 
   const groups = useMemo(() => {
+    const isSupplier = groupBy === 'supplier';
+    const dateField = { requested: 'requestedAt', completed: 'completedAt', delivered: 'deliveredAt' }[groupBy];
+    const noDateLabel = { requested: '登録日なし', completed: '発注完了日なし', delivered: '納品完了日なし' }[groupBy];
+
     const map = new Map();
     filteredOrders.forEach((order) => {
-      const supplier = order.supplierName || '発注先未設定';
-      if (!map.has(supplier)) map.set(supplier, []);
-      map.get(supplier).push(order);
+      const key = isSupplier
+        ? (order.supplierName || '発注先未設定')
+        : (toLocalDateKey(order[dateField]) || noDateLabel);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(order);
     });
-    return [...map.entries()].sort(([a], [b]) => a.localeCompare(b, 'ja'));
-  }, [filteredOrders]);
+
+    const entries = [...map.entries()];
+    if (isSupplier) return entries.sort(([a], [b]) => a.localeCompare(b, 'ja'));
+    // 日付別は新しい順。日付が未設定のグループは末尾へ
+    return entries.sort(([a], [b]) => {
+      if (a === noDateLabel) return 1;
+      if (b === noDateLabel) return -1;
+      return b.localeCompare(a);
+    });
+  }, [filteredOrders, groupBy]);
+
+  const GROUP_OPTIONS = [
+    { key: 'supplier', label: '発注先別' },
+    { key: 'requested', label: '登録日別' },
+    { key: 'completed', label: '発注完了日別' },
+    { key: 'delivered', label: '納品完了日別' },
+  ];
+
+  // 日付グループのキーは 'YYYY-MM-DD'。再パースせずそのまま表示形式へ
+  const groupHeaderLabel = (key) => (groupBy === 'supplier' || key.endsWith('なし') ? key : key.replaceAll('-', '/'));
 
   const printDateOptions = useMemo(() => {
     const counts = new Map();
@@ -613,8 +638,23 @@ export default function OrderRequestScreen({
                 納品完了 {orders.filter((order) => order.status === 'delivered').length}
               </button>
             </div>
-            <div className="flex items-center justify-end gap-3">
-              <span className="text-xs font-bold text-slate-400">取引先ごとに表示</span>
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-400">表示単位</span>
+                <div className="flex flex-wrap gap-1 rounded-lg bg-slate-100 p-1">
+                  {GROUP_OPTIONS.map((option) => (
+                    <button
+                      key={option.key}
+                      onClick={() => setGroupBy(option.key)}
+                      className={`rounded px-3 py-1.5 text-xs font-bold transition-colors ${
+                        groupBy === option.key ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <Button variant="print" className="h-10 whitespace-nowrap px-4" onClick={openPrintModal} disabled={printDateOptions.length === 0}>
                 <Printer size={17} /> 登録日別印刷
               </Button>
@@ -632,11 +672,11 @@ export default function OrderRequestScreen({
           )}
 
           <div className="space-y-5">
-            {groups.map(([supplierName, supplierOrders]) => (
-              <div key={supplierName} className="overflow-hidden rounded-md border border-slate-200">
+            {groups.map(([groupKey, groupOrders]) => (
+              <div key={groupKey} className="overflow-hidden rounded-md border border-slate-200">
                 <div className="flex items-center justify-between bg-slate-100 px-4 py-2.5">
-                  <h2 className="font-black text-slate-800">{supplierName}</h2>
-                  <span className="text-xs font-bold text-slate-500">{supplierOrders.length}件</span>
+                  <h2 className="font-black text-slate-800">{groupHeaderLabel(groupKey)}</h2>
+                  <span className="text-xs font-bold text-slate-500">{groupOrders.length}件</span>
                 </div>
                 <div className="overflow-hidden">
                   <table className="w-full table-fixed text-sm">
@@ -652,11 +692,14 @@ export default function OrderRequestScreen({
                       </tr>
                     </thead>
                     <tbody>
-                      {supplierOrders.map((order) => (
+                      {groupOrders.map((order) => (
                         <tr key={order.id} className="border-b border-slate-100 last:border-0">
                           <td className="px-4 py-3">
                             <div className="font-bold text-slate-800">{order.assetName}</div>
                             <div className="text-xs text-slate-400">ID: {order.assetId}</div>
+                            {groupBy !== 'supplier' && (
+                              <div className="text-xs font-bold text-slate-500">{order.supplierName || '発注先未設定'}</div>
+                            )}
                           </td>
                           <td className="whitespace-nowrap px-4 py-3 text-right text-base font-black text-amber-700">
                             {order.quantity.toLocaleString()} {order.purchaseUnit}
