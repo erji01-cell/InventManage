@@ -725,7 +725,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                   <EditField label="読み仮名" value={editForm.kanaName} onChange={(value) => updateEditForm('kanaName', value)} />
 
                   <div className="rounded-lg border border-purple-200 bg-purple-50 p-3">
-                    <p className="mb-3 text-xs font-bold text-purple-700">大分類</p>
+                    <p className="mb-3 text-xs font-bold text-purple-700">分類・品目名</p>
                     <div className="space-y-3">
                       <EditField
                         label="分類"
@@ -762,12 +762,12 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                       )}
                       {isCreating && (
                         <EditField
-                          label="既存ジェネリック名"
+                          label="既存の品目名"
                           type="select"
                           value={editForm.parentId}
                           onChange={updateParentSelection}
                           options={[
-                            { value: '', label: '新しいジェネリック名で登録' },
+                            { value: '', label: '新しい品目名で登録' },
                             ...parentOptions.map(parent => ({
                               value: parent.id,
                               label: `${parent.genericName || parent.id} / ${parent.category || '-'}`,
@@ -776,14 +776,14 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                         />
                       )}
                       <EditField
-                        label="大分類名（任意）"
+                        label="品目名（任意）"
                         value={editForm.parentGenericName}
                         onChange={(value) => updateNewParentField('parentGenericName', value)}
                         disabled={isCreating && Boolean(editForm.parentId)}
                       />
                     </div>
                     <p className="mt-2 text-xs text-purple-700">
-                      {isCreating ? '既存ジェネリック名を選ぶと、その親IDに子資産として追加されます。' : '同じ大分類に紐づく他の資産にも反映されます。'}
+                      {isCreating ? '既存の品目名を選ぶと、その親IDに子資産として追加されます。' : '同じ品目名に紐づく他の資産にも反映されます。'}
                     </p>
                   </div>
 
@@ -818,7 +818,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                   <div className="space-y-2 border-t border-slate-200 pt-4">
                     <DetailRow label="状態" value={selectedAsset.isActive === false ? '使用不可' : '使用中'} />
                     <DetailRow label="分類" value={selectedAsset.parentCategory || '-'} />
-                    <DetailRow label="大分類名" value={selectedAsset.parentGenericName || '-'} />
+                    <DetailRow label="品目名" value={selectedAsset.parentGenericName || '-'} />
                     <DetailRow label="摘要" value={selectedAsset.memo || '-'} />
                   </div>
 

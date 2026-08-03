@@ -655,7 +655,7 @@ export default function App() {
     );
 
     if (!updated) {
-      throw new Error('大分類を更新できませんでした。データが見つからないか、変更権限がない可能性があります。');
+      throw new Error('品目名を更新できませんでした。データが見つからないか、変更権限がない可能性があります。');
     }
 
     const cat = categories.find(c => c.id === updated.category_id);
