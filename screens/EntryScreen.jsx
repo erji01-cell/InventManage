@@ -107,7 +107,8 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
   const priceHistory = (() => {
     if (!selectedAsset) return [];
     const inbounds = selectedAssetMovements
-      .filter((m) => m.type === 'in' && Number(m.actualDeliveryPrice) > 0)
+      // 0円も正式な価格として履歴に表示する（無償提供・サンプル等）
+      .filter((m) => m.type === 'in' && Number(m.actualDeliveryPrice) >= 0)
       .slice() // movements は date desc で渡されるが念のためコピー
       .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     const history = [];
@@ -168,14 +169,17 @@ export default function EntryScreen({ type, onSave, onCancel, assets, movements 
     if (!form.assetId) missing.push('資産コード');
     if (!form.date) missing.push(isIn ? '入庫日' : '出庫日');
     if (!form.quantity || Number(form.quantity) <= 0) missing.push(isIn ? '入庫数' : '出庫数');
-    if (isIn && (!form.actualDeliveryPrice || actualDeliveryPrice <= 0)) missing.push('実購入価格');
+    // 実購入価格は0円も有効（無償提供・サンプル等）。未入力のみ必須エラーとする
+    if (isIn && (form.actualDeliveryPrice === '' || form.actualDeliveryPrice === null || form.actualDeliveryPrice === undefined)) {
+      missing.push('実購入価格');
+    }
     if (missing.length > 0) {
       setSaveError(`次の項目を入力してください：${missing.join('、')}`);
       return;
     }
 
     if (actualDeliveryPrice < 0) {
-      setSaveError(`${isIn ? '実購入価格' : '評価単価'}は0以上で入力してください。`);
+      setSaveError(`${isIn ? '実購入価格' : '評価単価'}はマイナスでは登録できません。0以上で入力してください。`);
       return;
     }
     // 年度更新で締め済みの期間には登録させない（在庫に反映されず混乱を招くため）
