@@ -27,6 +27,16 @@ function formatTime(value) {
   return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 }
 
+// 印刷対象セレクタで「すべてのグループ」を表す番兵値（グループ名と衝突しない値）
+const ALL_GROUPS = '__all__';
+
+const GROUP_OPTIONS = [
+  { key: 'supplier', label: '発注先別' },
+  { key: 'requested', label: '登録日別' },
+  { key: 'completed', label: '発注完了日別' },
+  { key: 'delivered', label: '納品完了日別' },
+];
+
 const ORDER_STATUS = {
   requested: { label: '発注未完了', className: 'border-amber-200 bg-amber-50 text-amber-700' },
   completed: { label: '発注完了', className: 'border-blue-200 bg-blue-50 text-blue-700' },
@@ -63,7 +73,7 @@ export default function OrderRequestScreen({
   const [draftItems, setDraftItems] = useState([]);
   const [filter, setFilter] = useState('requested');
   const [groupBy, setGroupBy] = useState('supplier');
-  const [printDate, setPrintDate] = useState('');
+  const [printGroupKey, setPrintGroupKey] = useState(ALL_GROUPS);
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [printError, setPrintError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -110,32 +120,22 @@ export default function OrderRequestScreen({
     });
   }, [filteredOrders, groupBy]);
 
-  const GROUP_OPTIONS = [
-    { key: 'supplier', label: '発注先別' },
-    { key: 'requested', label: '登録日別' },
-    { key: 'completed', label: '発注完了日別' },
-    { key: 'delivered', label: '納品完了日別' },
-  ];
+  const currentGroupLabel = GROUP_OPTIONS.find((option) => option.key === groupBy)?.label || '';
 
   // 日付グループのキーは 'YYYY-MM-DD'。再パースせずそのまま表示形式へ
   const groupHeaderLabel = (key) => (groupBy === 'supplier' || key.endsWith('なし') ? key : key.replaceAll('-', '/'));
 
-  const printDateOptions = useMemo(() => {
-    const counts = new Map();
-    filteredOrders.forEach((order) => {
-      const dateKey = toLocalDateKey(order.requestedAt);
-      if (dateKey) counts.set(dateKey, (counts.get(dateKey) || 0) + 1);
-    });
-    return [...counts.entries()]
-      .sort(([a], [b]) => b.localeCompare(a))
-      .map(([value, count]) => ({ value, count }));
-  }, [filteredOrders]);
+  // 印刷対象の選択肢は現在の表示単位（groupBy）のグループをそのまま使う
+  const printGroupOptions = useMemo(
+    () => groups.map(([key, rows]) => ({ value: key, label: groupHeaderLabel(key), count: rows.length })),
+    [groups, groupBy],
+  );
 
   useEffect(() => {
-    if (!printDateOptions.some((option) => option.value === printDate)) {
-      setPrintDate(printDateOptions[0]?.value || '');
+    if (printGroupKey !== ALL_GROUPS && !printGroupOptions.some((option) => option.value === printGroupKey)) {
+      setPrintGroupKey(ALL_GROUPS);
     }
-  }, [printDate, printDateOptions]);
+  }, [printGroupKey, printGroupOptions]);
 
   useEffect(() => {
     setAssetCodeInput(assetId ? String(assetId) : '');
@@ -146,12 +146,19 @@ export default function OrderRequestScreen({
     return () => window.clearTimeout(timer);
   }, []);
 
-  const printRows = useMemo(() => filteredOrders
-    .filter((order) => toLocalDateKey(order.requestedAt) === printDate)
-    .sort((a, b) => {
-      const supplierCompare = (a.supplierName || '発注先未設定').localeCompare(b.supplierName || '発注先未設定', 'ja');
-      return supplierCompare || a.assetName.localeCompare(b.assetName, 'ja');
-    }), [filteredOrders, printDate]);
+  // 印刷内容は「グループ見出し + 明細表」の並び。単一グループ選択時は1セクションのみ
+  const printSections = useMemo(() => {
+    const target = printGroupKey === ALL_GROUPS ? groups : groups.filter(([key]) => key === printGroupKey);
+    return target.map(([key, rows]) => [
+      key,
+      [...rows].sort((a, b) => {
+        const supplierCompare = (a.supplierName || '発注先未設定').localeCompare(b.supplierName || '発注先未設定', 'ja');
+        return supplierCompare || a.assetName.localeCompare(b.assetName, 'ja');
+      }),
+    ]);
+  }, [groups, printGroupKey]);
+
+  const printRowCount = printSections.reduce((sum, [, rows]) => sum + rows.length, 0);
 
   const printStatusLabel = filter === 'requested'
     ? '発注未完了'
@@ -343,16 +350,17 @@ export default function OrderRequestScreen({
     setError('');
     setMessage('');
     setPrintError('');
-    if (printDateOptions.length === 0) {
+    if (printGroupOptions.length === 0) {
       setError('印刷できる発注データがありません。');
       return;
     }
+    setPrintGroupKey(ALL_GROUPS);
     setShowPrintModal(true);
   };
 
   const printOrdersByDate = () => {
-    if (!printDate || printRows.length === 0) {
-      setPrintError('印刷する登録日の発注データがありません。');
+    if (printRowCount === 0) {
+      setPrintError('印刷する発注データがありません。');
       return;
     }
     const content = printContentRef.current;
@@ -382,8 +390,8 @@ export default function OrderRequestScreen({
     }
 
     const printableContent = content.cloneNode(true);
-    const printableTable = printableContent.querySelector('table');
-    if (printableTable) {
+    // グループごとに表が複数あるため、すべての表に罫線を適用する
+    printableContent.querySelectorAll('table').forEach((printableTable) => {
       printableTable.setAttribute('border', '1');
       printableTable.setAttribute('cellspacing', '0');
       printableTable.style.border = '1px solid #334155';
@@ -391,7 +399,7 @@ export default function OrderRequestScreen({
       printableTable.querySelectorAll('th, td').forEach((cell) => {
         cell.style.border = '1px solid #334155';
       });
-    }
+    });
 
     const styleMarkup = [...document.querySelectorAll('link[rel="stylesheet"], style')]
       .map((node) => (node.tagName === 'LINK'
@@ -415,6 +423,9 @@ export default function OrderRequestScreen({
         }
         thead { display: table-header-group; }
         tr { break-inside: avoid; page-break-inside: avoid; }
+        /* グループごとに改ページ（先頭グループは除く） */
+        .order-print-section + .order-print-section { break-before: page; page-break-before: always; }
+        .order-print-section h2 { font-size: 11pt; margin: 0 0 4px; }
         th, td {
           border: 1px solid #334155 !important;
           padding: 6px 7px !important;
@@ -655,8 +666,8 @@ export default function OrderRequestScreen({
                   ))}
                 </div>
               </div>
-              <Button variant="print" className="h-10 whitespace-nowrap px-4" onClick={openPrintModal} disabled={printDateOptions.length === 0}>
-                <Printer size={17} /> 登録日別印刷
+              <Button variant="print" className="h-10 whitespace-nowrap px-4" onClick={openPrintModal} disabled={printGroupOptions.length === 0}>
+                <Printer size={17} /> {currentGroupLabel}印刷
               </Button>
             </div>
           </div>
@@ -841,7 +852,7 @@ export default function OrderRequestScreen({
             <div className="order-print-controls flex items-center justify-between border-b border-slate-200 px-6 py-4">
               <div>
                 <p className="text-[10px] font-black tracking-[0.18em] text-amber-600">PRINT ORDERS</p>
-                <h2 className="mt-1 text-xl font-black text-slate-900">登録日別印刷</h2>
+                <h2 className="mt-1 text-xl font-black text-slate-900">{currentGroupLabel}印刷</h2>
               </div>
               <button
                 type="button"
@@ -856,15 +867,16 @@ export default function OrderRequestScreen({
 
             <div className="order-print-controls border-b border-slate-200 bg-slate-50 px-6 py-4">
               <label className="block max-w-sm">
-                <span className="mb-2 block text-xs font-bold text-slate-500">印刷する登録日</span>
+                <span className="mb-2 block text-xs font-bold text-slate-500">印刷する{currentGroupLabel.replace(/別$/, '')}</span>
                 <select
-                  value={printDate}
-                  onChange={(event) => setPrintDate(event.target.value)}
+                  value={printGroupKey}
+                  onChange={(event) => setPrintGroupKey(event.target.value)}
                   className="h-11 w-full rounded-md border border-amber-300 bg-white px-3 text-sm font-bold text-slate-800 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
                 >
-                  {printDateOptions.map((option) => (
+                  <option value={ALL_GROUPS}>すべて（{filteredOrders.length}件 / {printGroupOptions.length}グループ）</option>
+                  {printGroupOptions.map((option) => (
                     <option key={option.value} value={option.value}>
-                      {option.value.replaceAll('-', '/')}（{option.count}件）
+                      {option.label}（{option.count}件）
                     </option>
                   ))}
                 </select>
@@ -875,46 +887,54 @@ export default function OrderRequestScreen({
               <div className="mb-4">
                 <h1 className="text-2xl font-black text-slate-900">発注一覧</h1>
                 <p className="mt-1 text-sm text-slate-500">
-                  登録日: <span className="font-bold text-blue-700">{printDate ? printDate.replaceAll('-', '/') : '-'}</span>　状態: {printStatusLabel}　件数: {printRows.length}件
+                  表示単位: <span className="font-bold text-blue-700">{currentGroupLabel}</span>　状態: {printStatusLabel}　件数: {printRowCount}件
                 </p>
               </div>
-              <table className="w-full min-w-[900px] table-fixed border-collapse text-sm">
-                <thead>
-                  <tr className="bg-amber-100 text-amber-900">
-                    <th className="w-[15%] border border-slate-300 px-3 py-2 text-left">発注先</th>
-                    <th className="w-[27%] border border-slate-300 px-3 py-2 text-left">資産</th>
-                    <th className="w-[11%] border border-slate-300 px-3 py-2 text-right">発注個数</th>
-                    <th className="w-[18%] border border-slate-300 px-3 py-2 text-left">摘要</th>
-                    <th className="w-[17%] border border-slate-300 px-3 py-2 text-left">登録者</th>
-                    <th className="w-[10%] border border-slate-300 px-3 py-2 text-left">状態</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {printRows.map((order) => (
-                    <tr key={order.id}>
-                      <td className="border border-slate-300 px-3 py-2 align-top">{order.supplierName || '発注先未設定'}</td>
-                      <td className="border border-slate-300 px-3 py-2 align-top">
-                        <div className="font-bold">{order.assetName}</div>
-                        <div className="mt-0.5 text-xs text-slate-500">ID: {order.assetId}</div>
-                      </td>
-                      <td className="whitespace-nowrap border border-slate-300 px-3 py-2 text-right align-top font-bold">
-                        {Number(order.quantity).toLocaleString('ja-JP')} {order.purchaseUnit || ''}
-                      </td>
-                      <td className="border border-slate-300 px-3 py-2 align-top">{order.memo || '-'}</td>
-                      <td className="border border-slate-300 px-3 py-2 align-top text-xs">{order.requestedBy || '-'}</td>
-                      <td className="border border-slate-300 px-3 py-2 align-top">
-                        {getOrderStatus(order).label}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              {printSections.map(([groupKey, rows], index) => (
+                <div key={groupKey} className={`order-print-section${index > 0 ? ' mt-6' : ''}`}>
+                  <h2 className="mb-2 border-l-4 border-amber-500 pl-2 text-base font-black text-slate-800">
+                    {groupHeaderLabel(groupKey)}
+                    <span className="ml-2 text-xs font-bold text-slate-500">{rows.length}件</span>
+                  </h2>
+                  <table className="w-full min-w-[900px] table-fixed border-collapse text-sm">
+                    <thead>
+                      <tr className="bg-amber-100 text-amber-900">
+                        <th className="w-[15%] border border-slate-300 px-3 py-2 text-left">発注先</th>
+                        <th className="w-[27%] border border-slate-300 px-3 py-2 text-left">資産</th>
+                        <th className="w-[11%] border border-slate-300 px-3 py-2 text-right">発注個数</th>
+                        <th className="w-[18%] border border-slate-300 px-3 py-2 text-left">摘要</th>
+                        <th className="w-[17%] border border-slate-300 px-3 py-2 text-left">登録者</th>
+                        <th className="w-[10%] border border-slate-300 px-3 py-2 text-left">状態</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((order) => (
+                        <tr key={order.id}>
+                          <td className="border border-slate-300 px-3 py-2 align-top">{order.supplierName || '発注先未設定'}</td>
+                          <td className="border border-slate-300 px-3 py-2 align-top">
+                            <div className="font-bold">{order.assetName}</div>
+                            <div className="mt-0.5 text-xs text-slate-500">ID: {order.assetId}</div>
+                          </td>
+                          <td className="whitespace-nowrap border border-slate-300 px-3 py-2 text-right align-top font-bold">
+                            {Number(order.quantity).toLocaleString('ja-JP')} {order.purchaseUnit || ''}
+                          </td>
+                          <td className="border border-slate-300 px-3 py-2 align-top">{order.memo || '-'}</td>
+                          <td className="border border-slate-300 px-3 py-2 align-top text-xs">{order.requestedBy || '-'}</td>
+                          <td className="border border-slate-300 px-3 py-2 align-top">
+                            {getOrderStatus(order).label}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ))}
             </div>
 
             <div className="order-print-controls flex justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4">
               {printError && <p className="mr-auto max-w-2xl text-sm font-bold text-red-600">{printError}</p>}
               <Button variant="secondary" onClick={() => setShowPrintModal(false)}><X size={17} /> 閉じる</Button>
-              <Button variant="print" onClick={printOrdersByDate} disabled={printRows.length === 0}><Printer size={17} /> 印刷する</Button>
+              <Button variant="print" onClick={printOrdersByDate} disabled={printRowCount === 0}><Printer size={17} /> 印刷する</Button>
             </div>
           </div>
         </div>
