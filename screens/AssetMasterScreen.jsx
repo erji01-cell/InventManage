@@ -803,29 +803,17 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                           ...categories.map(cat => ({ value: String(cat.id), label: cat.name })),
                         ]}
                         disabled={isRelinking}
+                        labelAction={isRelinking || showNewCategory ? null : (
+                          <button
+                            type="button"
+                            onClick={() => setShowNewCategory(true)}
+                            className="text-xs font-bold text-purple-600 hover:underline"
+                          >
+                            ＋ 新しい分類を追加
+                          </button>
+                        )}
                       />
-                      {!isCreating && (
-                        <EditField
-                          label="品目"
-                          type="select"
-                          value={isRelinking ? editForm.parentId : PARENT_RENAME_OPTION}
-                          onChange={updateParentMode}
-                          options={[
-                            { value: PARENT_RENAME_OPTION, label: 'この品目名を編集する' },
-                            ...parentOptions
-                              .filter(parent => parent.id !== selectedAsset?.parentId)
-                              .map(parent => ({
-                                value: parent.id,
-                                label: `この資産を移す → ${parent.genericName || parent.id}（品目ID: ${parent.id}） / ${parent.category || '-'}`,
-                              })),
-                          ]}
-                        />
-                      )}
-                      {isRelinking ? null : !showNewCategory ? (
-                        <button type="button" onClick={() => setShowNewCategory(true)} className="text-xs font-bold text-purple-600 hover:underline">
-                          ＋ 新しい分類を追加
-                        </button>
-                      ) : (
+                      {isRelinking ? null : showNewCategory && (
                         <div className="rounded-md border border-purple-200 bg-white p-2 space-y-2">
                           <input
                             type="text"
@@ -843,6 +831,23 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                             </Button>
                           </div>
                         </div>
+                      )}
+                      {!isCreating && (
+                        <EditField
+                          label="品目"
+                          type="select"
+                          value={isRelinking ? editForm.parentId : PARENT_RENAME_OPTION}
+                          onChange={updateParentMode}
+                          options={[
+                            { value: PARENT_RENAME_OPTION, label: 'この品目名を編集する' },
+                            ...parentOptions
+                              .filter(parent => parent.id !== selectedAsset?.parentId)
+                              .map(parent => ({
+                                value: parent.id,
+                                label: `この資産を移す → ${parent.genericName || parent.id}（品目ID: ${parent.id}） / ${parent.category || '-'}`,
+                              })),
+                          ]}
+                        />
                       )}
                       {isCreating && (
                         <EditField

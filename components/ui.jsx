@@ -54,14 +54,17 @@ export function EditableDetail({ label, children }) {
   );
 }
 
-export function EditField({ label, value, onChange, type = 'text', options = null, align = 'left', mono = false, multiline = false, disabled = false }) {
+export function EditField({ label, value, onChange, type = 'text', options = null, align = 'left', mono = false, multiline = false, disabled = false, labelAction = null }) {
   const inputClass = `mt-1 w-full rounded-md border border-slate-200 bg-white px-2 py-2 text-sm font-bold text-slate-700 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed ${
     align === 'right' ? 'text-right' : ''
   } ${mono ? 'font-mono' : ''}`;
 
   return (
     <label className="block rounded-md border border-slate-200 bg-white p-3">
-      <span className="text-xs font-bold text-slate-400">{label}</span>
+      <span className="flex items-center justify-between gap-2">
+        <span className="text-xs font-bold text-slate-400">{label}</span>
+        {labelAction}
+      </span>
       {options ? (
         <select className={inputClass} value={value} onChange={(event) => onChange(event.target.value)} disabled={disabled}>
           {options.map(option => (
