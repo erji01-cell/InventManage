@@ -894,7 +894,6 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                 <>
                   <div className="grid grid-cols-2 gap-3">
                     <DetailItem label="ID" value={selectedAsset.id || '-'} mono />
-                    <DetailItem label="品目ID" value={selectedAsset.parentId || '-'} mono />
                     <DetailItem label="取引先" value={selectedAsset.supplier || '-'} />
                     <DetailItem label="購入単位" value={selectedAsset.purchaseUnit || '-'} />
                     <DetailItem label="購入価格" value={`¥${selectedAsset.deliveryPrice.toLocaleString()}`} align="right" />
@@ -909,7 +908,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                   <div className="space-y-2 border-t border-slate-200 pt-4">
                     <DetailRow label="状態" value={selectedAsset.isActive === false ? '使用不可' : '使用中'} />
                     <DetailRow label="分類" value={selectedAsset.parentCategory || '-'} />
-                    <DetailRow label="品目名" value={selectedAsset.parentGenericName || '-'} />
+                    <DetailRow label="品目名" value={`${selectedAsset.parentGenericName || '-'}（品目ID: ${selectedAsset.parentId || '-'}）`} />
                     <DetailRow label="摘要" value={selectedAsset.memo || '-'} />
                   </div>
 
