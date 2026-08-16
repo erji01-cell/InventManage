@@ -793,6 +793,17 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                   <div className="rounded-lg border border-purple-200 bg-purple-50 p-3">
                     <p className="mb-3 text-xs font-bold text-purple-700">分類・品目名</p>
                     <div className="space-y-3">
+                      <EditField
+                        label="分類"
+                        type="select"
+                        value={String(editForm.categoryId || '')}
+                        onChange={(value) => updateNewParentField('categoryId', value ? Number(value) : '')}
+                        options={[
+                          { value: '', label: '選択してください' },
+                          ...categories.map(cat => ({ value: String(cat.id), label: cat.name })),
+                        ]}
+                        disabled={isRelinking}
+                      />
                       {!isCreating && (
                         <EditField
                           label="品目"
@@ -805,22 +816,11 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                               .filter(parent => parent.id !== selectedAsset?.parentId)
                               .map(parent => ({
                                 value: parent.id,
-                                label: `この資産を移す → ${parent.genericName || parent.id} / ${parent.category || '-'}`,
+                                label: `この資産を移す → ${parent.genericName || parent.id}（品目ID: ${parent.id}） / ${parent.category || '-'}`,
                               })),
                           ]}
                         />
                       )}
-                      <EditField
-                        label="分類"
-                        type="select"
-                        value={String(editForm.categoryId || '')}
-                        onChange={(value) => updateNewParentField('categoryId', value ? Number(value) : '')}
-                        options={[
-                          { value: '', label: '選択してください' },
-                          ...categories.map(cat => ({ value: String(cat.id), label: cat.name })),
-                        ]}
-                        disabled={isRelinking}
-                      />
                       {isRelinking ? null : !showNewCategory ? (
                         <button type="button" onClick={() => setShowNewCategory(true)} className="text-xs font-bold text-purple-600 hover:underline">
                           ＋ 新しい分類を追加
@@ -854,7 +854,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                             { value: '', label: '新しい品目名で登録' },
                             ...parentOptions.map(parent => ({
                               value: parent.id,
-                              label: `${parent.genericName || parent.id} / ${parent.category || '-'}`,
+                              label: `${parent.genericName || parent.id}（品目ID: ${parent.id}） / ${parent.category || '-'}`,
                             })),
                           ]}
                         />
