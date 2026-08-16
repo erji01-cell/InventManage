@@ -894,6 +894,7 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                 <>
                   <div className="grid grid-cols-2 gap-3">
                     <DetailItem label="ID" value={selectedAsset.id || '-'} mono />
+                    <DetailItem label="品目ID" value={selectedAsset.parentId || '-'} mono />
                     <DetailItem label="取引先" value={selectedAsset.supplier || '-'} />
                     <DetailItem label="購入単位" value={selectedAsset.purchaseUnit || '-'} />
                     <DetailItem label="購入価格" value={`¥${selectedAsset.deliveryPrice.toLocaleString()}`} align="right" />
