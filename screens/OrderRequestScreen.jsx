@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Building2, Check, MailWarning, PackageCheck, Pencil, Plus, Printer, RotateCcw, Save, Send, ShoppingCart, Trash2, X } from 'lucide-react';
+import { Check, MailWarning, PackageCheck, Pencil, Plus, Printer, RotateCcw, Save, Send, ShoppingCart, Trash2, X } from 'lucide-react';
 
 import { Button, Card } from '../components/ui.jsx';
 import StaffSelect from '../components/StaffSelect.jsx';
@@ -709,10 +709,7 @@ export default function OrderRequestScreen({
                             <div className="font-bold text-slate-800">{order.assetName}</div>
                             <div className="text-xs text-slate-400">ID: {order.assetId}</div>
                             {groupBy !== 'supplier' && (
-                              <div className="mt-1.5 flex items-center gap-1.5 border-l-2 border-amber-400 pl-2 text-sm font-black text-amber-800">
-                                <Building2 size={14} className="shrink-0" />
-                                <span className="break-words">発注先: {order.supplierName || '未設定'}</span>
-                              </div>
+                              <div className="text-xs font-bold text-slate-500">{order.supplierName || '発注先未設定'}</div>
                             )}
                           </td>
                           <td className="whitespace-nowrap px-4 py-3 text-right text-base font-black text-amber-700">
