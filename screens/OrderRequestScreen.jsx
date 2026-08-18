@@ -709,7 +709,7 @@ export default function OrderRequestScreen({
                             <div className="font-bold text-slate-800">{order.assetName}</div>
                             <div className="text-xs text-slate-400">ID: {order.assetId}</div>
                             {groupBy !== 'supplier' && (
-                              <div className="text-xs font-bold text-slate-500">{order.supplierName || '発注先未設定'}</div>
+                              <div className="text-xs font-bold text-red-600">{order.supplierName || '発注先未設定'}</div>
                             )}
                           </td>
                           <td className="whitespace-nowrap px-4 py-3 text-right text-base font-black text-amber-700">
