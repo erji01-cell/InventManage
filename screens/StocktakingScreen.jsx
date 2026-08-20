@@ -15,7 +15,7 @@ import {
 import { performBackup } from '../lib/backup.js';
 import StaffSelect from '../components/StaffSelect.jsx';
 
-export default function StocktakingScreen({ session, setView, assets, movements, staff, onCompleted }) {
+export default function StocktakingScreen({ session, setView, assets, movements, staff, onCompleted, onRefreshData }) {
   const [mode, setMode] = useState('list'); // 'list' | 'entry' | 'review'
   const [sessions, setSessions] = useState([]);
   const [currentCountId, setCurrentCountId] = useState(null);
@@ -31,6 +31,8 @@ export default function StocktakingScreen({ session, setView, assets, movements,
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmDate, setConfirmDate] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null); // {session, linkedCount}
+  // 確定直前の再読み込みで理論在庫が変わっていた場合の確認 {changes, freshItems}
+  const [staleWarning, setStaleWarning] = useState(null);
   const [deleteRunning, setDeleteRunning] = useState(false);
 
   const loadList = async () => {
@@ -204,19 +206,14 @@ export default function StocktakingScreen({ session, setView, assets, movements,
     setShowConfirmModal(true);
   };
 
-  const executeComplete = async () => {
-    if (!confirmDate) {
-      setError('調整日を選択してください。');
-      return;
-    }
-    setShowConfirmModal(false);
+  const runComplete = async (itemsToSave) => {
     setLoading(true);
     setError('');
     try {
       const staffMember = staff.find((s) => String(s.id) === String(staffId));
       const result = await completeStocktaking({
         countId: currentCountId,
-        items: enriched,
+        items: itemsToSave,
         staffId,
         staffName: staffMember?.name || '棚卸し',
         date: confirmDate,
@@ -229,6 +226,68 @@ export default function StocktakingScreen({ session, setView, assets, movements,
     } finally {
       setLoading(false);
     }
+  };
+
+  const executeComplete = async () => {
+    if (!confirmDate) {
+      setError('調整日を選択してください。');
+      return;
+    }
+    setShowConfirmModal(false);
+
+    // 自動更新は20秒間隔のため、その隙間に他PCが登録した入出庫を取りこぼす可能性がある。
+    // 確定はDBに調整入出庫を書き込む不可逆操作なので、直前に必ず最新化して理論在庫を
+    // 計算し直し、画面に表示していた差異と食い違う場合は確認を挟む。
+    if (!onRefreshData) {
+      await runComplete(enriched);
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    let fresh;
+    try {
+      fresh = await onRefreshData();
+    } catch (err) {
+      setLoading(false);
+      setError(`最新データの取得に失敗したため確定を中止しました。通信を確認して、もう一度お試しください。（${err.message}）`);
+      return;
+    }
+    if (!fresh) {
+      setLoading(false);
+      setError('最新データを取得できなかったため確定を中止しました。もう一度お試しください。');
+      return;
+    }
+
+    const freshMap = buildSystemQtyMap(fresh.assets, fresh.movements, currentSession?.basis_date || null);
+    const freshItems = enriched.map((item) => {
+      const key = String(item.asset_id);
+      const systemQty = freshMap.has(key) ? freshMap.get(key) : Number(item.system_qty);
+      const diff = item.counted_qty == null ? null : Number(item.counted_qty) - systemQty;
+      return { ...item, system_qty: systemQty, diff };
+    });
+
+    // 実棚数が未入力の資産は調整対象外なので、変化しても確認は不要
+    const changes = freshItems
+      .filter((item, i) => item.counted_qty != null && Number(item.system_qty) !== Number(enriched[i].system_qty))
+      .map((item) => {
+        const before = enriched.find((e) => String(e.asset_id) === String(item.asset_id));
+        return {
+          assetId: item.asset_id,
+          name: item.asset?.name || '(削除済資産)',
+          beforeSystemQty: Number(before.system_qty),
+          afterSystemQty: Number(item.system_qty),
+          beforeDiff: before.diff,
+          afterDiff: item.diff,
+        };
+      });
+
+    setLoading(false);
+    if (changes.length > 0) {
+      setStaleWarning({ changes, freshItems });
+      return;
+    }
+    await runComplete(freshItems);
   };
 
   // ===========================================
@@ -652,6 +711,73 @@ export default function StocktakingScreen({ session, setView, assets, movements,
             <div className="flex gap-2 w-full">
               <Button variant="secondary" className="flex-1" onClick={() => setShowConfirmModal(false)}>キャンセル</Button>
               <Button variant="success" className="flex-1" onClick={executeComplete} disabled={!confirmDate}>確定する</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {staleWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-[36rem] max-h-[90vh] flex flex-col gap-5">
+            <div className="flex items-center gap-2">
+              <ClipboardCheck size={24} className="text-amber-600" />
+              <h2 className="text-lg font-black text-slate-800">理論在庫が変わりました</h2>
+            </div>
+            <p className="text-sm leading-relaxed text-slate-700">
+              棚卸し中に、他のPCで基準日以前の入出庫が登録されたため、
+              <span className="font-bold">{staleWarning.changes.length} 件</span>の理論在庫が変わりました。<br />
+              このまま確定すると、下の「変更後」の差異が入出庫データに記録されます。
+            </p>
+            <div className="overflow-auto rounded-lg border border-slate-200">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-slate-100 text-xs text-slate-600">
+                  <tr>
+                    <th className="p-2 text-left">資産</th>
+                    <th className="p-2 text-right">理論在庫</th>
+                    <th className="p-2 text-right">差異（変更前）</th>
+                    <th className="p-2 text-right">差異（変更後）</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {staleWarning.changes.map((change) => (
+                    <tr key={change.assetId} className="border-b border-slate-100 last:border-0">
+                      <td className="p-2">
+                        <div className="font-bold text-slate-800">{change.name}</div>
+                        <div className="font-mono text-xs text-slate-400">ID: {change.assetId}</div>
+                      </td>
+                      <td className="whitespace-nowrap p-2 text-right">
+                        <span className="text-slate-400 line-through">{change.beforeSystemQty.toLocaleString()}</span>
+                        <span className="mx-1 text-slate-400">→</span>
+                        <span className="font-bold text-slate-800">{change.afterSystemQty.toLocaleString()}</span>
+                      </td>
+                      <td className="whitespace-nowrap p-2 text-right text-slate-400 line-through">
+                        {change.beforeDiff == null ? '-' : `${change.beforeDiff > 0 ? '+' : ''}${change.beforeDiff.toLocaleString()}`}
+                      </td>
+                      <td className={`whitespace-nowrap p-2 text-right font-bold ${change.afterDiff === 0 ? 'text-slate-700' : change.afterDiff > 0 ? 'text-emerald-700' : 'text-red-700'}`}>
+                        {change.afterDiff == null ? '-' : `${change.afterDiff > 0 ? '+' : ''}${change.afterDiff.toLocaleString()}`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+              ⚠ 実棚数（数えた数）は変わっていません。変わったのは帳簿上の理論在庫だけです。
+              内容に心当たりがない場合は、キャンセルして入出庫データを確認してください。
+            </div>
+            <div className="flex w-full gap-2">
+              <Button variant="secondary" className="flex-1" onClick={() => setStaleWarning(null)}>キャンセル</Button>
+              <Button
+                variant="success"
+                className="flex-1"
+                onClick={async () => {
+                  const items = staleWarning.freshItems;
+                  setStaleWarning(null);
+                  await runComplete(items);
+                }}
+              >
+                最新の値で確定する
+              </Button>
             </div>
           </div>
         </div>

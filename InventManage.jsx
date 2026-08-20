@@ -53,9 +53,11 @@ export default function App() {
     setView('menu');
   };
 
-  const refreshData = async () => {
+  // silent: 背景の自動更新用。失敗しても表示中のエラーを消さない
+  // （通信が復帰しないまま「エラー表示だけ消える」状態を避けるため）。
+  const refreshData = async ({ silent = false } = {}) => {
     if (!authSession) return;
-    setError('');
+    if (!silent) setError('');
     try {
       const data = await loadInventoryData(authSession);
       setAssets(data.assets);
@@ -66,6 +68,9 @@ export default function App() {
       setFiscalSnapshots(data.fiscalSnapshots || []);
       setOrderRequests(data.orderRequests || []);
       setLoadedPastYears(new Set()); // フルリロードで過去年度分は消えるため再取得させる
+      if (silent) setError(''); // 成功したときだけ消す
+      // 呼び出し側が再描画を待たずに最新値を使えるよう、読み込んだデータを返す
+      return data;
     } catch (err) {
       if (err?.code === 'AUTH_EXPIRED') {
         handleAuthExpired();
@@ -75,7 +80,8 @@ export default function App() {
     }
   };
 
-  // フォーカス時自動更新のスロットル用（直近のフルロード時刻と実行中フラグ）
+  // 自動更新のスロットル用（直近のフルロード時刻と実行中フラグ）。
+  // フォーカス更新と定期更新で共用し、二重実行を防ぐ。
   const lastFocusRefreshRef = useRef(Date.now());
   const focusRefreshBusyRef = useRef(false);
 
@@ -140,7 +146,7 @@ export default function App() {
       if (Date.now() - lastFocusRefreshRef.current < FOCUS_REFRESH_MIN_MS) return;
       lastFocusRefreshRef.current = Date.now();
       focusRefreshBusyRef.current = true;
-      refreshData()
+      refreshData({ silent: true })
         .catch((err) => console.warn('[focus-refresh] 再読み込みに失敗:', err?.message))
         .finally(() => {
           focusRefreshBusyRef.current = false;
@@ -153,6 +159,7 @@ export default function App() {
       document.removeEventListener('visibilitychange', handleFocus);
     };
   }, [authSession]);
+
 
   // 起動時の自動バックアップ：毎回チェックし、前回バックアップと差分があれば保存
   // （同一内容ならスキップ。同じ日の分は上書きされ1日1ファイルに保たれる）
@@ -1037,6 +1044,31 @@ export default function App() {
     };
   }, [authSession, selectedFiscalYear, currentFiscalStartYear, loadedPastYears, staff]);
 
+  // 20秒ごとの定期更新。もう一方のPCで登録した入出庫を、画面を開いたままでも反映させる。
+  // 棚卸し画面は理論在庫を最新の入出庫からライブ再計算するため、ここで止めてはいけない
+  // （古いまま確定すると調整量がズレる。StocktakingScreen の liveSystemQtyMap 参照）。
+  // 除外する条件:
+  //   - タブが非表示のとき（復帰時はフォーカス更新が拾う）
+  //   - 過去年度を閲覧中（フルリロードで loadedPastYears が消えるため、
+  //     20秒ごとに年度全体を再取得してしまう。過去年度は他PCの入力で変わらない）
+  useEffect(() => {
+    if (!authSession) return;
+    const POLL_INTERVAL_MS = 20 * 1000;
+    const timer = setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      if (selectedFiscalYear != null && selectedFiscalYear !== currentFiscalStartYear) return;
+      if (focusRefreshBusyRef.current) return;
+      focusRefreshBusyRef.current = true;
+      lastFocusRefreshRef.current = Date.now();
+      refreshData({ silent: true })
+        .catch((err) => console.warn('[poll-refresh] 再読み込みに失敗:', err?.message))
+        .finally(() => {
+          focusRefreshBusyRef.current = false;
+        });
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [authSession, selectedFiscalYear, currentFiscalStartYear]);
+
   // 選択中年度の日付レンジ（入出庫データ・在庫表の絞り込み用）
   const historyFiscalRange = useMemo(() => (
     selectedFiscalYear != null ? {
@@ -1056,7 +1088,12 @@ export default function App() {
       case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={activeAssets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} onRequestAssetPick={navigateToAssetPickerFromEntry} />;
       case 'stock': return <StockStatusScreen assets={activeAssets} movements={movements} setView={setView} pinnedAssetId={filterAssetId} onNavigateHistory={navigateToHistory} onNavigateAssets={navigateToAssets} fiscalRange={historyFiscalRange} fiscalSnapshots={fiscalSnapshots} />;
       case 'backup': return <BackupScreen session={authSession} setView={setView} onRestored={refreshData} />;
-      case 'stocktaking': return <StocktakingScreen session={authSession} setView={setView} assets={activeAssets} movements={movements} staff={staff} onCompleted={async () => { await refreshData(); scheduleChangeBackup(); }} />;
+      case 'stocktaking': return <StocktakingScreen session={authSession} setView={setView} assets={activeAssets} movements={movements} staff={staff} onCompleted={async () => { await refreshData(); scheduleChangeBackup(); }} onRefreshData={async () => {
+        const data = await refreshData({ silent: true });
+        if (!data) return null;
+        // 画面に渡している activeAssets と同じ絞り込みを適用する
+        return { assets: data.assets.filter((asset) => asset.isActive !== false), movements: data.movements };
+      }} />;
       case 'orders': return <OrderRequestScreen assets={activeAssets} staff={staff} orders={orderRequests} setView={setView} onCreate={createOrderRequest} onUpdateStatus={updateOrderStatus} onUpdateMemo={updateOrderMemo} onDelete={deleteOrderRequest} onRetryEmail={retryOrderEmail} />;
       default: return <MenuScreen setView={navigateFromMenu} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={availableFiscalYears} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={selectedFiscalYear} setSelectedFiscalYear={setSelectedFiscalYear} negativeStockAssets={negativeStockAssets} pendingOrderCount={orderRequests.filter((order) => order.status === 'requested').length} session={authSession} />;
     }
