@@ -561,7 +561,6 @@ ${summaryHTML}
               </span>
             )}
           </div>
-          <p className="mt-2 text-sm text-slate-500">差引残は現在の在庫ではありません</p>
           {fiscalRange && !fiscalRange.isCurrent && !(fiscalSnapshots || []).some(s => s.fiscalYear === fiscalRange.startYear) && (
             <p className="mt-1 text-xs font-bold text-amber-600">
               ※ この年度のスナップショットがないため、差引残は「—」表示になります（記録は閲覧できます）。
