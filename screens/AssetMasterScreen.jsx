@@ -86,13 +86,41 @@ function PrintDialog({ assets, onClose }) {
   const [printType, setPrintType] = useState('list'); // 'list' = 資産マスタ一覧 / 'nurse' = 看護師記入用紙
   const [dateColumns, setDateColumns] = useState(10); // 看護師記入用紙の空欄（日付）列数
   const [nursePageBreak, setNursePageBreak] = useState(true); // 分類ごとに改ページ
+  const [checkedCategories, setCheckedCategories] = useState(() => new Set()); // 看護師記入用紙の対象分類
   const isGrouped = sortOrder === 'category_id' || sortOrder === 'category_kana';
   const isNurse = printType === 'nurse';
 
-  // 看護師記入用紙は分類ごと・アイウエオ順が前提（かな頭文字の索引列があるため）
+  // 対象資産に含まれる分類の一覧（分類マスタの表示順）
+  const categoryOptions = useMemo(() => {
+    const m = new Map();
+    assets.forEach(asset => {
+      const key = asset.parentCategory || '未分類';
+      const g = m.get(key);
+      if (g) g.count += 1;
+      else m.set(key, { count: 1, order: asset.categoryOrder ?? 9999 });
+    });
+    return [...m.entries()]
+      .map(([name, v]) => ({ name, ...v }))
+      .sort((a, b) => (a.order - b.order) || a.name.localeCompare(b.name, 'ja'));
+  }, [assets]);
+
+  // 看護師記入用紙は分類ごと・アイウエオ順が前提（かな頭文字の索引列があるため）。
+  // 初回選択時は全分類をチェック済みにする。
   const selectPrintType = (type) => {
     setPrintType(type);
-    if (type === 'nurse') setSortOrder('category_kana');
+    if (type === 'nurse') {
+      setSortOrder('category_kana');
+      setCheckedCategories(new Set(categoryOptions.map(c => c.name)));
+    }
+  };
+
+  const toggleCategory = (name) => {
+    setCheckedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
   };
 
   const toggleCol = (key) => setEnabledCols(prev => ({ ...prev, [key]: !prev[key] }));
@@ -194,7 +222,9 @@ tr.pb{page-break-after:always}
   // 看護師記入用紙: 分類ごとに「かな頭文字・資産名・ID」を印字し、
   // 右側に日付を手書きする空欄列を並べた A4横 の集計用紙。
   const handlePrintNurseSheet = () => {
-    const sortedAssets = getSortedAssets();
+    const sortedAssets = getSortedAssets()
+      .filter(asset => checkedCategories.has(asset.parentCategory || '未分類'));
+    if (sortedAssets.length === 0) return;
     const dateStr = new Date().toLocaleDateString('ja-JP');
     const blankHeaders = Array.from({ length: dateColumns }, () => '<th class="d"></th>').join('');
     const blankCells = Array.from({ length: dateColumns }, () => '<td class="d"></td>').join('');
@@ -243,7 +273,7 @@ tr{page-break-inside:avoid}
 </style>
 </head><body>
 <h1>看護師記入用紙</h1>
-<div class="meta">印刷日: ${dateStr}　／　件数: ${sortedAssets.length}件　／　日付欄: ${dateColumns}列（日付は手書きしてください）</div>
+<div class="meta">印刷日: ${dateStr}　／　件数: ${sortedAssets.length}件（${checkedCategories.size}分類）　／　日付欄: ${dateColumns}列（日付は手書きしてください）</div>
 <table>
 <colgroup><col style="width:8mm"><col><col style="width:14mm">${Array.from({ length: dateColumns }, () => '<col style="width:15mm">').join('')}</colgroup>
 <thead><tr><th>かな</th><th>資産名</th><th>ID</th>${blankHeaders}</tr></thead>
@@ -309,6 +339,42 @@ tr{page-break-inside:avoid}
 
         {isNurse ? (
           <div>
+            <div className="mb-2 flex items-center gap-2">
+              <p className="text-sm font-bold text-slate-600">印刷する分類</p>
+              <button
+                onClick={() => setCheckedCategories(new Set(categoryOptions.map(c => c.name)))}
+                className="rounded-full border border-purple-300 bg-white px-2 py-0.5 text-xs font-bold text-purple-600 transition-colors hover:bg-purple-50"
+              >
+                全選択
+              </button>
+              <button
+                onClick={() => setCheckedCategories(new Set())}
+                className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-100"
+              >
+                全解除
+              </button>
+              <span className="ml-auto text-xs font-bold text-slate-500">
+                {checkedCategories.size} / {categoryOptions.length} 分類
+              </span>
+            </div>
+            <div className="mb-4 max-h-44 overflow-auto rounded-md border border-slate-200">
+              {categoryOptions.map(cat => (
+                <label
+                  key={cat.name}
+                  className={`flex cursor-pointer items-center gap-2 border-b border-slate-100 px-3 py-1.5 transition-colors last:border-0 ${checkedCategories.has(cat.name) ? 'bg-purple-50' : 'hover:bg-slate-50'}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checkedCategories.has(cat.name)}
+                    onChange={() => toggleCategory(cat.name)}
+                    className="accent-purple-600"
+                  />
+                  <span className="text-sm font-medium text-slate-700">{cat.name}</span>
+                  <span className="ml-auto text-xs text-slate-400">{cat.count.toLocaleString()}件</span>
+                </label>
+              ))}
+            </div>
+
             <p className="mb-2 text-sm font-bold text-slate-600">用紙の設定</p>
             <label className="flex items-center gap-3 rounded-md border border-slate-200 px-3 py-2">
               <span className="text-sm font-medium text-slate-700">日付欄の数</span>
@@ -350,7 +416,13 @@ tr{page-break-inside:avoid}
 
         <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
           <Button variant="secondary" onClick={onClose}><X size={16} /> キャンセル</Button>
-          <Button variant="print" onClick={isNurse ? handlePrintNurseSheet : handlePrint}><Printer size={16} /> 印刷プレビュー</Button>
+          <Button
+            variant="print"
+            onClick={isNurse ? handlePrintNurseSheet : handlePrint}
+            disabled={isNurse && checkedCategories.size === 0}
+          >
+            <Printer size={16} /> 印刷プレビュー
+          </Button>
         </div>
       </div>
     </div>
