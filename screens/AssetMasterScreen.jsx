@@ -29,6 +29,27 @@ const SORT_OPTIONS = [
   { value: 'kana',         label: '資産名アイウエオ順' },
 ];
 
+// 看護師記入用紙の索引用: かな名の先頭1文字を「濁点・半濁点なしの大文字カナ」に直す。
+// 例) ブドウトウ→フ、ジュウソー→シ、キョウリョク→キ（紙の用紙と同じ並びにするため）
+const KANA_INDEX_MAP = {
+  ガ: 'カ', ギ: 'キ', グ: 'ク', ゲ: 'ケ', ゴ: 'コ',
+  ザ: 'サ', ジ: 'シ', ズ: 'ス', ゼ: 'セ', ゾ: 'ソ',
+  ダ: 'タ', ヂ: 'チ', ヅ: 'ツ', デ: 'テ', ド: 'ト',
+  バ: 'ハ', ビ: 'ヒ', ブ: 'フ', ベ: 'ヘ', ボ: 'ホ',
+  パ: 'ハ', ピ: 'ヒ', プ: 'フ', ペ: 'ヘ', ポ: 'ホ',
+  ヴ: 'ウ',
+  ァ: 'ア', ィ: 'イ', ゥ: 'ウ', ェ: 'エ', ォ: 'オ',
+  ッ: 'ツ', ャ: 'ヤ', ュ: 'ユ', ョ: 'ヨ', ヮ: 'ワ',
+};
+
+function kanaInitial(asset) {
+  const source = String(asset?.kanaName || asset?.name || '').trim();
+  if (!source) return '';
+  // ひらがな → カタカナ
+  const first = source[0].replace(/[ぁ-ゖ]/, (ch) => String.fromCharCode(ch.charCodeAt(0) + 0x60));
+  return KANA_INDEX_MAP[first] || first;
+}
+
 function normalizeSearchText(value) {
   return String(value || '')
     .normalize('NFKC')
@@ -62,7 +83,17 @@ function PrintDialog({ assets, onClose }) {
     Object.fromEntries(COLUMN_DEFS.map(col => [col.key, col.defaultOn]))
   );
   const [pageBreak, setPageBreak] = useState(false);
+  const [printType, setPrintType] = useState('list'); // 'list' = 資産マスタ一覧 / 'nurse' = 看護師記入用紙
+  const [dateColumns, setDateColumns] = useState(10); // 看護師記入用紙の空欄（日付）列数
+  const [nursePageBreak, setNursePageBreak] = useState(true); // 分類ごとに改ページ
   const isGrouped = sortOrder === 'category_id' || sortOrder === 'category_kana';
+  const isNurse = printType === 'nurse';
+
+  // 看護師記入用紙は分類ごと・アイウエオ順が前提（かな頭文字の索引列があるため）
+  const selectPrintType = (type) => {
+    setPrintType(type);
+    if (type === 'nurse') setSortOrder('category_kana');
+  };
 
   const toggleCol = (key) => setEnabledCols(prev => ({ ...prev, [key]: !prev[key] }));
 
@@ -150,10 +181,76 @@ tr.pb{page-break-after:always}
 <table>${colGroup}<thead><tr>${headerCells}</tr></thead><tbody>${tableRows}</tbody></table>
 </body></html>`;
 
+    openPrintWindow(html);
+  };
+
+  const openPrintWindow = (html) => {
     const win = window.open('', '_blank', 'width=900,height=700');
     win.document.write(html);
     win.document.close();
     setTimeout(() => { win.focus(); win.print(); }, 400);
+  };
+
+  // 看護師記入用紙: 分類ごとに「かな頭文字・資産名・ID」を印字し、
+  // 右側に日付を手書きする空欄列を並べた A4横 の集計用紙。
+  const handlePrintNurseSheet = () => {
+    const sortedAssets = getSortedAssets();
+    const dateStr = new Date().toLocaleDateString('ja-JP');
+    const blankHeaders = Array.from({ length: dateColumns }, () => '<th class="d"></th>').join('');
+    const blankCells = Array.from({ length: dateColumns }, () => '<td class="d"></td>').join('');
+    const totalCols = 3 + dateColumns;
+
+    let tableRows = '';
+    let currentCategory = null;
+    for (let i = 0; i < sortedAssets.length; i++) {
+      const asset = sortedAssets[i];
+      const category = asset.parentCategory || '未分類';
+      if (category !== currentCategory) {
+        currentCategory = category;
+        tableRows += `<tr class="grp"><td colspan="${totalCols}">${category}</td></tr>`;
+      }
+      const isLastInGroup = nursePageBreak
+        && (i === sortedAssets.length - 1 || (sortedAssets[i + 1].parentCategory || '未分類') !== category);
+      tableRows += `<tr${isLastInGroup ? ' class="pb"' : ''}>`
+        + `<td class="k">${kanaInitial(asset)}</td>`
+        + `<td class="nm">${asset.name || ''}</td>`
+        + `<td class="id">${asset.id}</td>`
+        + blankCells
+        + '</tr>';
+    }
+
+    const html = `<!DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8"><title>看護師記入用紙</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'MS Gothic','Hiragino Kaku Gothic Pro',sans-serif;font-size:10pt;color:#000}
+@page{size:A4 landscape;margin:8mm}
+h1{font-size:12pt;font-weight:bold;margin-bottom:2mm}
+.meta{font-size:8pt;color:#555;margin-bottom:3mm}
+table{width:100%;border-collapse:collapse;table-layout:fixed}
+th,td{border:1px solid #000;padding:0 3px;line-height:1.6;height:7.2mm;overflow:hidden}
+th{background:#dcdcdc;font-weight:bold;text-align:center;white-space:nowrap;font-size:9pt}
+/* 日付欄の本文は手書きするため罫線だけを残して空にする（見出し行は他列と同じ地色） */
+td.d{background:#fff}
+td.k{text-align:center;font-size:9pt}
+td.nm{white-space:nowrap;text-overflow:ellipsis}
+td.id{text-align:right;font-size:9pt}
+tr.grp td{background:#efefef;font-weight:bold;text-align:left;border-top:2px solid #000}
+tr.pb{page-break-after:always}
+thead{display:table-header-group}
+tr{page-break-inside:avoid}
+@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style>
+</head><body>
+<h1>看護師記入用紙</h1>
+<div class="meta">印刷日: ${dateStr}　／　件数: ${sortedAssets.length}件　／　日付欄: ${dateColumns}列（日付は手書きしてください）</div>
+<table>
+<colgroup><col style="width:8mm"><col><col style="width:14mm">${Array.from({ length: dateColumns }, () => '<col style="width:15mm">').join('')}</colgroup>
+<thead><tr><th>かな</th><th>資産名</th><th>ID</th>${blankHeaders}</tr></thead>
+<tbody>${tableRows}</tbody></table>
+</body></html>`;
+
+    openPrintWindow(html);
   };
 
   return (
@@ -162,11 +259,32 @@ tr.pb{page-break-after:always}
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-purple-500">Print Settings</p>
-            <h3 className="text-xl font-black text-slate-900">一覧印刷の設定</h3>
+            <h3 className="text-xl font-black text-slate-900">{isNurse ? '看護師記入用紙の設定' : '一覧印刷の設定'}</h3>
           </div>
           <button onClick={onClose} className="rounded-full p-1 text-slate-400 hover:bg-slate-100 transition-colors">
             <X size={20} />
           </button>
+        </div>
+
+        <div>
+          <p className="mb-2 text-sm font-bold text-slate-600">印刷の種類</p>
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { value: 'list', label: '資産マスタ一覧', hint: '列を選んで印刷' },
+              { value: 'nurse', label: '看護師記入用紙', hint: '日付欄つき・A4横' },
+            ].map(opt => (
+              <label
+                key={opt.value}
+                className={`flex cursor-pointer flex-col gap-0.5 rounded-md border px-3 py-2 transition-colors ${printType === opt.value ? 'border-purple-300 bg-purple-50' : 'border-slate-200 hover:bg-slate-50'}`}
+              >
+                <span className="flex items-center gap-2">
+                  <input type="radio" name="printType" value={opt.value} checked={printType === opt.value} onChange={() => selectPrintType(opt.value)} className="accent-purple-600" />
+                  <span className="text-sm font-bold text-slate-700">{opt.label}</span>
+                </span>
+                <span className="ml-6 text-xs text-slate-400">{opt.hint}</span>
+              </label>
+            ))}
+          </div>
         </div>
 
         <div>
@@ -178,7 +296,7 @@ tr.pb{page-break-after:always}
                   <input type="radio" name="sortOrder" value={opt.value} checked={sortOrder === opt.value} onChange={() => setSortOrder(opt.value)} className="accent-purple-600" />
                   <span className="text-sm font-medium text-slate-700">{opt.label}</span>
                 </label>
-                {(opt.value === 'category_id' || opt.value === 'category_kana') && sortOrder === opt.value && (
+                {!isNurse && (opt.value === 'category_id' || opt.value === 'category_kana') && sortOrder === opt.value && (
                   <label className="ml-8 flex cursor-pointer items-center gap-2 rounded-md px-3 py-1.5 border transition-colors border-transparent hover:bg-slate-50">
                     <input type="checkbox" checked={pageBreak} onChange={() => setPageBreak(v => !v)} className="accent-purple-600" />
                     <span className="text-sm text-slate-600">分類ごとに改ページ</span>
@@ -189,22 +307,50 @@ tr.pb{page-break-after:always}
           </div>
         </div>
 
-        <div>
-          <p className="mb-2 text-sm font-bold text-slate-600">印刷する列</p>
-          <div className="grid grid-cols-3 gap-1">
-            {COLUMN_DEFS.map(col => (
-              <label key={col.key} className={`flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 border transition-colors ${enabledCols[col.key] ? 'border-purple-300 bg-purple-50' : 'border-transparent hover:bg-slate-50'}`}>
-                <input type="checkbox" checked={enabledCols[col.key]} onChange={() => toggleCol(col.key)} className="accent-purple-600" />
-                <span className="text-sm font-medium text-slate-700">{col.label}</span>
-              </label>
-            ))}
+        {isNurse ? (
+          <div>
+            <p className="mb-2 text-sm font-bold text-slate-600">用紙の設定</p>
+            <label className="flex items-center gap-3 rounded-md border border-slate-200 px-3 py-2">
+              <span className="text-sm font-medium text-slate-700">日付欄の数</span>
+              <input
+                type="number"
+                min="1"
+                max="20"
+                value={dateColumns}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  setDateColumns(Number.isFinite(n) ? Math.min(20, Math.max(1, Math.round(n))) : 1);
+                }}
+                className="w-20 rounded-md border border-slate-200 px-2 py-1 text-right text-sm outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
+              />
+              <span className="text-sm text-slate-500">列</span>
+            </label>
+            <label className="mt-1 flex cursor-pointer items-center gap-2 rounded-md border border-transparent px-3 py-1.5 transition-colors hover:bg-slate-50">
+              <input type="checkbox" checked={nursePageBreak} onChange={() => setNursePageBreak(v => !v)} className="accent-purple-600" />
+              <span className="text-sm text-slate-600">分類ごとに改ページ</span>
+            </label>
+            <p className="mt-2 text-xs text-slate-400">
+              ※ 列は「かな・資産名・ID＋日付欄」で固定です。日付は印刷後に手書きしてください。
+            </p>
           </div>
-          <p className="mt-2 text-xs text-slate-400">※ A4に収まるよう列数を調整してください（目安：7〜8列）</p>
-        </div>
+        ) : (
+          <div>
+            <p className="mb-2 text-sm font-bold text-slate-600">印刷する列</p>
+            <div className="grid grid-cols-3 gap-1">
+              {COLUMN_DEFS.map(col => (
+                <label key={col.key} className={`flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1.5 border transition-colors ${enabledCols[col.key] ? 'border-purple-300 bg-purple-50' : 'border-transparent hover:bg-slate-50'}`}>
+                  <input type="checkbox" checked={enabledCols[col.key]} onChange={() => toggleCol(col.key)} className="accent-purple-600" />
+                  <span className="text-sm font-medium text-slate-700">{col.label}</span>
+                </label>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-slate-400">※ A4に収まるよう列数を調整してください（目安：7〜8列）</p>
+          </div>
+        )}
 
         <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
           <Button variant="secondary" onClick={onClose}><X size={16} /> キャンセル</Button>
-          <Button variant="print" onClick={handlePrint}><Printer size={16} /> 印刷プレビュー</Button>
+          <Button variant="print" onClick={isNurse ? handlePrintNurseSheet : handlePrint}><Printer size={16} /> 印刷プレビュー</Button>
         </div>
       </div>
     </div>
