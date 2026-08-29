@@ -90,10 +90,15 @@ function PrintDialog({ assets, onClose }) {
   const isGrouped = sortOrder === 'category_id' || sortOrder === 'category_kana';
   const isNurse = printType === 'nurse';
 
-  // 対象資産に含まれる分類の一覧（分類マスタの表示順）
+  // 看護師記入用紙は日々の記入用なので、使用不可の資産は常に除外する。
+  // （印刷ダイアログは画面の絞り込み結果を受け取るため、状態フィルタが
+  //   「使用不可」「すべて」でも用紙には出さない）
+  const nurseAssets = useMemo(() => assets.filter(asset => asset.isActive !== false), [assets]);
+
+  // 看護師記入用紙の対象分類の一覧（分類マスタの表示順）
   const categoryOptions = useMemo(() => {
     const m = new Map();
-    assets.forEach(asset => {
+    nurseAssets.forEach(asset => {
       const key = asset.parentCategory || '未分類';
       const g = m.get(key);
       if (g) g.count += 1;
@@ -102,7 +107,7 @@ function PrintDialog({ assets, onClose }) {
     return [...m.entries()]
       .map(([name, v]) => ({ name, ...v }))
       .sort((a, b) => (a.order - b.order) || a.name.localeCompare(b.name, 'ja'));
-  }, [assets]);
+  }, [nurseAssets]);
 
   // 看護師記入用紙は分類ごと・アイウエオ順が前提（かな頭文字の索引列があるため）。
   // 初回選択時は全分類をチェック済みにする。
@@ -223,6 +228,7 @@ tr.pb{page-break-after:always}
   // 右側に日付を手書きする空欄列を並べた A4横 の集計用紙。
   const handlePrintNurseSheet = () => {
     const sortedAssets = getSortedAssets()
+      .filter(asset => asset.isActive !== false)
       .filter(asset => checkedCategories.has(asset.parentCategory || '未分類'));
     if (sortedAssets.length === 0) return;
     const dateStr = new Date().toLocaleDateString('ja-JP');
@@ -396,7 +402,8 @@ tr{page-break-inside:avoid}
               <span className="text-sm text-slate-600">分類ごとに改ページ</span>
             </label>
             <p className="mt-2 text-xs text-slate-400">
-              ※ 列は「かな・資産名・ID＋日付欄」で固定です。日付は印刷後に手書きしてください。
+              ※ 列は「かな・資産名・ID＋日付欄」で固定です。日付は印刷後に手書きしてください。<br />
+              ※ 使用不可の資産は、画面の絞り込みに関わらず印刷されません。
             </p>
           </div>
         ) : (
