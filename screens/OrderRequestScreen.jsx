@@ -27,6 +27,16 @@ function formatTime(value) {
   return date.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 }
 
+function oneMonthAgo(referenceDate = new Date()) {
+  const cutoff = new Date(referenceDate);
+  const day = cutoff.getDate();
+  cutoff.setDate(1);
+  cutoff.setMonth(cutoff.getMonth() - 1);
+  const lastDay = new Date(cutoff.getFullYear(), cutoff.getMonth() + 1, 0).getDate();
+  cutoff.setDate(Math.min(day, lastDay));
+  return cutoff;
+}
+
 // 印刷対象セレクタで「すべてのグループ」を表す番兵値（グループ名と衝突しない値）
 const ALL_GROUPS = '__all__';
 
@@ -91,10 +101,18 @@ export default function OrderRequestScreen({
 
   const selectedAsset = assets.find((asset) => String(asset.id) === String(assetId));
   const selectedStaff = staff.find((member) => String(member.id) === String(staffId));
+  const visibleOrders = useMemo(() => {
+    const deliveredCutoff = oneMonthAgo();
+    return orders.filter((order) => {
+      if (order.status !== 'delivered') return true;
+      const deliveredAt = new Date(order.deliveredAt);
+      return !Number.isNaN(deliveredAt.getTime()) && deliveredAt >= deliveredCutoff;
+    });
+  }, [orders]);
   const filteredOrders = useMemo(() => {
-    const rows = orders.filter((order) => order.status === filter);
+    const rows = visibleOrders.filter((order) => order.status === filter);
     return [...rows].sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
-  }, [filter, orders]);
+  }, [filter, visibleOrders]);
 
   const groups = useMemo(() => {
     const isSupplier = groupBy === 'supplier';
@@ -634,19 +652,19 @@ export default function OrderRequestScreen({
                 onClick={() => setFilter('requested')}
                 className={`rounded px-4 py-2 text-sm font-bold ${filter === 'requested' ? 'bg-white text-amber-700 shadow-sm' : 'text-slate-500'}`}
               >
-                発注未完了 {orders.filter((order) => order.status === 'requested').length}
+                発注未完了 {visibleOrders.filter((order) => order.status === 'requested').length}
               </button>
               <button
                 onClick={() => setFilter('completed')}
                 className={`rounded px-4 py-2 text-sm font-bold ${filter === 'completed' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500'}`}
               >
-                発注完了 {orders.filter((order) => order.status === 'completed').length}
+                発注完了 {visibleOrders.filter((order) => order.status === 'completed').length}
               </button>
               <button
                 onClick={() => setFilter('delivered')}
                 className={`rounded px-4 py-2 text-sm font-bold ${filter === 'delivered' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}
               >
-                納品完了 {orders.filter((order) => order.status === 'delivered').length}
+                納品完了 {visibleOrders.filter((order) => order.status === 'delivered').length}
               </button>
             </div>
             <div className="flex flex-wrap items-center justify-end gap-3">
