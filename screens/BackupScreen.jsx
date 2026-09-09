@@ -246,7 +246,7 @@ export default function BackupScreen({ session, setView, onRestored }) {
       {/* Storage 一覧 */}
       <div className="overflow-auto flex-1">
         <div className="mb-2 text-sm font-bold text-slate-600">
-          Storage 内のバックアップ（{items.length} 件 / 最大30件保持）
+          Storage 内のバックアップ（{items.length} 件 / 最大7件保持）
         </div>
         {loading ? (
           <p className="text-slate-500 text-sm">読み込み中...</p>
