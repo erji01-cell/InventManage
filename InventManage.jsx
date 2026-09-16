@@ -503,6 +503,40 @@ export default function App() {
     return normalized;
   };
 
+  const createSupplier = async (name) => {
+    const trimmed = (name || '').trim();
+    if (!trimmed) throw new Error('取引先名を入力してください。');
+    const existing = suppliers.find(supplier => String(supplier.name || '').trim() === trimmed);
+    if (existing) return existing;
+
+    let created;
+    try {
+      [created] = await supabaseRequest(
+        'invent_suppliers?select=*',
+        {
+          method: 'POST',
+          headers: { Prefer: 'return=representation' },
+          body: JSON.stringify({ name: trimmed }),
+        },
+        authSession
+      );
+    } catch (err) {
+      if (/row-level security|permission denied/i.test(err?.message || '')) {
+        throw new Error(
+          '取引先登録用の権限が未導入です。outputs/supabase_migration/add_supplier_insert_policy.sql を' +
+          'SupabaseのSQL Editorで実行してください。'
+        );
+      }
+      throw err;
+    }
+
+    if (!created) throw new Error('取引先を追加できませんでした。');
+    const normalized = { id: created.id, name: created.name };
+    setSuppliers(prev => [...prev, normalized].sort((a, b) => Number(a.id) - Number(b.id)));
+    scheduleChangeBackup();
+    return normalized;
+  };
+
   const createAsset = async (data) => {
     let parent = data.parentId
       ? assets.find(asset => asset.parentId === data.parentId)
@@ -1082,7 +1116,7 @@ export default function App() {
   const renderView = () => {
     switch (view) {
       case 'menu': return <MenuScreen setView={navigateFromMenu} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={availableFiscalYears} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={selectedFiscalYear} setSelectedFiscalYear={setSelectedFiscalYear} negativeStockAssets={negativeStockAssets} pendingOrderCount={orderRequests.filter((order) => order.status === 'requested').length} session={authSession} />;
-      case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} categories={categories} onCreateCategory={createCategory} onCreateAsset={createAsset} onUpdateAsset={updateAsset} onUpdateParentAsset={updateParentAsset} onSetAssetActive={setAssetActive} setView={setView} onNavigateEntry={navigateToEntry} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} initialAssetId={filterAssetId} assetPickerMode={Boolean(assetPickerRequest)} assetPickerSource={assetPickerRequest} onPickAsset={pickAssetFromPicker} onCancelPick={cancelAssetPicker} />;
+      case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} categories={categories} onCreateSupplier={createSupplier} onCreateCategory={createCategory} onCreateAsset={createAsset} onUpdateAsset={updateAsset} onUpdateParentAsset={updateParentAsset} onSetAssetActive={setAssetActive} setView={setView} onNavigateEntry={navigateToEntry} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} initialAssetId={filterAssetId} assetPickerMode={Boolean(assetPickerRequest)} assetPickerSource={assetPickerRequest} onPickAsset={pickAssetFromPicker} onCancelPick={cancelAssetPicker} />;
       case 'history': return <MovementHistoryScreen movements={movements} setView={setView} assets={assets} staff={staff} updateMovement={updateMovement} updateAsset={updateAsset} deleteMovement={deleteMovement} pinnedAssetId={filterAssetId} onNavigateAssets={navigateToAssets} onRequestAssetPick={navigateToAssetPickerFromMovement} assetSelectionResult={movementAssetSelection} onAssetSelectionApplied={() => setMovementAssetSelection(null)} fiscalRange={historyFiscalRange} fiscalSnapshots={fiscalSnapshots} />;
       case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={activeAssets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} onRequestAssetPick={navigateToAssetPickerFromEntry} />;
       case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={activeAssets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} onRequestAssetPick={navigateToAssetPickerFromEntry} />;

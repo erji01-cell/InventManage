@@ -458,7 +458,7 @@ const createAssetEditForm = (asset) => ({
 // 品目を付け替えるモードを表すプルダウンの値（品目IDと衝突しない固定値）
 const PARENT_RENAME_OPTION = '__rename__';
 
-export default function AssetMasterScreen({ assets, suppliers, categories = [], onCreateCategory, onCreateAsset, onUpdateAsset, onUpdateParentAsset, onSetAssetActive, setView, onNavigateEntry, onNavigateHistory, onNavigateStock, initialAssetId = '', assetPickerMode = false, assetPickerSource = null, onPickAsset, onCancelPick }) {
+export default function AssetMasterScreen({ assets, suppliers, categories = [], onCreateSupplier, onCreateCategory, onCreateAsset, onUpdateAsset, onUpdateParentAsset, onSetAssetActive, setView, onNavigateEntry, onNavigateHistory, onNavigateStock, initialAssetId = '', assetPickerMode = false, assetPickerSource = null, onPickAsset, onCancelPick }) {
   const [filter, setFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('active');
   const [listSortOrder, setListSortOrder] = useState('id');
@@ -607,6 +607,30 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+  const [showNewSupplier, setShowNewSupplier] = useState(false);
+  const [newSupplierName, setNewSupplierName] = useState('');
+  const [isCreatingSupplier, setIsCreatingSupplier] = useState(false);
+
+  const closeNewSupplier = () => {
+    setShowNewSupplier(false);
+    setNewSupplierName('');
+  };
+
+  const handleAddSupplier = async () => {
+    const name = newSupplierName.trim();
+    if (!name || !onCreateSupplier) return;
+    setIsCreatingSupplier(true);
+    setSaveError('');
+    try {
+      const created = await onCreateSupplier(name);
+      setEditForm(prev => ({ ...prev, supplierId: String(created.id) }));
+      closeNewSupplier();
+    } catch (err) {
+      setSaveError(err.message || '取引先を追加できませんでした。');
+    } finally {
+      setIsCreatingSupplier(false);
+    }
+  };
 
   const handleAddCategory = async () => {
     const name = newCategoryName.trim();
@@ -996,19 +1020,58 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                 <>
                   <div className="grid grid-cols-2 gap-3">
                     <DetailItem label="ID" value={isCreating ? '新規' : selectedAsset.id || '-'} mono />
-                    <EditField
-                      label="取引先"
-                      type="select"
-                      value={editForm.supplierId}
-                      onChange={(value) => updateEditForm('supplierId', value)}
-                      options={[
-                        { value: '', label: '未設定' },
-                        ...suppliers.map(supplier => ({
-                          value: String(supplier.id),
-                          label: supplier.name,
-                        })),
-                      ]}
-                    />
+                    <div>
+                      <EditField
+                        label="取引先"
+                        type="select"
+                        value={editForm.supplierId}
+                        onChange={(value) => updateEditForm('supplierId', value)}
+                        options={[
+                          { value: '', label: '未設定' },
+                          ...suppliers.map(supplier => ({
+                            value: String(supplier.id),
+                            label: supplier.name,
+                          })),
+                        ]}
+                        labelAction={showNewSupplier ? null : (
+                          <button
+                            type="button"
+                            onClick={() => setShowNewSupplier(true)}
+                            className="text-xs font-bold text-purple-600 hover:underline"
+                          >
+                            ＋ 新しい取引先を追加
+                          </button>
+                        )}
+                      />
+                      {showNewSupplier && (
+                        <div className="mt-2 space-y-2 rounded-md border border-purple-200 bg-purple-50 p-2">
+                          <input
+                            type="text"
+                            value={newSupplierName}
+                            onChange={(e) => setNewSupplierName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddSupplier();
+                              } else if (e.key === 'Escape') {
+                                closeNewSupplier();
+                              }
+                            }}
+                            placeholder="新しい取引先名"
+                            autoFocus
+                            className="w-full rounded-md border border-purple-200 bg-white px-2 py-1.5 text-sm outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
+                          />
+                          <div className="flex gap-2">
+                            <Button variant="success" className="px-3 py-1 text-xs" onClick={handleAddSupplier} disabled={isCreatingSupplier || !newSupplierName.trim()}>
+                              {isCreatingSupplier ? '追加中...' : '追加'}
+                            </Button>
+                            <Button variant="secondary" className="px-3 py-1 text-xs" onClick={closeNewSupplier} disabled={isCreatingSupplier}>
+                              取消
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <EditField label="メーカー" value={editForm.maker} onChange={(value) => updateEditForm('maker', value)} />

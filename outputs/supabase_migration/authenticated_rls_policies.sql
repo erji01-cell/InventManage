@@ -19,6 +19,13 @@ for select
 to authenticated
 using (true);
 
+drop policy if exists "invent_suppliers_authenticated_insert" on invent_suppliers;
+create policy "invent_suppliers_authenticated_insert"
+on invent_suppliers
+for insert
+to authenticated
+with check (auth.uid() is not null);
+
 drop policy if exists "invent_staff_authenticated_select" on invent_staff;
 create policy "invent_staff_authenticated_select"
 on invent_staff

@@ -75,3 +75,4 @@ Import the CSV files into Supabase in this order:
 - One asset had no usage unit in Excel, so `usage_unit` was filled with `個`.
 - Review `parent_asset_review.csv` before importing if parent-child grouping matters.
 - After importing CSVs with explicit integer IDs, run `reset_supabase_sequences.sql` in Supabase SQL Editor.
+- To add suppliers from the asset master screen, run `add_supplier_insert_policy.sql` in Supabase SQL Editor.
