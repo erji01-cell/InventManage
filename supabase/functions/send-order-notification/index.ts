@@ -12,6 +12,23 @@ function escapeHtml(value: unknown) {
     .replaceAll("'", '&#039;');
 }
 
+function formatRequestedAt(value: unknown) {
+  const date = new Date(String(value ?? ''));
+  if (Number.isNaN(date.getTime())) return '-';
+
+  const parts = new Intl.DateTimeFormat('ja-JP', {
+    timeZone: 'Asia/Tokyo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}/${values.month}/${values.day} ${values.hour}:${values.minute}`;
+}
+
 Deno.serve(async (request) => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -71,6 +88,7 @@ Deno.serve(async (request) => {
         <td style="border-bottom: 1px solid #e2e8f0; padding: 10px 12px">${escapeHtml(order.assetName)}</td>
         <td style="border-bottom: 1px solid #e2e8f0; padding: 10px 12px; text-align: right; white-space: nowrap"><strong>${Number(order.quantity).toLocaleString('ja-JP')}${unit}</strong></td>
         <td style="border-bottom: 1px solid #e2e8f0; padding: 10px 12px">${memo}</td>
+        <td style="border-bottom: 1px solid #e2e8f0; padding: 10px 12px; white-space: nowrap">${formatRequestedAt(order.requestedAt)}</td>
       </tr>
     `;
   }).join('');
@@ -106,6 +124,7 @@ Deno.serve(async (request) => {
                 <th style="padding: 10px 12px; text-align: left">資産</th>
                 <th style="padding: 10px 12px; text-align: right">発注個数</th>
                 <th style="padding: 10px 12px; text-align: left">摘要</th>
+                <th style="padding: 10px 12px; text-align: left; white-space: nowrap">発注依頼日時</th>
               </tr>
             </thead>
             <tbody>${orderRows}</tbody>
