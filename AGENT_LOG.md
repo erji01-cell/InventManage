@@ -13,7 +13,7 @@
 ## [2026-09-24] Codex
 - **作業内容**: 発注依頼メールの商品一覧へ、発注依頼日時を日本時間で表示する処理を追加
 - **変更ファイル**: supabase/functions/send-order-notification/index.ts, AGENT_LOG.md
-- **次の課題 / 残タスク**: Supabase Edge Function `send-order-notification` のデプロイ（このPCはSupabase CLIが未接続）
+- **次の課題 / 残タスク**: なし（Supabase Edge Function `send-order-notification` へデプロイ済み）
 
 ## [2026-09-11] Claude Code
 - **作業内容**: このログファイル（AGENT_LOG.md）を新規作成
