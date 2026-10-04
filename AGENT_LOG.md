@@ -17,6 +17,13 @@
 
 ---
 
+## 2026-10-04 20:43（自宅）Codex / GPT-6
+- **作業内容**: 監査ログ記録用SQLと「データ管理 → 監査ログ」画面を追加。データ変更前後・操作アカウントをDBトリガーで保存し、期間・対象・操作・IDの絞り込みとページ表示に対応。
+- **変更ファイル**: InventManage.jsx, screens/DataManagementScreen.jsx, screens/AuditLogPanel.jsx, screens/BackupScreen.jsx, lib/audit.js, utils/audit.js, outputs/supabase_migration/create_audit_logs.sql, AUDIT_LOG_SETUP.md, README.md, tests/audit*, HANDOFF.md, AGENT_LOG.md。
+- **検証結果**: ビルド、表示処理7件とPGlite上のSQL/権限検証、テストデータによるブラウザでの一覧・展開・絞り込み・ページ切り替え・小さい画面の確認。
+- **SQL適用確認**: ユーザーがSQL Editorで実行後、REST APIで `invent_audit_logs` を読み取り、HTTP 200・0件を確認。本番データを変更するテストは行っていない。
+- **次の課題 / 残タスク**: 通常の保存後に監査ログの記録を確認する。2026-10-04にユーザーから監査ログ関連の変更のコミット・プッシュ指示を受領。
+
 ## 2026-10-01 08:44（職場） Claude Code / Sonnet 5
 - **作業内容**: `git pull origin main` でリモートの最新状態を取得・確認（コード変更なし）。取得内容にCodex（自宅）による発注依頼メールの日時表示機能の追記が含まれていることをユーザーに報告
 - **変更ファイル**: なし（本エントリのみ AGENT_LOG.md に追記）

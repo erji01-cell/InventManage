@@ -28,7 +28,7 @@ function parseFileNameToDate(name) {
   return `${m[1]}/${m[2]}/${m[3]} ${m[4]}:${m[5]}:${m[6]}`;
 }
 
-export default function BackupScreen({ session, setView, onRestored }) {
+export default function BackupScreen({ session, setView, onRestored, embedded = false, onBusyChange }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -37,6 +37,10 @@ export default function BackupScreen({ session, setView, onRestored }) {
   const [autoEnabled, setAutoEnabledState] = useState(isAutoBackupEnabled());
   const [lastBackup, setLastBackup] = useState(getLastBackupTime());
   const [restoreMode, setRestoreMode] = useState('merge'); // 'merge' | 'replace'
+
+  useEffect(() => {
+    onBusyChange?.(busy);
+  }, [busy, onBusyChange]);
 
   const restoreConfirmText = (name) =>
     restoreMode === 'replace'
@@ -151,24 +155,24 @@ export default function BackupScreen({ session, setView, onRestored }) {
     setAutoEnabledState(next);
   };
 
-  return (
-    <Card className="max-h-[90vh] flex flex-col relative">
-      <button
+  const content = (
+    <>
+      {!embedded && <button
         onClick={() => setView('menu')}
         className="absolute top-3 right-3 rounded-full p-1 text-slate-300 hover:bg-slate-100 hover:text-slate-600 transition-colors z-10"
         title="閉じる"
       >
         <X size={20} />
-      </button>
+      </button>}
 
       {/* ヘッダー */}
-      <div className="mb-5 flex items-end justify-between border-b border-slate-200 pb-4">
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 pb-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-purple-500">Backup & Restore</p>
-          <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-900">バックアップ管理</h2>
-          <p className="mt-2 text-sm text-slate-500">データを JSON 形式で保存・復元します</p>
+          {!embedded && <p className="text-xs font-bold uppercase tracking-[0.18em] text-purple-500">Backup & Restore</p>}
+          <h2 className={embedded ? 'text-lg font-bold text-slate-800' : 'mt-1 text-3xl font-black tracking-tight text-slate-900'}>バックアップ管理</h2>
+          {!embedded && <p className="mt-2 text-sm text-slate-500">データを JSON 形式で保存・復元します</p>}
         </div>
-        <div className="flex items-center gap-3 mr-8">
+        <div className={`flex flex-wrap items-center gap-3 ${embedded ? '' : 'mr-8'}`}>
           <Button variant="success" onClick={handleBackup} disabled={busy}>
             <Save size={16} />
             今すぐバックアップ
@@ -284,6 +288,9 @@ export default function BackupScreen({ session, setView, onRestored }) {
           </table>
         )}
       </div>
-    </Card>
+    </>
   );
+  return embedded
+    ? <div className="min-h-0 flex-1 overflow-y-auto">{content}</div>
+    : <Card className="max-h-[90vh] flex flex-col relative">{content}</Card>;
 }

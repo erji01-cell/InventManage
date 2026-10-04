@@ -5,7 +5,7 @@ import { Button } from './components/ui.jsx';
 import { clearStoredSession, fetchMovementsForFiscalYear, getStoredSession, loadInventoryData, signInWithPassword, signOut, storeSession, supabaseRequest } from './lib/supabase.js';
 import { fiscalStartYearOf, isMovementAfterClose, normalizeAsset, normalizeMovement, toNumber } from './utils/inventory.js';
 import AssetMasterScreen from './screens/AssetMasterScreen.jsx';
-import BackupScreen from './screens/BackupScreen.jsx';
+import DataManagementScreen from './screens/DataManagementScreen.jsx';
 import EntryScreen from './screens/EntryScreen.jsx';
 import LoginScreen from './screens/LoginScreen.jsx';
 import MenuScreen from './screens/MenuScreen.jsx';
@@ -1121,7 +1121,7 @@ export default function App() {
       case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={activeAssets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} onRequestAssetPick={navigateToAssetPickerFromEntry} />;
       case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={activeAssets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} onRequestAssetPick={navigateToAssetPickerFromEntry} />;
       case 'stock': return <StockStatusScreen assets={activeAssets} movements={movements} setView={setView} pinnedAssetId={filterAssetId} onNavigateHistory={navigateToHistory} onNavigateAssets={navigateToAssets} fiscalRange={historyFiscalRange} fiscalSnapshots={fiscalSnapshots} />;
-      case 'backup': return <BackupScreen session={authSession} setView={setView} onRestored={refreshData} />;
+      case 'backup': return <DataManagementScreen session={authSession} setView={setView} onRestored={refreshData} onAuthExpired={handleAuthExpired} />;
       case 'stocktaking': return <StocktakingScreen session={authSession} setView={setView} assets={activeAssets} movements={movements} staff={staff} onCompleted={async () => { await refreshData(); scheduleChangeBackup(); }} onRefreshData={async () => {
         const data = await refreshData({ silent: true });
         if (!data) return null;

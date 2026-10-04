@@ -77,3 +77,4 @@ Import the CSV files into Supabase in this order:
 - After importing CSVs with explicit integer IDs, run `reset_supabase_sequences.sql` in Supabase SQL Editor.
 - To add suppliers from the asset master screen, run `add_supplier_insert_policy.sql` in Supabase SQL Editor.
 - If supplier registration reports an `id` NULL error, also run `fix_supplier_id_identity.sql` in Supabase SQL Editor.
+- For change auditing, run `create_audit_logs.sql` in Supabase SQL Editor. See [AUDIT_LOG_SETUP.md](AUDIT_LOG_SETUP.md) for setup and coverage.

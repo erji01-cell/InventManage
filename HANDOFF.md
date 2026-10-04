@@ -1,6 +1,6 @@
 # InventManage プロジェクト引き継ぎドキュメント
 
-**最終更新**: 2026-08-03  
+**最終更新**: 2026-10-04
 **現在のブランチ**: main（全て反映済み）  
 **ステータス**: 稼働中・定期改善対応
 
@@ -17,7 +17,18 @@
 
 ---
 
-## 最近の実装（2026年8月）
+## 最近の実装
+
+### 監査ログ（2026-10-04）
+- 「データ管理」を `DataManagementScreen.jsx` に変更し、バックアップ・復元と監査ログのタブを配置。
+- `outputs/supabase_migration/create_audit_logs.sql` の実行後、対象10テーブルのINSERT/UPDATE/DELETEをDBトリガーで記録。
+- `invent_audit_logs` に変更前後のJSON、変更項目、ログインユーザーID/メール、日時、取引IDを保存。
+- アプリは閲覧のみ。無変更UPDATEとロールバックは記録しない。復元対象にも含めない。
+- `AuditLogPanel.jsx` は期間・対象・操作・対象IDの絞り込み、変更前後の展開、50件ずつのページ表示に対応。
+- `tests/audit.test.mjs` と `tests/audit-migration.test.mjs` で表示処理・SQL・権限を検証。UI検証用は `tests/audit-preview.html`（全APIをモック、本番への書き込みなし）。
+- SQL適用: 2026-10-04にユーザーが実行。REST APIで `invent_audit_logs` の読み取り成功（HTTP 200、0件）を確認。
+- 残タスク: 通常の保存後に「データ管理 → 監査ログ」で記録を確認。2026-10-04にユーザーからコミット・プッシュ指示を受領。
+- 詳細は `outputs/supabase_migration/AUDIT_LOG_SETUP.md` を参照。
 
 ### 0. 🚨 新規資産が登録できない不具合の修正 (2026-08-03)
 **症状**: 資産マスタで新規登録すると
