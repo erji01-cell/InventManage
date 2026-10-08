@@ -462,16 +462,18 @@ export default function OrderRequestScreen({
     }
 
     const printableContent = content.cloneNode(true);
-    // グループごとに表が複数あるため、すべての表に罫線を適用する
-    printableContent.querySelectorAll('table').forEach((printableTable) => {
-      printableTable.setAttribute('border', '1');
-      printableTable.setAttribute('cellspacing', '0');
-      printableTable.style.border = '1px solid #334155';
-      printableTable.style.borderCollapse = 'collapse';
-      printableTable.querySelectorAll('th, td').forEach((cell) => {
-        cell.style.border = '1px solid #334155';
+    if (!orderSheet) {
+      // グループごとに表が複数あるため、すべての表に罫線を適用する
+      printableContent.querySelectorAll('table').forEach((printableTable) => {
+        printableTable.setAttribute('border', '1');
+        printableTable.setAttribute('cellspacing', '0');
+        printableTable.style.border = '1px solid #334155';
+        printableTable.style.borderCollapse = 'collapse';
+        printableTable.querySelectorAll('th, td').forEach((cell) => {
+          cell.style.border = '1px solid #334155';
+        });
       });
-    });
+    }
 
     const styleMarkup = [...document.querySelectorAll('link[rel="stylesheet"], style')]
       .map((node) => (node.tagName === 'LINK'
@@ -502,15 +504,28 @@ export default function OrderRequestScreen({
           border: 1px solid #334155 !important;
           padding: 6px 7px !important;
         }
-        .yamashita-order-sheet { width: 100%; max-width: 182mm; margin: 0 auto; }
+        .yamashita-order-sheet { width: 100%; max-width: 176mm; margin: 0 auto; }
         .yamashita-order-sheet h1 { text-align: center; font-size: 20pt; margin: 0 0 10mm; }
         .yamashita-order-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 8mm; margin-bottom: 6mm; }
         .yamashita-order-header p { margin: 0; }
         .yamashita-order-header .recipient { font-size: 12pt; font-weight: 700; }
         .yamashita-order-header .sender { text-align: right; }
-        .yamashita-order-sheet table { font-size: 9pt !important; }
+        .yamashita-order-sheet table {
+          box-sizing: border-box !important;
+          border: 0 !important;
+          border-collapse: separate !important;
+          border-spacing: 0 !important;
+          font-size: 9pt !important;
+        }
+        .yamashita-order-sheet th, .yamashita-order-sheet td {
+          border: 0 !important;
+          border-right: 1.25px solid #334155 !important;
+          border-bottom: 1.25px solid #334155 !important;
+        }
+        .yamashita-order-sheet thead th { border-top: 1.25px solid #334155 !important; }
+        .yamashita-order-sheet tr > :first-child { border-left: 1.25px solid #334155 !important; }
         .yamashita-order-sheet td { overflow-wrap: anywhere; }
-      </style></head><body>${printableContent.innerHTML}</body></html>`);
+      </style></head><body>${orderSheet ? printableContent.outerHTML : printableContent.innerHTML}</body></html>`);
     frameDocument.close();
 
     let printStarted = false;
@@ -1053,7 +1068,7 @@ export default function OrderRequestScreen({
               </label>
             </div>
             <div className="overflow-auto p-6">
-              <div ref={yamashitaContentRef} className="yamashita-order-sheet mx-auto max-w-[186mm] text-slate-900">
+              <div ref={yamashitaContentRef} className="yamashita-order-sheet mx-auto max-w-[176mm] text-slate-900">
                 <h1 className="mb-8 text-center text-3xl font-bold">注文書</h1>
                 <div className="yamashita-order-header mb-5 flex items-end justify-between gap-6">
                   <div>
