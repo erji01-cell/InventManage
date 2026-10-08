@@ -525,6 +525,11 @@ export default function OrderRequestScreen({
         .yamashita-order-sheet thead th { border-top: 1.25px solid #334155 !important; }
         .yamashita-order-sheet tr > :first-child { border-left: 1.25px solid #334155 !important; }
         .yamashita-order-sheet td { overflow-wrap: anywhere; }
+        .yamashita-order-sheet tbody td {
+          color: #111111 !important;
+          font-size: 10pt !important;
+          font-weight: 700 !important;
+        }
       </style></head><body>${orderSheet ? printableContent.outerHTML : printableContent.innerHTML}</body></html>`);
     frameDocument.close();
 
@@ -1089,7 +1094,7 @@ export default function OrderRequestScreen({
                       <th className="w-[14%] border border-slate-500 px-2 py-2 text-center">数量</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="font-bold text-slate-950">
                     {yamashitaPrintOrders.map((order) => {
                       const asset = assetsById.get(String(order.assetId));
                       return (
