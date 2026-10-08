@@ -17,6 +17,12 @@
 
 ---
 
+## 2026-10-08 11:18（職場）Codex / GPT-6
+- **作業内容**: 発注一覧の状態切り替え（発注未完了・発注完了・納品完了）を横一列に固定。狭い画面ではボタンの余白を縮め、周囲の操作は必要に応じて次の行へ回す。
+- **変更ファイル**: screens/OrderRequestScreen.jsx, AGENT_LOG.md。
+- **検証結果**: 幅375pxのブラウザで3ボタンが同じ行に収まり、横スクロールが不要なことを確認。ビルドと差分チェックを実施。
+- **次の課題 / 残タスク**: なし。
+
 ## 2026-10-08 11:06（職場）Codex / GPT-6
 - **作業内容**: 発注一覧に山下医科器械専用のA4縦「注文書」を追加。現在の状態と選択した登録日に該当する同社の登録済み発注だけを表示・印刷し、メーカー・商品名・入り数・数量を掲載。
 - **変更ファイル**: InventManage.jsx, screens/OrderRequestScreen.jsx, tests/order-sheet-preview.html, tests/order-sheet-preview.jsx, AGENT_LOG.md。

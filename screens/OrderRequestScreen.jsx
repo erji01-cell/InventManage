@@ -708,23 +708,23 @@ export default function OrderRequestScreen({
         )}
 
         <section>
-          <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-            <div className="inline-flex flex-wrap rounded-md border border-slate-200 bg-slate-50 p-1">
+          <div className="mb-4 flex flex-col gap-3 md:flex-row md:flex-wrap md:items-end md:justify-between">
+            <div className="inline-flex max-w-full shrink-0 flex-nowrap overflow-x-auto rounded-md border border-slate-200 bg-slate-50 p-1">
               <button
                 onClick={() => setFilter('requested')}
-                className={`rounded px-4 py-2 text-sm font-bold ${filter === 'requested' ? 'bg-white text-amber-700 shadow-sm' : 'text-slate-500'}`}
+                className={`shrink-0 whitespace-nowrap rounded px-1 py-2 text-xs font-bold sm:px-4 sm:text-sm ${filter === 'requested' ? 'bg-white text-amber-700 shadow-sm' : 'text-slate-500'}`}
               >
                 発注未完了 {visibleOrders.filter((order) => order.status === 'requested').length}
               </button>
               <button
                 onClick={() => setFilter('completed')}
-                className={`rounded px-4 py-2 text-sm font-bold ${filter === 'completed' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500'}`}
+                className={`shrink-0 whitespace-nowrap rounded px-1 py-2 text-xs font-bold sm:px-4 sm:text-sm ${filter === 'completed' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-500'}`}
               >
                 発注完了 {visibleOrders.filter((order) => order.status === 'completed').length}
               </button>
               <button
                 onClick={() => setFilter('delivered')}
-                className={`rounded px-4 py-2 text-sm font-bold ${filter === 'delivered' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}
+                className={`shrink-0 whitespace-nowrap rounded px-1 py-2 text-xs font-bold sm:px-4 sm:text-sm ${filter === 'delivered' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}
               >
                 納品完了 {visibleOrders.filter((order) => order.status === 'delivered').length}
               </button>
