@@ -17,6 +17,12 @@
 
 ---
 
+## 2026-10-08 11:06（職場）Codex / GPT-6
+- **作業内容**: 発注一覧に山下医科器械専用のA4縦「注文書」を追加。現在の状態と選択した登録日に該当する同社の登録済み発注だけを表示・印刷し、メーカー・商品名・入り数・数量を掲載。
+- **変更ファイル**: InventManage.jsx, screens/OrderRequestScreen.jsx, tests/order-sheet-preview.html, tests/order-sheet-preview.jsx, AGENT_LOG.md。
+- **検証結果**: ビルド、差分チェック、合成データによる登録日・状態・取引先の絞り込み、狭い画面の表示、印刷用iframeの内容を確認。
+- **次の課題 / 残タスク**: 実機のA4印刷とFAX送信は未確認。送信前に宛先FAX番号と出力内容を確認する。
+
 ## 2026-10-04 20:43（自宅）Codex / GPT-6
 - **作業内容**: 監査ログ記録用SQLと「データ管理 → 監査ログ」画面を追加。データ変更前後・操作アカウントをDBトリガーで保存し、期間・対象・操作・IDの絞り込みとページ表示に対応。
 - **変更ファイル**: InventManage.jsx, screens/DataManagementScreen.jsx, screens/AuditLogPanel.jsx, screens/BackupScreen.jsx, lib/audit.js, utils/audit.js, outputs/supabase_migration/create_audit_logs.sql, AUDIT_LOG_SETUP.md, README.md, tests/audit*, HANDOFF.md, AGENT_LOG.md。

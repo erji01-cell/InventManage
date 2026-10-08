@@ -40,6 +40,20 @@ function oneMonthAgo(referenceDate = new Date()) {
 // 印刷対象セレクタで「すべてのグループ」を表す番兵値（グループ名と衝突しない値）
 const ALL_GROUPS = '__all__';
 
+function isYamashitaSupplier(name) {
+  return /^山下医科[器機]械/.test(String(name || '').replaceAll(/\s/g, ''));
+}
+
+function formatPackSize(asset, purchaseUnit) {
+  const unit = purchaseUnit || asset?.purchaseUnit || '';
+  if (!asset) return '-';
+  const packSize = Number(asset.packSize);
+  if (packSize > 1 && unit) {
+    return `${packSize}${asset.usageUnit || ''}入り/1${unit}`;
+  }
+  return unit ? `1${unit}` : '-';
+}
+
 const GROUP_OPTIONS = [
   { key: 'supplier', label: '発注先別' },
   { key: 'requested', label: '登録日別' },
@@ -66,6 +80,7 @@ function getOrderStatusAt(order) {
 
 export default function OrderRequestScreen({
   assets,
+  allAssets = assets,
   staff = [],
   orders,
   setView,
@@ -85,6 +100,8 @@ export default function OrderRequestScreen({
   const [groupBy, setGroupBy] = useState('supplier');
   const [printGroupKey, setPrintGroupKey] = useState(ALL_GROUPS);
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [showYamashitaOrder, setShowYamashitaOrder] = useState(false);
+  const [yamashitaDate, setYamashitaDate] = useState('');
   const [printError, setPrintError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [busyOrderId, setBusyOrderId] = useState('');
@@ -94,6 +111,7 @@ export default function OrderRequestScreen({
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const printContentRef = useRef(null);
+  const yamashitaContentRef = useRef(null);
   const staffSelectRef = useRef(null);
   const assetCodeInputRef = useRef(null);
   const quantityInputRef = useRef(null);
@@ -113,6 +131,32 @@ export default function OrderRequestScreen({
     const rows = visibleOrders.filter((order) => order.status === filter);
     return [...rows].sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
   }, [filter, visibleOrders]);
+
+  const yamashitaOrders = useMemo(
+    () => filteredOrders.filter((order) => isYamashitaSupplier(order.supplierName)),
+    [filteredOrders],
+  );
+  const yamashitaDates = useMemo(() => {
+    const counts = new Map();
+    yamashitaOrders.forEach((order) => {
+      const date = toLocalDateKey(order.requestedAt);
+      if (date) counts.set(date, (counts.get(date) || 0) + 1);
+    });
+    return [...counts.entries()].sort(([a], [b]) => b.localeCompare(a));
+  }, [yamashitaOrders]);
+  const assetsById = useMemo(
+    () => new Map(allAssets.map((asset) => [String(asset.id), asset])),
+    [allAssets],
+  );
+  const yamashitaPrintOrders = useMemo(() => (
+    yamashitaOrders
+      .filter((order) => toLocalDateKey(order.requestedAt) === yamashitaDate)
+      .sort((a, b) => {
+        const makerA = assetsById.get(String(a.assetId))?.maker || '';
+        const makerB = assetsById.get(String(b.assetId))?.maker || '';
+        return makerA.localeCompare(makerB, 'ja') || a.assetName.localeCompare(b.assetName, 'ja');
+      })
+  ), [assetsById, yamashitaDate, yamashitaOrders]);
 
   const groups = useMemo(() => {
     const isSupplier = groupBy === 'supplier';
@@ -376,12 +420,22 @@ export default function OrderRequestScreen({
     setShowPrintModal(true);
   };
 
-  const printOrdersByDate = () => {
-    if (printRowCount === 0) {
+  const openYamashitaOrder = () => {
+    setError('');
+    setMessage('');
+    setPrintError('');
+    if (yamashitaDates.length === 0) return;
+    setYamashitaDate(yamashitaDates[0][0]);
+    setShowYamashitaOrder(true);
+  };
+
+  const printOrdersByDate = (orderSheet = false) => {
+    const rowCount = orderSheet ? yamashitaPrintOrders.length : printRowCount;
+    if (rowCount === 0) {
       setPrintError('印刷する発注データがありません。');
       return;
     }
-    const content = printContentRef.current;
+    const content = (orderSheet ? yamashitaContentRef : printContentRef).current;
     if (!content) {
       setPrintError('印刷内容を作成できませんでした。');
       return;
@@ -389,7 +443,7 @@ export default function OrderRequestScreen({
 
     setPrintError('');
     const printFrame = document.createElement('iframe');
-    printFrame.title = '発注一覧印刷';
+    printFrame.title = orderSheet ? '山下医科器械 注文書' : '発注一覧印刷';
     printFrame.style.position = 'fixed';
     printFrame.style.right = '0';
     printFrame.style.bottom = '0';
@@ -425,14 +479,14 @@ export default function OrderRequestScreen({
         : node.outerHTML))
       .join('');
     frameDocument.open();
-    frameDocument.write(`<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><title>発注一覧</title>${styleMarkup}
+    frameDocument.write(`<!DOCTYPE html><html lang="ja"><head><meta charset="UTF-8"><title>${orderSheet ? '注文書' : '発注一覧'}</title>${styleMarkup}
       <style>
         @page { size: A4 portrait; margin: 12mm; }
         body { margin: 0; color: #1e293b; font-family: "Yu Gothic", "Meiryo", sans-serif; }
         * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         table {
           min-width: 0 !important;
-          width: 96% !important;
+          width: ${orderSheet ? '100%' : '96%'} !important;
           table-layout: fixed !important;
           border-collapse: collapse !important;
           border-spacing: 0 !important;
@@ -448,6 +502,14 @@ export default function OrderRequestScreen({
           border: 1px solid #334155 !important;
           padding: 6px 7px !important;
         }
+        .yamashita-order-sheet { width: 100%; max-width: 182mm; margin: 0 auto; }
+        .yamashita-order-sheet h1 { text-align: center; font-size: 20pt; margin: 0 0 10mm; }
+        .yamashita-order-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 8mm; margin-bottom: 6mm; }
+        .yamashita-order-header p { margin: 0; }
+        .yamashita-order-header .recipient { font-size: 12pt; font-weight: 700; }
+        .yamashita-order-header .sender { text-align: right; }
+        .yamashita-order-sheet table { font-size: 9pt !important; }
+        .yamashita-order-sheet td { overflow-wrap: anywhere; }
       </style></head><body>${printableContent.innerHTML}</body></html>`);
     frameDocument.close();
 
@@ -686,6 +748,9 @@ export default function OrderRequestScreen({
               </div>
               <Button variant="print" className="h-10 whitespace-nowrap px-4" onClick={openPrintModal} disabled={printGroupOptions.length === 0}>
                 <Printer size={17} /> {currentGroupLabel}印刷
+              </Button>
+              <Button variant="stock" className="h-10 whitespace-nowrap px-4" onClick={openYamashitaOrder} disabled={yamashitaDates.length === 0}>
+                <Printer size={17} /> 山下医科器械 注文書
               </Button>
             </div>
           </div>
@@ -952,7 +1017,87 @@ export default function OrderRequestScreen({
             <div className="order-print-controls flex justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4">
               {printError && <p className="mr-auto max-w-2xl text-sm font-bold text-red-600">{printError}</p>}
               <Button variant="secondary" onClick={() => setShowPrintModal(false)}><X size={17} /> 閉じる</Button>
-              <Button variant="print" onClick={printOrdersByDate} disabled={printRowCount === 0}><Printer size={17} /> 印刷する</Button>
+              <Button variant="print" onClick={() => printOrdersByDate()} disabled={printRowCount === 0}><Printer size={17} /> 印刷する</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showYamashitaOrder && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/45 p-4">
+          <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+              <h2 className="text-xl font-black text-slate-900">山下医科器械 注文書</h2>
+              <button
+                type="button"
+                onClick={() => setShowYamashitaOrder(false)}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50"
+                title="閉じる"
+                aria-label="注文書を閉じる"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="border-b border-slate-200 bg-slate-50 px-6 py-4">
+              <label className="block max-w-sm">
+                <span className="mb-2 block text-xs font-bold text-slate-500">印刷する登録日（{printStatusLabel}）</span>
+                <select
+                  value={yamashitaDate}
+                  onChange={(event) => setYamashitaDate(event.target.value)}
+                  className="h-11 w-full rounded-md border border-amber-300 bg-white px-3 text-sm font-bold text-slate-800 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+                >
+                  {yamashitaDates.map(([date, count]) => (
+                    <option key={date} value={date}>{date.replaceAll('-', '/')}（{count}件）</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="overflow-auto p-6">
+              <div ref={yamashitaContentRef} className="yamashita-order-sheet mx-auto max-w-[186mm] text-slate-900">
+                <h1 className="mb-8 text-center text-3xl font-bold">注文書</h1>
+                <div className="yamashita-order-header mb-5 flex items-end justify-between gap-6">
+                  <div>
+                    <p className="recipient text-lg font-bold">山下医科器械 株式会社 御中</p>
+                    <p>FAX 099-283-3244</p>
+                  </div>
+                  <div className="sender text-right">
+                    <p>{yamashitaDate.replaceAll('-', '.')}</p>
+                    <p className="mt-2 font-bold">陽春堂内科診療所</p>
+                  </div>
+                </div>
+                <table className="w-full table-fixed border-collapse text-sm">
+                  <thead>
+                    <tr>
+                      <th className="w-[20%] border border-slate-500 px-2 py-2 text-left">メーカー</th>
+                      <th className="w-[46%] border border-slate-500 px-2 py-2 text-left">商品名</th>
+                      <th className="w-[20%] border border-slate-500 px-2 py-2 text-center">入り数</th>
+                      <th className="w-[14%] border border-slate-500 px-2 py-2 text-center">数量</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {yamashitaPrintOrders.map((order) => {
+                      const asset = assetsById.get(String(order.assetId));
+                      return (
+                        <tr key={order.id}>
+                          <td className="break-words border border-slate-500 px-2 py-2 align-top">{asset?.maker || '-'}</td>
+                          <td className="break-words border border-slate-500 px-2 py-2 align-top">{order.assetName}</td>
+                          <td className="break-words border border-slate-500 px-2 py-2 text-center align-top">{formatPackSize(asset, order.purchaseUnit)}</td>
+                          <td className="whitespace-nowrap border border-slate-500 px-2 py-2 text-center align-top font-bold">
+                            {Number(order.quantity).toLocaleString('ja-JP')}{order.purchaseUnit || ''}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4">
+              {printError && <p className="mr-auto text-sm font-bold text-red-600">{printError}</p>}
+              <Button variant="secondary" onClick={() => setShowYamashitaOrder(false)}><X size={17} /> 閉じる</Button>
+              <Button variant="print" onClick={() => printOrdersByDate(true)} disabled={yamashitaPrintOrders.length === 0}>
+                <Printer size={17} /> 印刷する
+              </Button>
             </div>
           </div>
         </div>

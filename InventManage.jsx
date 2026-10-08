@@ -1128,7 +1128,7 @@ export default function App() {
         // 画面に渡している activeAssets と同じ絞り込みを適用する
         return { assets: data.assets.filter((asset) => asset.isActive !== false), movements: data.movements };
       }} />;
-      case 'orders': return <OrderRequestScreen assets={activeAssets} staff={staff} orders={orderRequests} setView={setView} onCreate={createOrderRequest} onUpdateStatus={updateOrderStatus} onUpdateMemo={updateOrderMemo} onDelete={deleteOrderRequest} onRetryEmail={retryOrderEmail} />;
+      case 'orders': return <OrderRequestScreen assets={activeAssets} allAssets={assets} staff={staff} orders={orderRequests} setView={setView} onCreate={createOrderRequest} onUpdateStatus={updateOrderStatus} onUpdateMemo={updateOrderMemo} onDelete={deleteOrderRequest} onRetryEmail={retryOrderEmail} />;
       default: return <MenuScreen setView={navigateFromMenu} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={availableFiscalYears} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={selectedFiscalYear} setSelectedFiscalYear={setSelectedFiscalYear} negativeStockAssets={negativeStockAssets} pendingOrderCount={orderRequests.filter((order) => order.status === 'requested').length} session={authSession} />;
     }
   };
