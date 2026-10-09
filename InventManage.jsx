@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 
 import { Button } from './components/ui.jsx';
-import { clearStoredSession, fetchMovementsForFiscalYear, getStoredSession, loadInventoryData, signInWithPassword, signOut, storeSession, supabaseRequest } from './lib/supabase.js';
+import { clearStoredSession, fetchLatestAuditLogId, fetchMovementsForFiscalYear, getStoredSession, loadInventoryData, signInWithPassword, signOut, storeSession, supabaseRequest } from './lib/supabase.js';
 import { fiscalStartYearOf, isMovementAfterClose, normalizeAsset, normalizeMovement, toNumber } from './utils/inventory.js';
 import AssetMasterScreen from './screens/AssetMasterScreen.jsx';
 import DataManagementScreen from './screens/DataManagementScreen.jsx';
@@ -59,7 +59,10 @@ export default function App() {
     if (!authSession) return;
     if (!silent) setError('');
     try {
+      // 読み込み中の変更を次回の確認で拾えるよう、監査ログIDは読み込みより先に取得する
+      const auditLogId = await fetchLatestAuditLogId(authSession);
       const data = await loadInventoryData(authSession);
+      lastAuditLogIdRef.current = auditLogId;
       setAssets(data.assets);
       setMovements(data.movements);
       setStaff(data.staff);
@@ -84,6 +87,35 @@ export default function App() {
   // フォーカス更新と定期更新で共用し、二重実行を防ぐ。
   const lastFocusRefreshRef = useRef(Date.now());
   const focusRefreshBusyRef = useRef(false);
+  // 直近のフルロード時点の監査ログ最新ID（他PCでの変更検知用。null は取得不可）
+  const lastAuditLogIdRef = useRef(null);
+
+  // 他PCで変更があったとき、または一定時間フルロードしていないときだけ全データを読み直す。
+  // 毎回全データを読み直すと共用SupabaseのDisk IOを大きく消費するため、まず監査ログの最新IDだけを確認する。
+  // 監査ログが取得できない場合や対象外の変更に備え、FULL_REFRESH_MAX_AGE_MS ごとには必ず読み直す
+  const FULL_REFRESH_MAX_AGE_MS = 10 * 60 * 1000;
+  const refreshIfChanged = async ({ force = false } = {}) => {
+    if (force) {
+      lastFocusRefreshRef.current = Date.now();
+      await refreshData({ silent: true });
+      return;
+    }
+    let latestId;
+    try {
+      latestId = await fetchLatestAuditLogId(authSession);
+    } catch (err) {
+      if (err?.code === 'AUTH_EXPIRED') {
+        handleAuthExpired();
+        return;
+      }
+      throw err;
+    }
+    const unchanged = latestId != null && latestId === lastAuditLogIdRef.current &&
+      Date.now() - lastFocusRefreshRef.current < FULL_REFRESH_MAX_AGE_MS;
+    if (unchanged) return;
+    lastFocusRefreshRef.current = Date.now();
+    await refreshData({ silent: true });
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -103,9 +135,16 @@ export default function App() {
     }
 
     setIsLoading(true);
-    loadInventoryData(authSession)
+    // 読み込み中の変更を次回の確認で拾えるよう、監査ログIDは読み込みより先に取得する
+    let auditLogId = null;
+    fetchLatestAuditLogId(authSession)
+      .then((id) => {
+        auditLogId = id;
+        return loadInventoryData(authSession);
+      })
       .then((data) => {
         if (!isMounted) return;
+        lastAuditLogIdRef.current = auditLogId;
         setAssets(data.assets);
         setMovements(data.movements);
         setStaff(data.staff);
@@ -135,7 +174,7 @@ export default function App() {
     };
   }, [authSession]);
 
-  // ウィンドウにフォーカスが戻ったらデータを再読み込み（複数PC運用での鮮度対策）。
+  // ウィンドウにフォーカスが戻ったら、他PCでの変更があれば再読み込み（複数PC運用での鮮度対策）。
   // 直近のロードから1分以内なら何もしない。失敗しても画面は変えず次回に任せる。
   useEffect(() => {
     if (!authSession) return;
@@ -144,9 +183,8 @@ export default function App() {
       if (document.visibilityState !== 'visible') return;
       if (focusRefreshBusyRef.current) return;
       if (Date.now() - lastFocusRefreshRef.current < FOCUS_REFRESH_MIN_MS) return;
-      lastFocusRefreshRef.current = Date.now();
       focusRefreshBusyRef.current = true;
-      refreshData({ silent: true })
+      refreshIfChanged()
         .catch((err) => console.warn('[focus-refresh] 再読み込みに失敗:', err?.message))
         .finally(() => {
           focusRefreshBusyRef.current = false;
@@ -1078,13 +1116,15 @@ export default function App() {
     };
   }, [authSession, selectedFiscalYear, currentFiscalStartYear, loadedPastYears, staff]);
 
-  // 20秒ごとの定期更新。もう一方のPCで登録した入出庫を、画面を開いたままでも反映させる。
+  // 20秒ごとの定期確認。もう一方のPCで登録した入出庫を、画面を開いたままでも反映させる。
+  // 監査ログの最新IDだけを確認し、変更があったときだけ全データを読み直す（refreshIfChanged）。
   // 棚卸し画面は理論在庫を最新の入出庫からライブ再計算するため、ここで止めてはいけない
   // （古いまま確定すると調整量がズレる。StocktakingScreen の liveSystemQtyMap 参照）。
+  // 確実を期して、棚卸し画面の表示中は監査ログに頼らず毎回全データを読み直す。
   // 除外する条件:
   //   - タブが非表示のとき（復帰時はフォーカス更新が拾う）
   //   - 過去年度を閲覧中（フルリロードで loadedPastYears が消えるため、
-  //     20秒ごとに年度全体を再取得してしまう。過去年度は他PCの入力で変わらない）
+  //     年度全体を再取得してしまう。過去年度は他PCの入力で変わらない）
   useEffect(() => {
     if (!authSession) return;
     const POLL_INTERVAL_MS = 20 * 1000;
@@ -1093,15 +1133,14 @@ export default function App() {
       if (selectedFiscalYear != null && selectedFiscalYear !== currentFiscalStartYear) return;
       if (focusRefreshBusyRef.current) return;
       focusRefreshBusyRef.current = true;
-      lastFocusRefreshRef.current = Date.now();
-      refreshData({ silent: true })
+      refreshIfChanged({ force: view === 'stocktaking' })
         .catch((err) => console.warn('[poll-refresh] 再読み込みに失敗:', err?.message))
         .finally(() => {
           focusRefreshBusyRef.current = false;
         });
     }, POLL_INTERVAL_MS);
     return () => clearInterval(timer);
-  }, [authSession, selectedFiscalYear, currentFiscalStartYear]);
+  }, [authSession, selectedFiscalYear, currentFiscalStartYear, view]);
 
   // 選択中年度の日付レンジ（入出庫データ・在庫表の絞り込み用）
   const historyFiscalRange = useMemo(() => (
