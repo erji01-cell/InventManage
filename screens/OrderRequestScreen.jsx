@@ -44,6 +44,16 @@ function isYamashitaSupplier(name) {
   return /^山下医科[器機]械/.test(String(name || '').replaceAll(/\s/g, ''));
 }
 
+function isAtolSupplier(name) {
+  const normalized = String(name || '').normalize('NFKC').replaceAll(/\s|株式会社|\(株\)/g, '');
+  return /^(?:アトル|MVC)(?:$|\()/i.test(normalized);
+}
+
+const ORDER_SHEET_SUPPLIERS = [
+  { key: 'yamashita', label: '山下医科器械', recipient: '山下医科器械 株式会社 御中', fax: '099-283-3244', matches: isYamashitaSupplier },
+  { key: 'atol', label: 'アトル（旧MVC）', recipient: '株式会社アトル　辻　様', matches: isAtolSupplier },
+];
+
 function formatPackSize(asset, purchaseUnit) {
   const unit = purchaseUnit || asset?.purchaseUnit || '';
   if (!asset) return '-';
@@ -100,8 +110,8 @@ export default function OrderRequestScreen({
   const [groupBy, setGroupBy] = useState('supplier');
   const [printGroupKey, setPrintGroupKey] = useState(ALL_GROUPS);
   const [showPrintModal, setShowPrintModal] = useState(false);
-  const [showYamashitaOrder, setShowYamashitaOrder] = useState(false);
-  const [yamashitaDate, setYamashitaDate] = useState('');
+  const [orderSheetSupplier, setOrderSheetSupplier] = useState(null);
+  const [supplierSheetDate, setSupplierSheetDate] = useState('');
   const [printError, setPrintError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [busyOrderId, setBusyOrderId] = useState('');
@@ -111,7 +121,7 @@ export default function OrderRequestScreen({
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const printContentRef = useRef(null);
-  const yamashitaContentRef = useRef(null);
+  const supplierSheetContentRef = useRef(null);
   const staffSelectRef = useRef(null);
   const assetCodeInputRef = useRef(null);
   const quantityInputRef = useRef(null);
@@ -132,31 +142,31 @@ export default function OrderRequestScreen({
     return [...rows].sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
   }, [filter, visibleOrders]);
 
-  const yamashitaOrders = useMemo(
-    () => filteredOrders.filter((order) => isYamashitaSupplier(order.supplierName)),
-    [filteredOrders],
+  const supplierSheetOrders = useMemo(
+    () => filteredOrders.filter((order) => orderSheetSupplier?.matches(order.supplierName)),
+    [filteredOrders, orderSheetSupplier],
   );
-  const yamashitaDates = useMemo(() => {
+  const supplierSheetDates = useMemo(() => {
     const counts = new Map();
-    yamashitaOrders.forEach((order) => {
+    supplierSheetOrders.forEach((order) => {
       const date = toLocalDateKey(order.requestedAt);
       if (date) counts.set(date, (counts.get(date) || 0) + 1);
     });
     return [...counts.entries()].sort(([a], [b]) => b.localeCompare(a));
-  }, [yamashitaOrders]);
+  }, [supplierSheetOrders]);
   const assetsById = useMemo(
     () => new Map(allAssets.map((asset) => [String(asset.id), asset])),
     [allAssets],
   );
-  const yamashitaPrintOrders = useMemo(() => (
-    yamashitaOrders
-      .filter((order) => toLocalDateKey(order.requestedAt) === yamashitaDate)
+  const supplierSheetPrintOrders = useMemo(() => (
+    supplierSheetOrders
+      .filter((order) => toLocalDateKey(order.requestedAt) === supplierSheetDate)
       .sort((a, b) => {
         const makerA = assetsById.get(String(a.assetId))?.maker || '';
         const makerB = assetsById.get(String(b.assetId))?.maker || '';
         return makerA.localeCompare(makerB, 'ja') || a.assetName.localeCompare(b.assetName, 'ja');
       })
-  ), [assetsById, yamashitaDate, yamashitaOrders]);
+  ), [assetsById, supplierSheetDate, supplierSheetOrders]);
 
   const groups = useMemo(() => {
     const isSupplier = groupBy === 'supplier';
@@ -420,22 +430,27 @@ export default function OrderRequestScreen({
     setShowPrintModal(true);
   };
 
-  const openYamashitaOrder = () => {
+  const openSupplierOrder = (supplier) => {
     setError('');
     setMessage('');
     setPrintError('');
-    if (yamashitaDates.length === 0) return;
-    setYamashitaDate(yamashitaDates[0][0]);
-    setShowYamashitaOrder(true);
+    const dates = filteredOrders
+      .filter((order) => supplier.matches(order.supplierName))
+      .map((order) => toLocalDateKey(order.requestedAt))
+      .filter(Boolean)
+      .sort();
+    if (dates.length === 0) return;
+    setSupplierSheetDate(dates.at(-1));
+    setOrderSheetSupplier(supplier);
   };
 
   const printOrdersByDate = (orderSheet = false) => {
-    const rowCount = orderSheet ? yamashitaPrintOrders.length : printRowCount;
+    const rowCount = orderSheet ? supplierSheetPrintOrders.length : printRowCount;
     if (rowCount === 0) {
       setPrintError('印刷する発注データがありません。');
       return;
     }
-    const content = (orderSheet ? yamashitaContentRef : printContentRef).current;
+    const content = (orderSheet ? supplierSheetContentRef : printContentRef).current;
     if (!content) {
       setPrintError('印刷内容を作成できませんでした。');
       return;
@@ -443,7 +458,7 @@ export default function OrderRequestScreen({
 
     setPrintError('');
     const printFrame = document.createElement('iframe');
-    printFrame.title = orderSheet ? '山下医科器械 注文書' : '発注一覧印刷';
+    printFrame.title = orderSheet ? `${orderSheetSupplier.label} 注文書` : '発注一覧印刷';
     printFrame.style.position = 'fixed';
     printFrame.style.right = '0';
     printFrame.style.bottom = '0';
@@ -504,28 +519,28 @@ export default function OrderRequestScreen({
           border: 1px solid #334155 !important;
           padding: 6px 7px !important;
         }
-        .yamashita-order-sheet { width: 100%; max-width: 176mm; margin: 0 auto; }
-        .yamashita-order-sheet h1 { text-align: center; font-size: 20pt; margin: 0 0 10mm; }
-        .yamashita-order-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 8mm; margin-bottom: 6mm; }
-        .yamashita-order-header p { margin: 0; }
-        .yamashita-order-header .recipient { font-size: 12pt; font-weight: 700; }
-        .yamashita-order-header .sender { text-align: right; }
-        .yamashita-order-sheet table {
+        .supplier-order-sheet { width: 100%; max-width: 176mm; margin: 0 auto; }
+        .supplier-order-sheet h1 { text-align: center; font-size: 20pt; margin: 0 0 10mm; }
+        .supplier-order-header { display: flex; justify-content: space-between; align-items: flex-end; gap: 8mm; margin-bottom: 6mm; }
+        .supplier-order-header p { margin: 0; }
+        .supplier-order-header .recipient { font-size: 12pt; font-weight: 700; }
+        .supplier-order-header .sender { text-align: right; }
+        .supplier-order-sheet table {
           box-sizing: border-box !important;
           border: 0 !important;
           border-collapse: separate !important;
           border-spacing: 0 !important;
           font-size: 9pt !important;
         }
-        .yamashita-order-sheet th, .yamashita-order-sheet td {
+        .supplier-order-sheet th, .supplier-order-sheet td {
           border: 0 !important;
           border-right: 1.25px solid #334155 !important;
           border-bottom: 1.25px solid #334155 !important;
         }
-        .yamashita-order-sheet thead th { border-top: 1.25px solid #334155 !important; }
-        .yamashita-order-sheet tr > :first-child { border-left: 1.25px solid #334155 !important; }
-        .yamashita-order-sheet td { overflow-wrap: anywhere; }
-        .yamashita-order-sheet tbody td {
+        .supplier-order-sheet thead th { border-top: 1.25px solid #334155 !important; }
+        .supplier-order-sheet tr > :first-child { border-left: 1.25px solid #334155 !important; }
+        .supplier-order-sheet td { overflow-wrap: anywhere; }
+        .supplier-order-sheet tbody td {
           color: #111111 !important;
           font-size: 10pt !important;
           font-weight: 700 !important;
@@ -769,9 +784,11 @@ export default function OrderRequestScreen({
               <Button variant="print" className="h-10 whitespace-nowrap px-4" onClick={openPrintModal} disabled={printGroupOptions.length === 0}>
                 <Printer size={17} /> {currentGroupLabel}印刷
               </Button>
-              <Button variant="stock" className="h-10 whitespace-nowrap px-4" onClick={openYamashitaOrder} disabled={yamashitaDates.length === 0}>
-                <Printer size={17} /> 山下医科器械 注文書
-              </Button>
+              {ORDER_SHEET_SUPPLIERS.map((supplier) => (
+                <Button key={supplier.key} variant="stock" className="h-10 whitespace-nowrap px-4" onClick={() => openSupplierOrder(supplier)} disabled={!filteredOrders.some((order) => supplier.matches(order.supplierName) && toLocalDateKey(order.requestedAt))}>
+                  <Printer size={17} /> {supplier.label} 注文書
+                </Button>
+              ))}
             </div>
           </div>
 
@@ -1043,14 +1060,14 @@ export default function OrderRequestScreen({
         </div>
       )}
 
-      {showYamashitaOrder && (
+      {orderSheetSupplier && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/45 p-4">
           <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-md border border-slate-200 bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
-              <h2 className="text-xl font-black text-slate-900">山下医科器械 注文書</h2>
+              <h2 className="text-xl font-black text-slate-900">{orderSheetSupplier.label} 注文書</h2>
               <button
                 type="button"
-                onClick={() => setShowYamashitaOrder(false)}
+                onClick={() => setOrderSheetSupplier(null)}
                 className="inline-flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50"
                 title="閉じる"
                 aria-label="注文書を閉じる"
@@ -1062,26 +1079,26 @@ export default function OrderRequestScreen({
               <label className="block max-w-sm">
                 <span className="mb-2 block text-xs font-bold text-slate-500">印刷する登録日（{printStatusLabel}）</span>
                 <select
-                  value={yamashitaDate}
-                  onChange={(event) => setYamashitaDate(event.target.value)}
+                  value={supplierSheetDate}
+                  onChange={(event) => setSupplierSheetDate(event.target.value)}
                   className="h-11 w-full rounded-md border border-amber-300 bg-white px-3 text-sm font-bold text-slate-800 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
                 >
-                  {yamashitaDates.map(([date, count]) => (
+                  {supplierSheetDates.map(([date, count]) => (
                     <option key={date} value={date}>{date.replaceAll('-', '/')}（{count}件）</option>
                   ))}
                 </select>
               </label>
             </div>
             <div className="overflow-auto p-6">
-              <div ref={yamashitaContentRef} className="yamashita-order-sheet mx-auto max-w-[176mm] text-slate-900">
+              <div ref={supplierSheetContentRef} className="supplier-order-sheet mx-auto max-w-[176mm] text-slate-900">
                 <h1 className="mb-8 text-center text-3xl font-bold">注文書</h1>
-                <div className="yamashita-order-header mb-5 flex items-end justify-between gap-6">
+                <div className="supplier-order-header mb-5 flex items-end justify-between gap-6">
                   <div>
-                    <p className="recipient text-lg font-bold">山下医科器械 株式会社 御中</p>
-                    <p>FAX 099-283-3244</p>
+                    <p className="recipient text-lg font-bold">{orderSheetSupplier.recipient}</p>
+                    {orderSheetSupplier.fax && <p>FAX {orderSheetSupplier.fax}</p>}
                   </div>
                   <div className="sender text-right">
-                    <p>{yamashitaDate.replaceAll('-', '.')}</p>
+                    <p>{supplierSheetDate.replaceAll('-', '.')}</p>
                     <p className="mt-2 font-bold">陽春堂内科診療所</p>
                   </div>
                 </div>
@@ -1095,7 +1112,7 @@ export default function OrderRequestScreen({
                     </tr>
                   </thead>
                   <tbody className="font-bold text-slate-950">
-                    {yamashitaPrintOrders.map((order) => {
+                    {supplierSheetPrintOrders.map((order) => {
                       const asset = assetsById.get(String(order.assetId));
                       return (
                         <tr key={order.id}>
@@ -1114,8 +1131,8 @@ export default function OrderRequestScreen({
             </div>
             <div className="flex justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4">
               {printError && <p className="mr-auto text-sm font-bold text-red-600">{printError}</p>}
-              <Button variant="secondary" onClick={() => setShowYamashitaOrder(false)}><X size={17} /> 閉じる</Button>
-              <Button variant="print" onClick={() => printOrdersByDate(true)} disabled={yamashitaPrintOrders.length === 0}>
+              <Button variant="secondary" onClick={() => setOrderSheetSupplier(null)}><X size={17} /> 閉じる</Button>
+              <Button variant="print" onClick={() => printOrdersByDate(true)} disabled={supplierSheetPrintOrders.length === 0}>
                 <Printer size={17} /> 印刷する
               </Button>
             </div>
