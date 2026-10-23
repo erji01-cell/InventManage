@@ -139,7 +139,7 @@ export default function OrderRequestScreen({
   }, [orders]);
   const filteredOrders = useMemo(() => {
     const rows = visibleOrders.filter((order) => order.status === filter);
-    return [...rows].sort((a, b) => b.requestedAt.localeCompare(a.requestedAt));
+    return [...rows].sort((a, b) => b.requestedAt.localeCompare(a.requestedAt) || a.id.localeCompare(b.id, 'en', { numeric: true }));
   }, [filter, visibleOrders]);
 
   const supplierSheetOrders = useMemo(
