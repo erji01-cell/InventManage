@@ -17,6 +17,8 @@ create or replace function public.invent_create_parent_asset(
 )
 returns setof public.invent_parent_assets
 language plpgsql
+security invoker
+set search_path = ''
 as $$
 declare
   v_next int;
@@ -43,3 +45,6 @@ begin
   returning *;
 end;
 $$;
+
+revoke execute on function public.invent_create_parent_asset(text, integer, text) from public, anon;
+grant execute on function public.invent_create_parent_asset(text, integer, text) to authenticated, service_role;

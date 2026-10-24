@@ -17,6 +17,18 @@
 
 ---
 
+## 2026-10-24 17:48（自宅）Codex / GPT-6
+- **作業内容**: セキュリティ対策を継続し、品目採番・入出庫登録/修正・年度更新のDB関数4件のsearch_pathを固定。PUBLIC/anonの実行権限を外し、authenticated/service_roleに限定。本番へ設定SQLを適用し、再導入用SQLにも反映。
+- **変更ファイル**: supabase/migrations/20261024084429_harden_inventory_rpc_functions.sql, outputs/supabase_migration/create_parent_asset_rpc.sql, register_movement_rpc.sql, update_movement_rpc.sql, year_end_update_rpc.sql, tests/inventory-rpc-security.test.mjs, HANDOFF.md, AGENT_LOG.md。
+- **検証結果**: Supabase Advisorで在庫管理関連の指摘0件。関数本文のハッシュは変更前後で一致。本番のauthenticatedロールで年度更新dry_runが成功（有効資産535件）、未ログインの呼び出しは401/42501。テスト環境で在庫不足・修正・年度締め・未ログイン拒否・不正な呼び出し元search_pathを検証し、既存分と合わせ14件成功。
+- **次の課題 / 残タスク**: ユーザーの明示指示までコミット・プッシュは保留。Vercel管理設定の確認は連携権限が必要。共用プロジェクトの他アプリやAuth全体の設定は変更していない。
+
+## 2026-10-24 17:37（自宅）Codex / GPT-6
+- **作業内容**: 在庫集計ビューと対象11テーブルの未ログイン権限を取り消し、ビューで元テーブルのRLSを適用。資産・入出庫UPDATEポリシーをauthenticatedに限定。本番DBへSQL適用済み。脆弱性のある依存パッケージも更新し、Tailwind CSS 3のまま内部のCSS解析ライブラリを修正版へ固定。
+- **変更ファイル**: package.json, package-lock.json, supabase/migrations/20261024082953_harden_inventory_access.sql, tests/inventory-security.test.mjs, .gitignore, HANDOFF.md, AGENT_LOG.md。
+- **検証結果**: 公開キーだけの在庫ビュー・資産・入出庫アクセスはいずれも401。authenticatedの読み取りは545件。Supabase Advisorから在庫ビューのSECURITY DEFINERエラーが消えたことを確認。npm auditは11パッケージから0件、ビルド成功、生成CSSは更新前と完全一致、SQL/監査ログのテスト計9件成功。
+- **次の課題 / 残タスク**: ユーザーの明示指示までコミット・プッシュは保留。既存のDB関数4件のsearch_path警告は今回の修正対象外。Vercel管理設定の確認は連携権限が必要。
+
 ## 2026-10-23 15:12（職場）Codex / GPT-6
 - **作業内容**: 発注一覧を登録日時の降順、同一日時は発注レコードIDの昇順に固定。DB取得にも requested_at.desc,id.asc を指定し、自動再取得で同時刻の資産が入れ替わる問題を修正。
 - **変更ファイル**: screens/OrderRequestScreen.jsx, lib/supabase.js, AGENT_LOG.md。

@@ -17,6 +17,8 @@
 create or replace function public.invent_year_end_update(end_date date, dry_run boolean default true)
 returns jsonb
 language plpgsql
+security invoker
+set search_path = ''
 as $$
 declare
   fy int;
@@ -123,3 +125,6 @@ begin
   return result;
 end;
 $$;
+
+revoke execute on function public.invent_year_end_update(date, boolean) from public, anon;
+grant execute on function public.invent_year_end_update(date, boolean) to authenticated, service_role;

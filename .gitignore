@@ -17,3 +17,6 @@ backups/
 Thumbs.db
 
 .vercel
+
+# Local Supabase CLI cache
+supabase/.temp/

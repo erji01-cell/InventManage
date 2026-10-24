@@ -17,6 +17,8 @@ create or replace function public.invent_update_movement(
 )
 returns setof public.invent_stock_movements
 language plpgsql
+security invoker
+set search_path = ''
 as $$
 declare
   v_original public.invent_stock_movements%rowtype;
@@ -132,3 +134,6 @@ begin
   returning *;
 end;
 $$;
+
+revoke execute on function public.invent_update_movement(bigint, bigint, date, text, numeric, numeric, date, text, integer, text, text) from public, anon;
+grant execute on function public.invent_update_movement(bigint, bigint, date, text, numeric, numeric, date, text, integer, text, text) to authenticated, service_role;

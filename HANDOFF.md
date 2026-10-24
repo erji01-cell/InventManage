@@ -1,6 +1,6 @@
 # InventManage プロジェクト引き継ぎドキュメント
 
-**最終更新**: 2026-10-04
+**最終更新**: 2026-10-24
 **現在のブランチ**: main（全て反映済み）  
 **ステータス**: 稼働中・定期改善対応
 
@@ -18,6 +18,17 @@
 ---
 
 ## 最近の実装
+
+### セキュリティ修正（2026-10-24）
+- 本番DBで `v_invent_current_stocks` が公開キーだけで545件を返すことを確認し、`supabase/migrations/20261024082953_harden_inventory_access.sql` を適用済み。
+- ビューを `security_invoker=true` に変更し、閲覧権限を `authenticated` に限定。対象11テーブルのPUBLIC/anon権限も取り消し、資産・入出庫のUPDATEポリシーからanonを除外。
+- 権限のみ変更。在庫データと集計式は変更していない。未ログインのRESTアクセスは401、authenticatedロールの読み取りは545件を確認。
+- 続けて `supabase/migrations/20261024084429_harden_inventory_rpc_functions.sql` を本番に適用。品目採番・入出庫登録・入出庫修正・年度更新の4関数のsearch_pathを空に固定し、実行権限をauthenticated/service_roleに限定。関数本文のハッシュは変更前後で一致。
+- 元のRPC導入SQL4本にも同じ設定を追加し、再実行時の権限の戻りを防止。Supabase Advisorの在庫管理関連の指摘は0件。本番のauthenticatedで年度更新のdry_runが成功し、未ログインの呼び出しは401を確認。
+- Vite 7.3.7、PostCSS 8.5.31、esbuild 0.28.2などへ更新し、`npm audit` の指摘は11パッケージから0件に。
+- Tailwind CSS 3を維持し、内部の `postcss-selector-parser` を7.1.7に限定して上書き。Tailwind側で修正が取り込まれたら `package.json` のoverridesの必要性を再確認する。
+- ビルド成功。更新前後の生成CSSはSHA-256で完全一致。既存監査ログ・アクセス制御・RPC機能のテスト計14件が成功。データの書き込みを伴う検証は一時PGliteのみで実施し、本番の在庫データは変更していない。
+- DBの権限修正は公開環境に反映済み。ライブラリ更新のコミット・プッシュはユーザーの明示指示まで保留。
 
 ### 監査ログ（2026-10-04）
 - 「データ管理」を `DataManagementScreen.jsx` に変更し、バックアップ・復元と監査ログのタブを配置。
