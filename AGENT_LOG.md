@@ -17,6 +17,11 @@
 
 ---
 
+## 2026-10-27 12:21（職場）Claude Code / Sonnet 5.5
+- **作業内容**: `git pull origin main` で別セッション分9コミット（監査ログ・変更検知方式の定期更新・山下医科器械/アトル注文書印刷・DBアクセス強化など）を取得し、内容をユーザーに報告。コード変更なし。
+- **変更ファイル**: なし（本エントリのみ AGENT_LOG.md に追記）
+- **次の課題 / 残タスク**: なし
+
 ## 2026-10-24 17:48（自宅）Codex / GPT-6
 - **作業内容**: セキュリティ対策を継続し、品目採番・入出庫登録/修正・年度更新のDB関数4件のsearch_pathを固定。PUBLIC/anonの実行権限を外し、authenticated/service_roleに限定。本番へ設定SQLを適用し、再導入用SQLにも反映。
 - **変更ファイル**: supabase/migrations/20261024084429_harden_inventory_rpc_functions.sql, outputs/supabase_migration/create_parent_asset_rpc.sql, register_movement_rpc.sql, update_movement_rpc.sql, year_end_update_rpc.sql, tests/inventory-rpc-security.test.mjs, HANDOFF.md, AGENT_LOG.md。
