@@ -54,16 +54,6 @@ const ORDER_SHEET_SUPPLIERS = [
   { key: 'atol', label: 'アトル（旧MVC）', recipient: '株式会社アトル　辻　様', matches: isAtolSupplier },
 ];
 
-function formatPackSize(asset, purchaseUnit) {
-  const unit = purchaseUnit || asset?.purchaseUnit || '';
-  if (!asset) return '-';
-  const packSize = Number(asset.packSize);
-  if (packSize > 1 && unit) {
-    return `${packSize}${asset.usageUnit || ''}入り/1${unit}`;
-  }
-  return unit ? `1${unit}` : '-';
-}
-
 const GROUP_OPTIONS = [
   { key: 'supplier', label: '発注先別' },
   { key: 'requested', label: '登録日別' },
@@ -1106,8 +1096,7 @@ export default function OrderRequestScreen({
                   <thead>
                     <tr>
                       <th className="w-[20%] border border-slate-500 px-2 py-2 text-left">メーカー</th>
-                      <th className="w-[46%] border border-slate-500 px-2 py-2 text-left">商品名</th>
-                      <th className="w-[20%] border border-slate-500 px-2 py-2 text-center">入り数</th>
+                      <th className="w-[66%] border border-slate-500 px-2 py-2 text-left">商品名</th>
                       <th className="w-[14%] border border-slate-500 px-2 py-2 text-center">数量</th>
                     </tr>
                   </thead>
@@ -1118,7 +1107,6 @@ export default function OrderRequestScreen({
                         <tr key={order.id}>
                           <td className="break-words border border-slate-500 px-2 py-2 align-top">{asset?.maker || '-'}</td>
                           <td className="break-words border border-slate-500 px-2 py-2 align-top">{order.assetName}</td>
-                          <td className="break-words border border-slate-500 px-2 py-2 text-center align-top">{formatPackSize(asset, order.purchaseUnit)}</td>
                           <td className="whitespace-nowrap border border-slate-500 px-2 py-2 text-center align-top font-bold">
                             {Number(order.quantity).toLocaleString('ja-JP')}{order.purchaseUnit || ''}
                           </td>
