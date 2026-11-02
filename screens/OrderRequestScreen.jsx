@@ -44,14 +44,14 @@ function isYamashitaSupplier(name) {
   return /^山下医科[器機]械/.test(String(name || '').replaceAll(/\s/g, ''));
 }
 
-function isAtolSupplier(name) {
-  const normalized = String(name || '').normalize('NFKC').replaceAll(/\s|株式会社|\(株\)/g, '');
-  return /^(?:アトル|MVC)(?:$|\()/i.test(normalized);
+function isAtolMvcSupplier(name) {
+  const normalized = String(name || '').normalize('NFKC').replaceAll(/\s/g, '').toUpperCase();
+  return normalized === 'アトル(旧MVC)';
 }
 
 const ORDER_SHEET_SUPPLIERS = [
   { key: 'yamashita', label: '山下医科器械', recipient: '山下医科器械 株式会社 御中', fax: '099-283-3244', matches: isYamashitaSupplier },
-  { key: 'atol', label: 'アトル（旧MVC）', recipient: '株式会社アトル　辻　様', matches: isAtolSupplier },
+  { key: 'atol', label: 'アトル（旧MVC）', recipient: '株式会社アトル　辻　様', matches: isAtolMvcSupplier },
 ];
 
 const GROUP_OPTIONS = [

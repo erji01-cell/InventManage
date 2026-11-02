@@ -9,7 +9,7 @@ const assets = [
   { id: '11', maker: '富士フイルム', name: '長い商品名でも折り返せる内視鏡用フィルター D7304-MS2', packSize: 1, usageUnit: '個', purchaseUnit: '個', supplier: '山下医科器械' },
   { id: '12', maker: '他社メーカー', name: '他社の品物', packSize: 2, usageUnit: '本', purchaseUnit: '箱', supplier: '別の取引先' },
   { id: '13', maker: 'テストメーカー', name: 'アトル向け商品', packSize: 10, usageUnit: '個', purchaseUnit: '箱', supplier: 'アトル' },
-  { id: '14', maker: 'テストメーカー', name: '旧MVC向け商品', packSize: 1, usageUnit: '本', purchaseUnit: '本', supplier: 'MVC' },
+  { id: '14', maker: 'テストメーカー', name: '旧MVC向け商品', packSize: 1, usageUnit: '本', purchaseUnit: '本', supplier: 'アトル（旧MVC）' },
 ];
 const orders = [
   { id: '1', assetId: 10, supplierName: '山下医科器械', assetName: assets[0].name, quantity: 2, purchaseUnit: '箱', requestedAt: '2026-10-07T02:00:00Z', status: 'requested', requestedBy: '担当者A' },
@@ -18,9 +18,10 @@ const orders = [
   { id: '4', assetId: '10', supplierName: '山下医科器械', assetName: assets[0].name, quantity: 3, purchaseUnit: '箱', requestedAt: '2026-10-06T02:00:00Z', status: 'requested', requestedBy: '担当者A' },
   { id: '5', assetId: '10', supplierName: '山下医科器械', assetName: assets[0].name, quantity: 4, purchaseUnit: '箱', requestedAt: '2026-10-07T02:00:00Z', status: 'completed', requestedBy: '担当者A' },
   { id: '6', assetId: '13', supplierName: 'アトル', assetName: assets[3].name, quantity: 2, purchaseUnit: '箱', requestedAt: '2026-10-07T02:00:00Z', status: 'requested', requestedBy: '担当者A' },
-  { id: '7', assetId: '14', supplierName: 'ＭＶＣ', assetName: assets[4].name, quantity: 3, purchaseUnit: '本', requestedAt: '2026-10-07T02:00:00Z', status: 'requested', requestedBy: '担当者A' },
-  { id: '8', assetId: '13', supplierName: 'アトル（旧MVC）', assetName: assets[3].name, quantity: 5, purchaseUnit: '箱', requestedAt: '2026-10-06T02:00:00Z', status: 'requested', requestedBy: '担当者A' },
+  { id: '7', assetId: '14', supplierName: 'アトル（旧ＭＶＣ）', assetName: assets[4].name, quantity: 3, purchaseUnit: '本', requestedAt: '2026-10-07T02:00:00Z', status: 'requested', requestedBy: '担当者A' },
+  { id: '8', assetId: '14', supplierName: 'アトル（旧MVC）', assetName: assets[4].name, quantity: 5, purchaseUnit: '本', requestedAt: '2026-10-06T02:00:00Z', status: 'requested', requestedBy: '担当者A' },
   { id: '9', assetId: '13', supplierName: '株式会社アトル', assetName: assets[3].name, quantity: 4, purchaseUnit: '箱', requestedAt: '2026-10-07T02:00:00Z', status: 'completed', requestedBy: '担当者A' },
+  { id: '10', assetId: '13', supplierName: 'ＭＶＣ', assetName: '単独MVCの商品（対象外）', quantity: 9, purchaseUnit: '箱', requestedAt: '2026-10-07T02:00:00Z', status: 'requested', requestedBy: '担当者A' },
 ];
 
 createRoot(document.getElementById('root')).render(
