@@ -458,7 +458,7 @@ const createAssetEditForm = (asset) => ({
 // 品目を付け替えるモードを表すプルダウンの値（品目IDと衝突しない固定値）
 const PARENT_RENAME_OPTION = '__rename__';
 
-export default function AssetMasterScreen({ assets, suppliers, categories = [], onCreateSupplier, onCreateCategory, onCreateAsset, onUpdateAsset, onUpdateParentAsset, onSetAssetActive, setView, onNavigateEntry, onNavigateHistory, onNavigateStock, initialAssetId = '', assetPickerMode = false, assetPickerSource = null, onPickAsset, onCancelPick }) {
+export default function AssetMasterScreen({ assets, suppliers, categories = [], onCreateSupplier, onCreateCategory, onDeleteCategory, onCreateAsset, onUpdateAsset, onUpdateParentAsset, onSetAssetActive, setView, onNavigateEntry, onNavigateHistory, onNavigateStock, initialAssetId = '', assetPickerMode = false, assetPickerSource = null, onPickAsset, onCancelPick }) {
   const [filter, setFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('active');
   const [listSortOrder, setListSortOrder] = useState('id');
@@ -607,6 +607,8 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
   const [showNewCategory, setShowNewCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+  const [showDeleteCategory, setShowDeleteCategory] = useState(false);
+  const [deletingCategoryId, setDeletingCategoryId] = useState(null);
   const [showNewSupplier, setShowNewSupplier] = useState(false);
   const [newSupplierName, setNewSupplierName] = useState('');
   const [isCreatingSupplier, setIsCreatingSupplier] = useState(false);
@@ -645,6 +647,23 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
       setSaveError(err.message || '分類を追加できませんでした。');
     } finally {
       setIsCreatingCategory(false);
+    }
+  };
+
+  const handleDeleteCategory = async (category) => {
+    if (!onDeleteCategory) return;
+    if (!window.confirm(`分類「${category.name}」を削除しますか？\nこの操作は取り消せません。`)) return;
+    setDeletingCategoryId(category.id);
+    setSaveError('');
+    try {
+      await onDeleteCategory(category);
+      setEditForm(prev => (
+        String(prev.categoryId) === String(category.id) ? { ...prev, categoryId: '' } : prev
+      ));
+    } catch (err) {
+      setSaveError(err.message || '分類を削除できませんでした。');
+    } finally {
+      setDeletingCategoryId(null);
     }
   };
 
@@ -1091,16 +1110,56 @@ export default function AssetMasterScreen({ assets, suppliers, categories = [], 
                           ...categories.map(cat => ({ value: String(cat.id), label: cat.name })),
                         ]}
                         disabled={isRelinking}
-                        labelAction={isRelinking || showNewCategory ? null : (
-                          <button
-                            type="button"
-                            onClick={() => setShowNewCategory(true)}
-                            className="text-xs font-bold text-purple-600 hover:underline"
-                          >
-                            ＋ 新しい分類を追加
-                          </button>
+                        labelAction={isRelinking ? null : (
+                          <span className="flex items-center gap-3">
+                            {!showNewCategory && (
+                              <button
+                                type="button"
+                                onClick={() => setShowNewCategory(true)}
+                                className="text-xs font-bold text-purple-600 hover:underline"
+                              >
+                                ＋ 新しい分類を追加
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setShowDeleteCategory(v => !v)}
+                              className="text-xs font-bold text-rose-600 hover:underline"
+                            >
+                              {showDeleteCategory ? '削除を閉じる' : '分類を削除'}
+                            </button>
+                          </span>
                         )}
                       />
+                      {!isRelinking && showDeleteCategory && (
+                        <div className="rounded-md border border-rose-200 bg-white p-2">
+                          <p className="mb-2 text-xs text-slate-500">使用中の分類は削除できません。</p>
+                          <ul className="max-h-48 overflow-y-auto">
+                            {categories.map(cat => {
+                              const usedCount = assets.filter(asset => (
+                                String(asset.categoryId) === String(cat.id) || asset.category === cat.name
+                              )).length;
+                              return (
+                                <li key={cat.id} className="flex items-center justify-between gap-2 border-b border-slate-100 px-1 py-1 last:border-0">
+                                  <span className="min-w-0 truncate text-sm text-slate-700">{cat.name}</span>
+                                  {usedCount > 0 ? (
+                                    <span className="shrink-0 text-xs text-slate-400">使用中 {usedCount}件</span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteCategory(cat)}
+                                      disabled={deletingCategoryId !== null}
+                                      className="shrink-0 rounded border border-rose-300 px-2 py-0.5 text-xs font-bold text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+                                    >
+                                      {deletingCategoryId === cat.id ? '削除中...' : '削除'}
+                                    </button>
+                                  )}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      )}
                       {isRelinking ? null : showNewCategory && (
                         <div className="rounded-md border border-purple-200 bg-white p-2 space-y-2">
                           <input

@@ -541,6 +541,41 @@ export default function App() {
     return normalized;
   };
 
+  const deleteCategory = async (category) => {
+    // 画面の資産一覧に出ない「資産のない品目」や他PCの直近の変更も見落とさないようDBで確認する
+    const quotedName = `"${category.name.replace(/[\\"]/g, '\\$&')}"`;
+    const filter = encodeURIComponent(`(category_id.eq.${category.id},category.eq.${quotedName})`);
+    const inUse = await supabaseRequest(
+      `invent_parent_assets?select=id&or=${filter}&limit=1`,
+      {},
+      authSession
+    );
+    if (inUse.length > 0) {
+      throw new Error(`分類「${category.name}」は品目 ${inUse[0].id} で使用中のため削除できません。`);
+    }
+
+    const permissionMessage = '分類を削除する権限がありません。outputs/supabase_migration/add_categories_delete_policy.sql をSupabaseのSQL Editorで実行してください。';
+    let deleted;
+    try {
+      deleted = await supabaseRequest(
+        `invent_categories?id=eq.${category.id}&select=id`,
+        {
+          method: 'DELETE',
+          headers: { Prefer: 'return=representation' },
+        },
+        authSession
+      );
+    } catch (err) {
+      if (/permission denied/i.test(err?.message || '')) throw new Error(permissionMessage);
+      throw err;
+    }
+    // RLSで拒否された場合はエラーにならず0件が返る
+    if (deleted.length === 0) throw new Error(permissionMessage);
+
+    setCategories(prev => prev.filter(c => c.id !== category.id));
+    scheduleChangeBackup();
+  };
+
   const createSupplier = async (name) => {
     const trimmed = (name || '').trim();
     if (!trimmed) throw new Error('取引先名を入力してください。');
@@ -1155,7 +1190,7 @@ export default function App() {
   const renderView = () => {
     switch (view) {
       case 'menu': return <MenuScreen setView={navigateFromMenu} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={availableFiscalYears} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={selectedFiscalYear} setSelectedFiscalYear={setSelectedFiscalYear} negativeStockAssets={negativeStockAssets} pendingOrderCount={orderRequests.filter((order) => order.status === 'requested').length} session={authSession} />;
-      case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} categories={categories} onCreateSupplier={createSupplier} onCreateCategory={createCategory} onCreateAsset={createAsset} onUpdateAsset={updateAsset} onUpdateParentAsset={updateParentAsset} onSetAssetActive={setAssetActive} setView={setView} onNavigateEntry={navigateToEntry} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} initialAssetId={filterAssetId} assetPickerMode={Boolean(assetPickerRequest)} assetPickerSource={assetPickerRequest} onPickAsset={pickAssetFromPicker} onCancelPick={cancelAssetPicker} />;
+      case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} categories={categories} onCreateSupplier={createSupplier} onCreateCategory={createCategory} onDeleteCategory={deleteCategory} onCreateAsset={createAsset} onUpdateAsset={updateAsset} onUpdateParentAsset={updateParentAsset} onSetAssetActive={setAssetActive} setView={setView} onNavigateEntry={navigateToEntry} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} initialAssetId={filterAssetId} assetPickerMode={Boolean(assetPickerRequest)} assetPickerSource={assetPickerRequest} onPickAsset={pickAssetFromPicker} onCancelPick={cancelAssetPicker} />;
       case 'history': return <MovementHistoryScreen movements={movements} setView={setView} assets={assets} staff={staff} updateMovement={updateMovement} updateAsset={updateAsset} deleteMovement={deleteMovement} pinnedAssetId={filterAssetId} onNavigateAssets={navigateToAssets} onRequestAssetPick={navigateToAssetPickerFromMovement} assetSelectionResult={movementAssetSelection} onAssetSelectionApplied={() => setMovementAssetSelection(null)} fiscalRange={historyFiscalRange} fiscalSnapshots={fiscalSnapshots} />;
       case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={activeAssets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} onRequestAssetPick={navigateToAssetPickerFromEntry} />;
       case 'outbound': return <EntryScreen type="out" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={activeAssets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} onRequestAssetPick={navigateToAssetPickerFromEntry} />;
