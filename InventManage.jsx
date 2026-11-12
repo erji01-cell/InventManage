@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 
 import { Button } from './components/ui.jsx';
-import { clearStoredSession, fetchLatestAuditLogId, fetchMovementsForFiscalYear, getStoredSession, loadInventoryData, signInWithPassword, signOut, storeSession, supabaseRequest } from './lib/supabase.js';
+import { clearStoredSession, fetchLatestAuditLogId, fetchMovementsForFiscalYear, fetchOrderRequests, fetchPendingOrderCount, getStoredSession, loadInventoryData, signInWithPassword, signOut, storeSession, supabaseRequest } from './lib/supabase.js';
 import { fiscalStartYearOf, isMovementAfterClose, normalizeAsset, normalizeMovement, toNumber } from './utils/inventory.js';
 import AssetMasterScreen from './screens/AssetMasterScreen.jsx';
 import DataManagementScreen from './screens/DataManagementScreen.jsx';
@@ -37,13 +37,21 @@ export default function App() {
   const [categories, setCategories] = useState([]);
   const [fiscalSnapshots, setFiscalSnapshots] = useState([]);
   const [orderRequests, setOrderRequests] = useState([]);
-  const [isLoading, setIsLoading] = useState(() => Boolean(getStoredSession()));
+  const [ordersLoadedFor, setOrdersLoadedFor] = useState(null);
+  const [orderLoadError, setOrderLoadError] = useState('');
+  const [pendingOrderCount, setPendingOrderCount] = useState(null);
+  const [orderRefreshVersion, setOrderRefreshVersion] = useState(0);
+  const [inventoryLoadedFor, setInventoryLoadedFor] = useState(null);
   const [error, setError] = useState('');
   const [isAdminUnlocked, setIsAdminUnlocked] = useState(false); // 棚卸し/年度更新/バックアップの共通解放フラグ
   // 追加読み込み済みの過去年度（フルリロード時にリセットして再取得させる）
   const [loadedPastYears, setLoadedPastYears] = useState(() => new Set());
-  const [isLoadingPastYear, setIsLoadingPastYear] = useState(false);
+  const [pastYearLoadError, setPastYearLoadError] = useState('');
   const [backupWarning, setBackupWarning] = useState(''); // バックアップ失敗時の警告バナー
+  const inventoryReady = Boolean(authSession && inventoryLoadedFor === authSession);
+  const inventoryLoadVersion = useRef(0);
+  const inventoryLoadBusy = useRef(false);
+  const orderMutationVersion = useRef(0);
 
   // 認証切れ（リフレッシュトークン失効）はエラー表示ではなくログイン画面に戻す
   const handleAuthExpired = () => {
@@ -57,11 +65,16 @@ export default function App() {
   // （通信が復帰しないまま「エラー表示だけ消える」状態を避けるため）。
   const refreshData = async ({ silent = false } = {}) => {
     if (!authSession) return;
+    const version = ++inventoryLoadVersion.current;
+    const initial = !inventoryReady;
+    inventoryLoadBusy.current = true;
     if (!silent) setError('');
     try {
       // 読み込み中の変更を次回の確認で拾えるよう、監査ログIDは読み込みより先に取得する
       const auditLogId = await fetchLatestAuditLogId(authSession);
+      if (version !== inventoryLoadVersion.current) return;
       const data = await loadInventoryData(authSession);
+      if (version !== inventoryLoadVersion.current) return;
       lastAuditLogIdRef.current = auditLogId;
       setAssets(data.assets);
       setMovements(data.movements);
@@ -69,17 +82,25 @@ export default function App() {
       setSuppliers(data.suppliers);
       setCategories(data.categories || []);
       setFiscalSnapshots(data.fiscalSnapshots || []);
-      setOrderRequests(data.orderRequests || []);
+      setInventoryLoadedFor(authSession);
+      if (!initial) setOrderRefreshVersion((n) => n + 1);
       setLoadedPastYears(new Set()); // フルリロードで過去年度分は消えるため再取得させる
       if (silent) setError(''); // 成功したときだけ消す
       // 呼び出し側が再描画を待たずに最新値を使えるよう、読み込んだデータを返す
       return data;
     } catch (err) {
+      if (version !== inventoryLoadVersion.current) return;
       if (err?.code === 'AUTH_EXPIRED') {
         handleAuthExpired();
         return;
       }
+      if (!silent) setError(err?.message || 'データの読み込みに失敗しました。');
       throw err;
+    } finally {
+      if (version === inventoryLoadVersion.current) {
+        inventoryLoadBusy.current = false;
+        if (initial) lastFocusRefreshRef.current = Date.now();
+      }
     }
   };
 
@@ -95,6 +116,7 @@ export default function App() {
   // 監査ログが取得できない場合や対象外の変更に備え、FULL_REFRESH_MAX_AGE_MS ごとには必ず読み直す
   const FULL_REFRESH_MAX_AGE_MS = 10 * 60 * 1000;
   const refreshIfChanged = async ({ force = false } = {}) => {
+    if (inventoryLoadBusy.current) return;
     if (force) {
       lastFocusRefreshRef.current = Date.now();
       await refreshData({ silent: true });
@@ -112,14 +134,12 @@ export default function App() {
     }
     const unchanged = latestId != null && latestId === lastAuditLogIdRef.current &&
       Date.now() - lastFocusRefreshRef.current < FULL_REFRESH_MAX_AGE_MS;
-    if (unchanged) return;
+    if (unchanged || inventoryLoadBusy.current) return;
     lastFocusRefreshRef.current = Date.now();
     await refreshData({ silent: true });
   };
 
   useEffect(() => {
-    let isMounted = true;
-
     if (!authSession) {
       setAssets([]);
       setMovements([]);
@@ -128,56 +148,61 @@ export default function App() {
       setCategories([]);
       setFiscalSnapshots([]);
       setOrderRequests([]);
-      setIsLoading(false);
-      return () => {
-        isMounted = false;
-      };
+      setOrdersLoadedFor(null);
+      setOrderLoadError('');
+      setPendingOrderCount(null);
+      setInventoryLoadedFor(null);
+      setSelectedFiscalYear(null);
+      return;
     }
 
-    setIsLoading(true);
-    // 読み込み中の変更を次回の確認で拾えるよう、監査ログIDは読み込みより先に取得する
-    let auditLogId = null;
-    fetchLatestAuditLogId(authSession)
-      .then((id) => {
-        auditLogId = id;
-        return loadInventoryData(authSession);
-      })
-      .then((data) => {
-        if (!isMounted) return;
-        lastAuditLogIdRef.current = auditLogId;
-        setAssets(data.assets);
-        setMovements(data.movements);
-        setStaff(data.staff);
-        setSuppliers(data.suppliers);
-        setCategories(data.categories || []);
-        setFiscalSnapshots(data.fiscalSnapshots || []);
-        setOrderRequests(data.orderRequests || []);
-        setLoadedPastYears(new Set());
-      })
-      .catch((err) => {
-        if (!isMounted) return;
-        if (err?.code === 'AUTH_EXPIRED') {
-          handleAuthExpired();
-          return;
-        }
-        setError(err.message);
-      })
-      .finally(() => {
-        lastFocusRefreshRef.current = Date.now();
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      });
-
+    refreshData().catch(() => {});
     return () => {
-      isMounted = false;
+      inventoryLoadVersion.current += 1;
+      inventoryLoadBusy.current = false;
     };
   }, [authSession]);
+
+  useEffect(() => {
+    if (!authSession || view !== 'menu') return;
+    let cancelled = false;
+    fetchPendingOrderCount(authSession)
+      .then((count) => { if (!cancelled) setPendingOrderCount(count); })
+      .catch((err) => {
+        if (cancelled) return;
+        if (err?.code === 'AUTH_EXPIRED') handleAuthExpired();
+        else setPendingOrderCount(null);
+      });
+    return () => { cancelled = true; };
+  }, [authSession, view, orderRefreshVersion]);
+
+  useEffect(() => {
+    if (!authSession || view !== 'orders') return;
+    let cancelled = false;
+    const version = orderMutationVersion.current;
+    setOrderLoadError('');
+    fetchOrderRequests(authSession)
+      .then((orders) => {
+        if (cancelled) return;
+        if (version !== orderMutationVersion.current) {
+          setOrderRefreshVersion((n) => n + 1);
+          return;
+        }
+        setOrderRequests(orders);
+        setOrdersLoadedFor(authSession);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        if (err?.code === 'AUTH_EXPIRED') handleAuthExpired();
+        else setOrderLoadError(err?.message || '発注データを読み込めませんでした。');
+      });
+    return () => { cancelled = true; };
+  }, [authSession, view, orderRefreshVersion]);
 
   // ウィンドウにフォーカスが戻ったら、他PCでの変更があれば再読み込み（複数PC運用での鮮度対策）。
   // 直近のロードから1分以内なら何もしない。失敗しても画面は変えず次回に任せる。
   useEffect(() => {
-    if (!authSession) return;
+    if (!inventoryReady) return;
     const FOCUS_REFRESH_MIN_MS = 60 * 1000;
     const handleFocus = () => {
       if (document.visibilityState !== 'visible') return;
@@ -196,20 +221,22 @@ export default function App() {
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleFocus);
     };
-  }, [authSession]);
+  }, [authSession, inventoryReady]);
 
 
-  // 起動時の自動バックアップ：毎回チェックし、前回バックアップと差分があれば保存
+  // 初期表示後に自動バックアップを開始し、初期取得と全件取得が競合しないようにする。
   // （同一内容ならスキップ。同じ日の分は上書きされ1日1ファイルに保たれる）
   useEffect(() => {
-    if (!authSession) return;
-    (async () => {
+    if (!inventoryReady) return;
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
       try {
         if (isAutoBackupEnabled()) {
           await performBackup(authSession, { downloadLocal: false, skipIfUnchanged: true });
-          setBackupWarning(''); // 成功したら過去の警告を消す
+          if (!cancelled) setBackupWarning('');
         }
       } catch (err) {
+        if (cancelled) return;
         // 認証切れはログイン画面へ戻すだけでよい。再ログイン後に authSession が
         // 変わってこの effect が再実行され、バックアップは自動でリトライされる。
         if (err?.code === 'AUTH_EXPIRED') {
@@ -219,8 +246,12 @@ export default function App() {
         console.warn('[auto-backup] failed:', err.message);
         setBackupWarning(`起動時の自動バックアップに失敗しました（${err?.message || '不明なエラー'}）。データ管理画面から手動バックアップを実行してください。`);
       }
-    })();
-  }, [authSession]);
+    }, 1000);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [authSession, inventoryReady]);
 
   // --- 変更後の自動バックアップ（変更フラグ＋3分ごとの定期チェック方式） ---
   // タイマーが再生成されてもフラグはrefに残るため、次の周期で必ず拾われる
@@ -802,12 +833,18 @@ export default function App() {
     scheduleChangeBackup();
   };
 
+  const applyOrderChange = (update) => {
+    if (authSessionRef.current !== authSession) return;
+    orderMutationVersion.current += 1;
+    setOrderRequests(update);
+  };
+
   const sendOrderEmailAndMark = async (orders) => {
     const orderList = Array.isArray(orders) ? orders : [orders];
     const result = await sendOrderNotificationEmail(authSession, orderList);
     const sentIds = new Set(orderList.map((order) => order.id));
     const emailSentAt = result.emailSentAt || new Date().toISOString();
-    setOrderRequests((prev) => prev.map((order) => (
+    applyOrderChange((prev) => prev.map((order) => (
       sentIds.has(order.id) ? { ...order, emailSentAt } : order
     )));
     return result;
@@ -839,7 +876,7 @@ export default function App() {
     if (!createdRows?.length) throw new Error('発注を登録できませんでした。');
 
     const createdOrders = createdRows.map(normalizeOrderRequest);
-    setOrderRequests((prev) => createdOrders.reduce(upsertOrder, prev));
+    applyOrderChange((prev) => createdOrders.reduce(upsertOrder, prev));
     scheduleChangeBackup();
 
     try {
@@ -892,7 +929,7 @@ export default function App() {
       authSession
     );
     if (!updated) throw new Error('発注状態を更新できませんでした。');
-    setOrderRequests((prev) => upsertOrder(prev, normalizeOrderRequest(updated)));
+    applyOrderChange((prev) => upsertOrder(prev, normalizeOrderRequest(updated)));
     scheduleChangeBackup();
   };
 
@@ -907,7 +944,7 @@ export default function App() {
       authSession
     );
     if (!updated) throw new Error('摘要を更新できませんでした。');
-    setOrderRequests((prev) => upsertOrder(prev, normalizeOrderRequest(updated)));
+    applyOrderChange((prev) => upsertOrder(prev, normalizeOrderRequest(updated)));
     scheduleChangeBackup();
   };
 
@@ -923,7 +960,7 @@ export default function App() {
     if (!deletedRows?.length) {
       throw new Error('発注データを削除できませんでした。Supabaseの削除権限を確認してください。');
     }
-    setOrderRequests((prev) => prev.filter((order) => order.id !== orderId));
+    applyOrderChange((prev) => prev.filter((order) => order.id !== orderId));
     scheduleChangeBackup();
   };
 
@@ -959,6 +996,10 @@ export default function App() {
     if (nextView === 'assets') {
       setAssetPickerRequest(null);
       setFilterAssetId('');
+    }
+    if (nextView === 'orders') {
+      setOrdersLoadedFor(null);
+      setOrderLoadError('');
     }
     setView(nextView);
   };
@@ -1069,6 +1110,7 @@ export default function App() {
   // 現在庫がマイナスの資産を抽出（起動時の警告バナー用）。
   // 現在庫 = opening_stock + 年度クローズ日より後の入庫 − 出庫（在庫表と同じ計算）。
   const negativeStockAssets = useMemo(() => {
+    if (!inventoryReady) return [];
     const assetMap = new Map(activeAssets.map((a) => [a.id, a]));
     const inByAsset = new Map();
     const outByAsset = new Map();
@@ -1089,7 +1131,7 @@ export default function App() {
       }))
       .filter((x) => x.currentStock < 0)
       .sort((a, b) => a.currentStock - b.currentStock); // マイナスが大きい順
-  }, [activeAssets, movements]);
+  }, [activeAssets, inventoryReady, movements]);
 
   // 会計年度タブ。過去年度の入出庫は遅延読み込みのため、読み込み済みとは限らない。
   // 年度の存在はスナップショット（年度更新時に必ず作られる）から判定し、
@@ -1110,20 +1152,20 @@ export default function App() {
 
   // 既定は現在年度。ユーザーが過去年度を選んだら維持。
   useEffect(() => {
-    if (selectedFiscalYear == null && currentFiscalStartYear != null) {
+    if (inventoryReady && selectedFiscalYear == null && currentFiscalStartYear != null) {
       setSelectedFiscalYear(currentFiscalStartYear);
     }
-  }, [currentFiscalStartYear, selectedFiscalYear]);
+  }, [inventoryReady, currentFiscalStartYear, selectedFiscalYear]);
 
   // 過去年度を選択したら、その年度の入出庫を追加読み込み（年度ごとに1回だけ）。
   // 取得分は movements に合流させる。現在年度の計算はすべて
   // 「クローズ日より後」フィルタ済みのため、過去分が混ざっても影響しない。
   useEffect(() => {
-    if (!authSession || selectedFiscalYear == null) return;
+    if (!inventoryReady || selectedFiscalYear == null) return;
     if (selectedFiscalYear === currentFiscalStartYear) return;
     if (loadedPastYears.has(selectedFiscalYear)) return;
     let cancelled = false;
-    setIsLoadingPastYear(true);
+    setPastYearLoadError('');
     (async () => {
       try {
         const rows = await fetchMovementsForFiscalYear(selectedFiscalYear, authSession);
@@ -1137,19 +1179,18 @@ export default function App() {
         });
         setLoadedPastYears((prev) => new Set(prev).add(selectedFiscalYear));
       } catch (err) {
+        if (cancelled) return;
         if (err?.code === 'AUTH_EXPIRED') {
           handleAuthExpired();
           return;
         }
-        console.warn('[past-year] 過去年度の入出庫読み込みに失敗:', err?.message);
-      } finally {
-        if (!cancelled) setIsLoadingPastYear(false);
+        setPastYearLoadError(err?.message || '過去年度の入出庫を読み込めませんでした。');
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [authSession, selectedFiscalYear, currentFiscalStartYear, loadedPastYears, staff]);
+  }, [authSession, inventoryReady, selectedFiscalYear, currentFiscalStartYear, loadedPastYears, staff]);
 
   // 20秒ごとの定期確認。もう一方のPCで登録した入出庫を、画面を開いたままでも反映させる。
   // 監査ログの最新IDだけを確認し、変更があったときだけ全データを読み直す（refreshIfChanged）。
@@ -1161,7 +1202,7 @@ export default function App() {
   //   - 過去年度を閲覧中（フルリロードで loadedPastYears が消えるため、
   //     年度全体を再取得してしまう。過去年度は他PCの入力で変わらない）
   useEffect(() => {
-    if (!authSession) return;
+    if (!inventoryReady) return;
     const POLL_INTERVAL_MS = 20 * 1000;
     const timer = setInterval(() => {
       if (document.visibilityState !== 'visible') return;
@@ -1175,7 +1216,7 @@ export default function App() {
         });
     }, POLL_INTERVAL_MS);
     return () => clearInterval(timer);
-  }, [authSession, selectedFiscalYear, currentFiscalStartYear, view]);
+  }, [authSession, inventoryReady, selectedFiscalYear, currentFiscalStartYear, view]);
 
   // 選択中年度の日付レンジ（入出庫データ・在庫表の絞り込み用）
   const historyFiscalRange = useMemo(() => (
@@ -1189,7 +1230,6 @@ export default function App() {
 
   const renderView = () => {
     switch (view) {
-      case 'menu': return <MenuScreen setView={navigateFromMenu} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={availableFiscalYears} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={selectedFiscalYear} setSelectedFiscalYear={setSelectedFiscalYear} negativeStockAssets={negativeStockAssets} pendingOrderCount={orderRequests.filter((order) => order.status === 'requested').length} session={authSession} />;
       case 'assets': return <AssetMasterScreen assets={assets} suppliers={suppliers} categories={categories} onCreateSupplier={createSupplier} onCreateCategory={createCategory} onDeleteCategory={deleteCategory} onCreateAsset={createAsset} onUpdateAsset={updateAsset} onUpdateParentAsset={updateParentAsset} onSetAssetActive={setAssetActive} setView={setView} onNavigateEntry={navigateToEntry} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} initialAssetId={filterAssetId} assetPickerMode={Boolean(assetPickerRequest)} assetPickerSource={assetPickerRequest} onPickAsset={pickAssetFromPicker} onCancelPick={cancelAssetPicker} />;
       case 'history': return <MovementHistoryScreen movements={movements} setView={setView} assets={assets} staff={staff} updateMovement={updateMovement} updateAsset={updateAsset} deleteMovement={deleteMovement} pinnedAssetId={filterAssetId} onNavigateAssets={navigateToAssets} onRequestAssetPick={navigateToAssetPickerFromMovement} assetSelectionResult={movementAssetSelection} onAssetSelectionApplied={() => setMovementAssetSelection(null)} fiscalRange={historyFiscalRange} fiscalSnapshots={fiscalSnapshots} />;
       case 'inbound': return <EntryScreen type="in" onSave={addMovement} onCancel={() => { clearEntryState(); setView('menu'); }} assets={activeAssets} movements={movements} staff={staff} setView={setView} initialAssetId={entryAssetId} savedEntryForm={savedEntryForm} onSaveForm={setSavedEntryForm} onRequestAssetPick={navigateToAssetPickerFromEntry} />;
@@ -1203,7 +1243,7 @@ export default function App() {
         return { assets: data.assets.filter((asset) => asset.isActive !== false), movements: data.movements };
       }} />;
       case 'orders': return <OrderRequestScreen assets={activeAssets} allAssets={assets} staff={staff} orders={orderRequests} setView={setView} onCreate={createOrderRequest} onUpdateStatus={updateOrderStatus} onUpdateMemo={updateOrderMemo} onDelete={deleteOrderRequest} onRetryEmail={retryOrderEmail} />;
-      default: return <MenuScreen setView={navigateFromMenu} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={availableFiscalYears} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={selectedFiscalYear} setSelectedFiscalYear={setSelectedFiscalYear} negativeStockAssets={negativeStockAssets} pendingOrderCount={orderRequests.filter((order) => order.status === 'requested').length} session={authSession} />;
+      default: return <MenuScreen setView={navigateFromMenu} onLogout={handleLogout} userEmail={authSession?.user?.email} onYearEndUpdate={performYearEndUpdate} onFetchLastStocktaking={fetchLastStocktaking} isAdminUnlocked={isAdminUnlocked} setIsAdminUnlocked={setIsAdminUnlocked} onNavigateHistory={navigateToHistory} onNavigateStock={navigateToStock} latestFiscalYearClosedAt={latestFiscalYearClosedAt} availableFiscalYears={inventoryReady ? availableFiscalYears : []} currentFiscalStartYear={currentFiscalStartYear} selectedFiscalYear={inventoryReady ? selectedFiscalYear : null} setSelectedFiscalYear={setSelectedFiscalYear} negativeStockAssets={negativeStockAssets} pendingOrderCount={pendingOrderCount} inventoryReady={inventoryReady} session={authSession} />;
     }
   };
 
@@ -1211,24 +1251,28 @@ export default function App() {
     return <LoginScreen onLogin={handleLogin} />;
   }
 
+  const waitingForInventory = view !== 'menu' && !inventoryReady;
+  const waitingForPastYear = (view === 'history' || view === 'stock') &&
+    historyFiscalRange && !historyFiscalRange.isCurrent && !loadedPastYears.has(selectedFiscalYear);
+  const waitingForOrders = view === 'orders' && ordersLoadedFor !== authSession;
+  const retryOrders = () => setOrderRefreshVersion((n) => n + 1);
+  let waiting = null;
+  if (waitingForInventory) {
+    waiting = { message: '在庫データを読み込み中…', error: error ? '在庫データの読み込みが完了していません。' : '' };
+  } else if (waitingForPastYear) {
+    waiting = { message: `${selectedFiscalYear}年度の入出庫を読み込み中…`, error: pastYearLoadError, retry: () => setLoadedPastYears((prev) => new Set(prev)) };
+  } else if (waitingForOrders) {
+    waiting = { message: '発注データを読み込み中…', error: orderLoadError, retry: retryOrders };
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
-        {(isLoading || isLoadingPastYear) && (
-          <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-50">
-            <div className="flex flex-col items-center gap-4">
-              <div className="w-12 h-12 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin" />
-              <p className="text-lg font-bold text-blue-700">
-                {isLoading ? 'データベース読み込み中...' : `${selectedFiscalYear}年度のデータ読み込み中...`}
-              </p>
-            </div>
-          </div>
-        )}
         {error && (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
             <div className="font-bold">データ接続エラー</div>
             <div className="text-sm">{error}</div>
-            <Button variant="secondary" className="mt-3" onClick={refreshData}>再読み込み</Button>
+            <Button variant="secondary" className="mt-3" onClick={() => refreshData().catch(() => {})}>再読み込み</Button>
           </div>
         )}
         {backupWarning && (
@@ -1240,7 +1284,27 @@ export default function App() {
             </button>
           </div>
         )}
-        {renderView()}
+        {view === 'orders' && orderLoadError && !waiting && (
+          <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-4 text-red-700" role="alert">
+            <p>{orderLoadError}</p>
+            <Button variant="secondary" className="mt-3" onClick={retryOrders}>再読み込み</Button>
+          </div>
+        )}
+        {waiting && (
+          <section className="flex min-h-[50vh] flex-col items-center justify-center gap-4">
+            {!waiting.error && <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-200 border-t-blue-500" aria-hidden="true" />}
+            <p role={waiting.error ? 'alert' : 'status'} className={waiting.error ? 'font-bold text-red-700' : 'font-bold text-blue-700'}>
+              {waiting.error || waiting.message}
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {waiting.error && waiting.retry && <Button variant="secondary" onClick={waiting.retry}>再読み込み</Button>}
+              <Button variant="secondary" onClick={() => setView('menu')}>メニューに戻る</Button>
+            </div>
+          </section>
+        )}
+        {(!waiting || (waitingForPastYear && !waitingForInventory)) && (
+          <div hidden={Boolean(waiting)}>{renderView()}</div>
+        )}
       </div>
     </div>
   );

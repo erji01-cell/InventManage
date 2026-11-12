@@ -24,7 +24,7 @@ function getFiscalDisplay(latestFiscalYearClosedAt) {
   };
 }
 
-export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpdate, onFetchLastStocktaking, isAdminUnlocked, setIsAdminUnlocked, onNavigateHistory, onNavigateStock, latestFiscalYearClosedAt, availableFiscalYears = [], currentFiscalStartYear, selectedFiscalYear, setSelectedFiscalYear, negativeStockAssets = [], pendingOrderCount = 0, session }) {
+export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpdate, onFetchLastStocktaking, isAdminUnlocked, setIsAdminUnlocked, onNavigateHistory, onNavigateStock, latestFiscalYearClosedAt, availableFiscalYears = [], currentFiscalStartYear, selectedFiscalYear, setSelectedFiscalYear, negativeStockAssets = [], pendingOrderCount = 0, inventoryReady = true, session }) {
   const [showNegativeList, setShowNegativeList] = useState(false);
   const [quickBackupBusy, setQuickBackupBusy] = useState(false);
   const [quickBackupMessage, setQuickBackupMessage] = useState('');
@@ -181,7 +181,7 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
 
             <div className="flex flex-col items-start gap-1 rounded-xl border border-slate-200 bg-white px-4 py-2 md:items-end">
               <span className="text-[10px] font-black tracking-[0.18em] text-slate-400">FISCAL YEAR</span>
-              <span className="text-sm font-black text-slate-800">{fiscalDisplay.periodLabel}</span>
+              <span className="text-sm font-black text-slate-800">{inventoryReady ? fiscalDisplay.periodLabel : '—'}</span>
             </div>
           </div>
         </div>
@@ -284,7 +284,7 @@ export default function MenuScreen({ setView, onLogout, userEmail, onYearEndUpda
           <MenuButton icon={<Package size={24} />} title="資産マスタ" tone="purple" onClick={() => setView('assets')} />
           <div className="flex min-h-[158px] flex-col gap-1.5">
             <SmallMenuButton icon={<ClipboardCheck size={18} />} title="棚卸し" tone="teal" onClick={() => openPasswordModal('stocktaking')} />
-            <SmallMenuButton icon={<RefreshCcw size={18} />} title="年度更新" tone="slate" onClick={() => openPasswordModal('yearEnd')} />
+            <SmallMenuButton icon={<RefreshCcw size={18} />} title="年度更新" tone="slate" disabled={!inventoryReady} onClick={() => openPasswordModal('yearEnd')} />
             <SmallMenuButton icon={<Database size={18} />} title="データ管理" tone="backup" onClick={() => openPasswordModal('backup')} />
           </div>
         </div>
@@ -559,13 +559,14 @@ function MenuButton({ icon, title, tone, onClick }) {
   );
 }
 
-function SmallMenuButton({ icon, title, tone, showAccent = false, onClick }) {
+function SmallMenuButton({ icon, title, tone, showAccent = false, disabled = false, onClick }) {
   const style = menuTones[tone] || menuTones.slate;
 
   return (
     <button
       onClick={onClick}
-      className={`group relative flex flex-1 items-center justify-center gap-2 overflow-hidden rounded-xl border px-3 py-1.5 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] ${style.button}`}
+      disabled={disabled}
+      className={`group relative flex flex-1 items-center justify-center gap-2 overflow-hidden rounded-xl border px-3 py-1.5 shadow-sm transition-all enabled:hover:-translate-y-0.5 enabled:hover:shadow-md enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 ${style.button}`}
     >
       {showAccent && <div className={`absolute left-5 right-5 top-0 h-1 rounded-b-full opacity-80 ${style.accent}`} />}
       <div className={`rounded-full p-1.5 shadow-sm ring-4 transition-transform group-hover:scale-110 ${style.icon}`}>
