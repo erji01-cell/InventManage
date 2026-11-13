@@ -17,6 +17,12 @@
 
 ---
 
+## 2026-11-13 10:51（職場）Claude Code / Opus 5.5
+- **作業内容**: `git pull origin main` を実行（既に最新）。あわせて、11/09 職場で実施しログ未記入だった作業を記録: 資産の編集画面に「分類を削除」を追加。資産・品目で使用中の分類は画面とDBの両方で確認して削除を拒否。分類のDELETEポリシーSQLを作成し、ユーザーが本番で実行済み（コミット `feat: 未使用の分類を削除できるようにする`）。
+- **変更ファイル**: 今回は AGENT_LOG.md のみ（11/09分: InventManage.jsx, screens/AssetMasterScreen.jsx, outputs/supabase_migration/add_categories_delete_policy.sql）
+- **検証結果**: 11/09分はビルド成功。ログインが必要なため、実画面での削除操作はこちらでは未確認。
+- **次の課題 / 残タスク**: 実画面で分類の削除が動くか、ユーザーの確認結果は未報告。
+
 ## 2026-11-12 11:52（職場）Codex / GPT-6
 - **作業内容**: 起動時はメニューを先に表示し、発注未完了件数だけを取得。発注明細は一覧を開いたときに取得し、在庫を使う画面は計算に必要な読み込みの完了を待つ。自動バックアップは初期取得の後に開始し、全期間の保存内容と保存ルールを維持。
 - **変更ファイル**: InventManage.jsx, lib/supabase.js, screens/MenuScreen.jsx, tests/startup-preview.html, AGENT_LOG.md。
