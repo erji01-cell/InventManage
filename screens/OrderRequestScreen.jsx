@@ -102,6 +102,7 @@ export default function OrderRequestScreen({
   const [showPrintModal, setShowPrintModal] = useState(false);
   const [orderSheetSupplier, setOrderSheetSupplier] = useState(null);
   const [supplierSheetDate, setSupplierSheetDate] = useState('');
+  const [supplierSheetMemo, setSupplierSheetMemo] = useState('');
   const [printError, setPrintError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [busyOrderId, setBusyOrderId] = useState('');
@@ -431,6 +432,8 @@ export default function OrderRequestScreen({
       .sort();
     if (dates.length === 0) return;
     setSupplierSheetDate(dates.at(-1));
+    // 前回の別の取引先宛てのメッセージが残らないよう、開くたびに空にする
+    setSupplierSheetMemo('');
     setOrderSheetSupplier(supplier);
   };
 
@@ -530,6 +533,9 @@ export default function OrderRequestScreen({
         .supplier-order-sheet thead th { border-top: 1.25px solid #334155 !important; }
         .supplier-order-sheet tr > :first-child { border-left: 1.25px solid #334155 !important; }
         .supplier-order-sheet td { overflow-wrap: anywhere; }
+        .supplier-order-memo { margin-top: 6mm; border: 1.25px solid #334155; padding: 3mm 4mm; break-inside: avoid; page-break-inside: avoid; }
+        .supplier-order-memo p { margin: 0; }
+        .supplier-order-memo p + p { margin-top: 1.5mm; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 10pt; color: #111111; }
         .supplier-order-sheet tbody td {
           color: #111111 !important;
           font-size: 10pt !important;
@@ -1078,6 +1084,17 @@ export default function OrderRequestScreen({
                   ))}
                 </select>
               </label>
+              <label className="mt-4 block">
+                <span className="mb-2 block text-xs font-bold text-slate-500">先方へのメッセージ（任意・注文書の下に印字）</span>
+                <textarea
+                  value={supplierSheetMemo}
+                  onChange={(event) => setSupplierSheetMemo(event.target.value)}
+                  rows={3}
+                  maxLength={500}
+                  placeholder="例: 急ぎでお願いします。納品は午前中にお願いします。"
+                  className="w-full rounded-md border border-amber-300 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
+                />
+              </label>
             </div>
             <div className="overflow-auto p-6">
               <div ref={supplierSheetContentRef} className="supplier-order-sheet mx-auto max-w-[176mm] text-slate-900">
@@ -1115,6 +1132,12 @@ export default function OrderRequestScreen({
                     })}
                   </tbody>
                 </table>
+                {supplierSheetMemo.trim() && (
+                  <div className="supplier-order-memo mt-6 border border-slate-500 px-3 py-2">
+                    <p className="mb-1 text-sm font-bold">備考</p>
+                    <p className="whitespace-pre-wrap break-words text-sm">{supplierSheetMemo.trim()}</p>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex justify-end gap-3 border-t border-slate-200 bg-white px-6 py-4">
