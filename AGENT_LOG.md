@@ -17,6 +17,12 @@
 
 ---
 
+## 2026-11-18 11:21（職場）Codex / GPT-6
+- **作業内容**: 入出庫データ詳細の資産検索欄の下に、選択した資産のメーカー名をラベル付きの太字で追加。資産の選択変更に追従し、未設定の場合は「-」を表示する。
+- **変更ファイル**: screens/MovementHistoryScreen.jsx, AGENT_LOG.md。
+- **検証結果**: ビルド・差分チェック成功。模擬データの詳細画面でメーカー名とレイアウトをブラウザ確認。
+- **次の課題 / 残タスク**: なし。
+
 ## 2026-11-13 10:51（職場）Claude Code / Opus 5.5
 - **作業内容**: `git pull origin main` を実行（既に最新）。あわせて、11/09 職場で実施しログ未記入だった作業を記録: 資産の編集画面に「分類を削除」を追加。資産・品目で使用中の分類は画面とDBの両方で確認して削除を拒否。分類のDELETEポリシーSQLを作成し、ユーザーが本番で実行済み（コミット `feat: 未使用の分類を削除できるようにする`）。
 - **変更ファイル**: 今回は AGENT_LOG.md のみ（11/09分: InventManage.jsx, screens/AssetMasterScreen.jsx, outputs/supabase_migration/add_categories_delete_policy.sql）

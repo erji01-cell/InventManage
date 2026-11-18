@@ -880,6 +880,10 @@ ${summaryHTML}
                         )}
                       </div>
                     </label>
+                    <p className="mt-3 flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
+                      <span className="font-bold text-slate-500">メーカー</span>
+                      <span className="min-w-0 break-words font-bold text-slate-900">{editingAsset?.maker || '-'}</span>
+                    </p>
                   </div>
 
                   <div className="mt-4 grid grid-cols-1 gap-3 text-sm md:grid-cols-12">
